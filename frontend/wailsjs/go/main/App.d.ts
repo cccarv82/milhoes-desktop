@@ -10,6 +10,8 @@ export function CheckForUpdates():Promise<updater.UpdateInfo>;
 
 export function CheckGameResult(arg1:string):Promise<Record<string, any>>;
 
+export function ClearOldLogs():Promise<Record<string, any>>;
+
 export function DebugConfig():Promise<Record<string, any>>;
 
 export function DebugConfigPath():Promise<Record<string, any>>;
@@ -24,11 +26,15 @@ export function GenerateStrategy(arg1:main.UserPreferences):Promise<main.Strateg
 
 export function GetAppInfo():Promise<Record<string, any>>;
 
-export function GetCurrentConfig():Promise<main.ConfigData>;
+export function GetCurrentConfig():Promise<Record<string, any>>;
 
 export function GetCurrentVersion():Promise<string>;
 
 export function GetDefaultConfig():Promise<main.ConfigData>;
+
+export function GetLogContent(arg1:string):Promise<Record<string, any>>;
+
+export function GetLogFiles():Promise<Record<string, any>>;
 
 export function GetNextDraws():Promise<Record<string, any>>;
 
@@ -38,9 +44,13 @@ export function GetSavedGamesStats():Promise<Record<string, any>>;
 
 export function GetStatistics():Promise<Record<string, any>>;
 
+export function GetTodayLogContent():Promise<Record<string, any>>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function InstallUpdate(arg1:updater.UpdateInfo):Promise<void>;
+
+export function OpenLogDirectory():Promise<Record<string, any>>;
 
 export function SaveConfig(arg1:main.ConfigData):Promise<Record<string, any>>;
 

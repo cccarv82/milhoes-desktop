@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"io"
-	"log"
 	"lottery-optimizer-gui/internal/ai"
 	"lottery-optimizer-gui/internal/config"
 	"lottery-optimizer-gui/internal/data"
@@ -25,7 +23,43 @@ var (
 	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
 	logFile *os.File
 	logDir  string
+	customLogger *CustomLogger
 )
+
+// CustomLogger - Logger personalizado que garante escrita em arquivo
+type CustomLogger struct {
+	file *os.File
+}
+
+// Printf escreve tanto no console quanto no arquivo com flush imediato
+func (cl *CustomLogger) Printf(format string, args ...interface{}) {
+	message := fmt.Sprintf(format, args...)
+	if !strings.HasSuffix(message, "\n") {
+		message += "\n"
+	}
+	
+	timestamp := time.Now().Format("2006/01/02 15:04:05.000000")
+	fullMessage := fmt.Sprintf("%s %s", timestamp, message)
+	
+	// Escrever no console
+	fmt.Print(fullMessage)
+	
+	// Escrever no arquivo
+	if cl.file != nil {
+		cl.file.WriteString(fullMessage)
+		cl.file.Sync() // Flush imediato para garantir escrita
+	}
+}
+
+// Close fecha o arquivo de log
+func (cl *CustomLogger) Close() {
+	if cl.file != nil {
+		cl.Printf("🚀 =================================")
+		cl.Printf("🚀 LOTTERY OPTIMIZER FINALIZADO")
+		cl.Printf("🚀 =================================")
+		cl.file.Close()
+	}
+}
 
 // App struct - Bridge entre Frontend e Backend
 type App struct {
@@ -43,13 +77,13 @@ func NewApp() *App {
 	fmt.Println("🚀 Iniciando Lottery Optimizer...")
 	fmt.Printf("🚀 Versão: %s\n", version)
 	
-	if err := initFileLogging(); err != nil {
+	if err := initCustomLogging(); err != nil {
 		fmt.Printf("⚠️ Erro ao inicializar logging em arquivo: %v\n", err)
 		fmt.Println("⚠️ Continuando sem logging em arquivo - apenas console")
 	} else {
 		fmt.Println("✅ Sistema de logging em arquivo inicializado com sucesso!")
 		// Teste adicional após inicialização
-		log.Printf("🧪 TESTE PÓS-INICIALIZAÇÃO - NewApp iniciado com logging funcional")
+		customLogger.Printf("🧪 TESTE PÓS-INICIALIZAÇÃO - NewApp iniciado com logging funcional")
 	}
 
 	dataClient := data.NewClient()
@@ -58,7 +92,7 @@ func NewApp() *App {
 	// Usar diretório absoluto baseado no executável
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Printf("Erro ao obter caminho do executável: %v", err)
+		customLogger.Printf("Erro ao obter caminho do executável: %v", err)
 		execPath, _ = os.Getwd() // Fallback para diretório atual
 	}
 
@@ -67,36 +101,36 @@ func NewApp() *App {
 
 	// Criar diretório se não existir com permissões adequadas
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		log.Printf("❌ Erro ao criar diretório de dados (%s): %v", dataDir, err)
+		customLogger.Printf("❌ Erro ao criar diretório de dados (%s): %v", dataDir, err)
 	}
 
-	log.Printf("📁 Inicializando banco de dados em: %s", dbPath)
+	customLogger.Printf("📁 Inicializando banco de dados em: %s", dbPath)
 
 	savedGamesDB, err := database.NewSavedGamesDB(dbPath)
 	if err != nil {
-		log.Printf("❌ ERRO ao inicializar banco de jogos salvos: %v", err)
-		log.Printf("   📂 Diretório: %s", dataDir)
-		log.Printf("   💾 Arquivo DB: %s", dbPath)
+		customLogger.Printf("❌ ERRO ao inicializar banco de jogos salvos: %v", err)
+		customLogger.Printf("   📂 Diretório: %s", dataDir)
+		customLogger.Printf("   💾 Arquivo DB: %s", dbPath)
 
 		// Verificar se o diretório existe
 		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-			log.Printf("   ⚠️  Diretório não existe: %s", dataDir)
+			customLogger.Printf("   ⚠️  Diretório não existe: %s", dataDir)
 		} else {
-			log.Printf("   ✅ Diretório existe: %s", dataDir)
+			customLogger.Printf("   ✅ Diretório existe: %s", dataDir)
 		}
 
 		// Verificar permissões
 		if file, err := os.OpenFile(filepath.Join(dataDir, "test_write.tmp"), os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-			log.Printf("   ❌ Sem permissão de escrita no diretório: %v", err)
+			customLogger.Printf("   ❌ Sem permissão de escrita no diretório: %v", err)
 		} else {
 			file.Close()
 			os.Remove(filepath.Join(dataDir, "test_write.tmp"))
-			log.Printf("   ✅ Permissão de escrita OK")
+			customLogger.Printf("   ✅ Permissão de escrita OK")
 		}
 
 		savedGamesDB = nil // Garantir que seja nil em caso de erro
 	} else {
-		log.Printf("✅ Banco de jogos salvos inicializado com sucesso!")
+		customLogger.Printf("✅ Banco de jogos salvos inicializado com sucesso!")
 	}
 
 	// Inicializar verificador de resultados usando o dataClient existente
@@ -105,9 +139,9 @@ func NewApp() *App {
 		resultChecker = services.NewResultChecker(dataClient, savedGamesDB)
 		// Iniciar verificação automática
 		resultChecker.ScheduleAutoCheck()
-		log.Printf("✅ Verificador de resultados inicializado e agendado!")
+		customLogger.Printf("✅ Verificador de resultados inicializado e agendado!")
 	} else {
-		log.Printf("⚠️  Verificador de resultados não inicializado (banco indisponível)")
+		customLogger.Printf("⚠️  Verificador de resultados não inicializado (banco indisponível)")
 	}
 
 	return &App{
@@ -130,14 +164,14 @@ func (a *App) startup(ctx context.Context) {
 	// Verificar atualizações após 30 segundos (não bloqueante)
 	go func() {
 		time.Sleep(30 * time.Second)
-		log.Println("🔄 Verificando atualizações na inicialização...")
+		customLogger.Printf("🔄 Verificando atualizações na inicialização...")
 		updateInfo, err := a.CheckForUpdates()
 		if err != nil {
-			log.Printf("❌ Erro ao verificar atualizações: %v", err)
+			customLogger.Printf("❌ Erro ao verificar atualizações: %v", err)
 		} else if updateInfo != nil && updateInfo.Available {
-			log.Printf("🎉 Nova versão disponível: %s -> %s", version, updateInfo.Version)
+			customLogger.Printf("🎉 Nova versão disponível: %s -> %s", version, updateInfo.Version)
 		} else {
-			log.Println("✅ App atualizado - versão mais recente já instalada")
+			customLogger.Printf("✅ App atualizado - versão mais recente já instalada")
 		}
 	}()
 }
@@ -187,88 +221,88 @@ type ConfigData struct {
 func getConfigPath() (string, error) {
 	configFileName := "lottery-optimizer.yaml"
 	
-	log.Printf("🔍 getConfigPath iniciado - procurando por: %s", configFileName)
+	customLogger.Printf("🔍 getConfigPath iniciado - procurando por: %s", configFileName)
 	
 	// ESTRATÉGIA 1: Diretório de dados do usuário (APPDATA no Windows)
 	userConfigDir, err := os.UserConfigDir()
-	log.Printf("📁 ESTRATÉGIA 1 - UserConfigDir: %s, err: %v", userConfigDir, err)
+	customLogger.Printf("📁 ESTRATÉGIA 1 - UserConfigDir: %s, err: %v", userConfigDir, err)
 	
 	if err == nil {
 		appDataDir := filepath.Join(userConfigDir, "lottery-optimizer")
 		appDataConfigPath := filepath.Join(appDataDir, configFileName)
 		
-		log.Printf("📁 Tentando APPDATA: %s", appDataConfigPath)
+		customLogger.Printf("📁 Tentando APPDATA: %s", appDataConfigPath)
 		
 		// Criar diretório se não existir
 		if err := os.MkdirAll(appDataDir, 0755); err == nil {
-			log.Printf("✅ Diretório APPDATA criado/existe: %s", appDataDir)
+			customLogger.Printf("✅ Diretório APPDATA criado/existe: %s", appDataDir)
 			
 			// Verificar se pode escrever
 			testFile := filepath.Join(appDataDir, "write_test.tmp")
 			if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
 				os.Remove(testFile)
-				log.Printf("✅ APPDATA é writável - usando: %s", appDataConfigPath)
+				customLogger.Printf("✅ APPDATA é writável - usando: %s", appDataConfigPath)
 				
 				// MIGRAÇÃO AUTOMÁTICA: Se arquivo existe no diretório do executável, copiar para APPDATA
 				if _, err := os.Stat(appDataConfigPath); os.IsNotExist(err) {
-					log.Printf("🔍 Arquivo não existe em APPDATA, verificando migração...")
+					customLogger.Printf("🔍 Arquivo não existe em APPDATA, verificando migração...")
 					if exePath, err := os.Executable(); err == nil {
 						oldConfigPath := filepath.Join(filepath.Dir(exePath), configFileName)
-						log.Printf("🔍 Verificando arquivo antigo em: %s", oldConfigPath)
+						customLogger.Printf("🔍 Verificando arquivo antigo em: %s", oldConfigPath)
 						if _, err := os.Stat(oldConfigPath); err == nil {
-							log.Printf("📁 Arquivo encontrado no local antigo, migrando...")
+							customLogger.Printf("📁 Arquivo encontrado no local antigo, migrando...")
 							if content, err := os.ReadFile(oldConfigPath); err == nil {
 								if err := os.WriteFile(appDataConfigPath, content, 0644); err == nil {
-									log.Printf("🔄 Migração automática CONCLUÍDA: %s -> %s", oldConfigPath, appDataConfigPath)
+									customLogger.Printf("🔄 Migração automática CONCLUÍDA: %s -> %s", oldConfigPath, appDataConfigPath)
 								} else {
-									log.Printf("❌ Erro na migração - escrita: %v", err)
+									customLogger.Printf("❌ Erro na migração - escrita: %v", err)
 								}
 							} else {
-								log.Printf("❌ Erro na migração - leitura: %v", err)
+								customLogger.Printf("❌ Erro na migração - leitura: %v", err)
 							}
 						} else {
-							log.Printf("📁 Arquivo antigo não encontrado em: %s", oldConfigPath)
+							customLogger.Printf("📁 Arquivo antigo não encontrado em: %s", oldConfigPath)
 						}
 					}
 				} else {
-					log.Printf("✅ Arquivo já existe em APPDATA")
+					customLogger.Printf("✅ Arquivo já existe em APPDATA")
 				}
 				
 				return appDataConfigPath, nil
 			} else {
-				log.Printf("❌ APPDATA não é writável: %v", err)
+				customLogger.Printf("❌ APPDATA não é writável: %v", err)
 			}
 		} else {
-			log.Printf("❌ Erro ao criar diretório APPDATA: %v", err)
+			customLogger.Printf("❌ Erro ao criar diretório APPDATA: %v", err)
 		}
 	}
 	
 	// ESTRATÉGIA 2: Diretório do executável (fallback)
-	log.Printf("🔍 ESTRATÉGIA 2 - Tentando diretório do executável...")
+	customLogger.Printf("🔍 ESTRATÉGIA 2 - Tentando diretório do executável...")
 	exePath, err := os.Executable()
 	if err != nil {
-		log.Printf("❌ Erro ao obter caminho do executável: %v", err)
-		log.Printf("🔍 ESTRATÉGIA 3 - Usando diretório atual como último recurso")
+		customLogger.Printf("❌ Erro ao obter caminho do executável: %v", err)
+		customLogger.Printf("🔍 ESTRATÉGIA 3 - Usando diretório atual como último recurso")
 		return configFileName, err // Fallback para diretório atual
 	}
 	
 	exeDir := filepath.Dir(exePath)
 	exeConfigPath := filepath.Join(exeDir, configFileName)
 	
-	log.Printf("📁 Testando diretório do executável: %s", exeConfigPath)
+	customLogger.Printf("📁 Testando diretório do executável: %s", exeConfigPath)
 	
 	// Verificar se pode escrever no diretório do executável
 	testFile := filepath.Join(exeDir, "write_test.tmp")
 	if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
 		os.Remove(testFile)
-		log.Printf("⚠️ USANDO diretório do executável (fallback): %s", exeConfigPath)
+		customLogger.Printf("⚠️ USANDO diretório do executável (fallback): %s", exeConfigPath)
 		return exeConfigPath, nil
 	} else {
-		log.Printf("❌ Diretório do executável não é writável: %v", err)
+		customLogger.Printf("❌ Diretório do executável não é writável: %v", err)
 	}
 	
 	// ESTRATÉGIA 3: Diretório atual (último recurso)
-	log.Printf("⚠️ USANDO diretório atual (último recurso): %s", configFileName)
+	customLogger.Printf("⚠️ USANDO diretório atual (último recurso): %s", configFileName)
 	return configFileName, nil
 }
 
@@ -416,9 +450,9 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 
 	// Debug: mostrar quantos jogos a IA gerou
 	if config.IsVerbose() {
-		log.Printf("🎯 IA gerou %d jogos com custo total R$ %.2f", len(response.Strategy.Games), response.Strategy.TotalCost)
+		customLogger.Printf("🎯 IA gerou %d jogos com custo total R$ %.2f", len(response.Strategy.Games), response.Strategy.TotalCost)
 		for i, game := range response.Strategy.Games {
-			log.Printf("   Jogo %d: %s - %v - R$ %.2f", i+1, game.Type, game.Numbers, game.Cost)
+			customLogger.Printf("   Jogo %d: %s - %v - R$ %.2f", i+1, game.Type, game.Numbers, game.Cost)
 		}
 	}
 
@@ -427,7 +461,7 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 
 	// Debug: mostrar jogos após "validação"
 	if config.IsVerbose() {
-		log.Printf("✅ Após validação: %d jogos com custo total R$ %.2f", len(validatedStrategy.Games), validatedStrategy.TotalCost)
+		customLogger.Printf("✅ Após validação: %d jogos com custo total R$ %.2f", len(validatedStrategy.Games), validatedStrategy.TotalCost)
 	}
 
 	// Converter loterias falhas para strings
@@ -510,11 +544,11 @@ func (a *App) Greet(name string) string {
 // GetCurrentConfig retorna a configuração atual
 func (a *App) GetCurrentConfig() map[string]interface{} {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000000")
-	log.Printf("📖 [%s] GetCurrentConfig INICIADO", timestamp)
+	customLogger.Printf("📖 [%s] GetCurrentConfig INICIADO", timestamp)
 	
 	configPath, err := getConfigPath()
 	if err != nil {
-		log.Printf("❌ [%s] GetCurrentConfig: Erro ao determinar caminho: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] GetCurrentConfig: Erro ao determinar caminho: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -522,11 +556,11 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		}
 	}
 	
-	log.Printf("📁 [%s] GetCurrentConfig: Tentando ler arquivo: %s", timestamp, configPath)
+	customLogger.Printf("📁 [%s] GetCurrentConfig: Tentando ler arquivo: %s", timestamp, configPath)
 	
 	// Verificar se arquivo existe
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Printf("⚠️ [%s] GetCurrentConfig: Arquivo não existe, retornando configuração padrão", timestamp)
+		customLogger.Printf("⚠️ [%s] GetCurrentConfig: Arquivo não existe, retornando configuração padrão", timestamp)
 		flushLogs()
 		return map[string]interface{}{
 			"exists":        false,
@@ -538,12 +572,12 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		}
 	}
 	
-	log.Printf("✅ [%s] GetCurrentConfig: Arquivo existe, lendo conteúdo...", timestamp)
+	customLogger.Printf("✅ [%s] GetCurrentConfig: Arquivo existe, lendo conteúdo...", timestamp)
 	
 	// Ler arquivo
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Printf("❌ [%s] GetCurrentConfig: Erro ao ler arquivo: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] GetCurrentConfig: Erro ao ler arquivo: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -551,7 +585,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		}
 	}
 	
-	log.Printf("📝 [%s] GetCurrentConfig: Arquivo lido (%d bytes):\n%s", timestamp, len(data), string(data))
+	customLogger.Printf("📝 [%s] GetCurrentConfig: Arquivo lido (%d bytes):\n%s", timestamp, len(data), string(data))
 	
 	// Parse YAML
 	var configStruct struct {
@@ -567,7 +601,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 	}
 	
 	if err := yaml.Unmarshal(data, &configStruct); err != nil {
-		log.Printf("❌ [%s] GetCurrentConfig: Erro ao fazer parse do YAML: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] GetCurrentConfig: Erro ao fazer parse do YAML: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -575,7 +609,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		}
 	}
 	
-	log.Printf("✅ [%s] GetCurrentConfig: Parse realizado - APIKey length=%d, Model=%s", 
+	customLogger.Printf("✅ [%s] GetCurrentConfig: Parse realizado - APIKey length=%d, Model=%s", 
 		timestamp, len(configStruct.Claude.APIKey), configStruct.Claude.Model)
 	
 	// Atualizar configuração global se a chave estiver definida
@@ -584,7 +618,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		config.GlobalConfig.Claude.Model = configStruct.Claude.Model
 		config.GlobalConfig.Claude.MaxTokens = configStruct.Claude.MaxTokens
 		config.GlobalConfig.Claude.TimeoutSec = configStruct.Claude.TimeoutSec
-		log.Printf("✅ [%s] GetCurrentConfig: GlobalConfig atualizado", timestamp)
+		customLogger.Printf("✅ [%s] GetCurrentConfig: GlobalConfig atualizado", timestamp)
 	}
 	
 	result := map[string]interface{}{
@@ -601,7 +635,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		},
 	}
 	
-	log.Printf("✅ [%s] GetCurrentConfig: Retornando configuração - APIKey presente: %t", 
+	customLogger.Printf("✅ [%s] GetCurrentConfig: Retornando configuração - APIKey presente: %t", 
 		timestamp, configStruct.Claude.APIKey != "")
 	
 	flushLogs()
@@ -612,12 +646,12 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 // SaveConfig salva a configuração
 func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000000")
-	log.Printf("🔧 [%s] SaveConfig INICIADO - Dados recebidos: APIKey length=%d, Model=%s", 
+	customLogger.Printf("🔧 [%s] SaveConfig INICIADO - Dados recebidos: APIKey length=%d, Model=%s", 
 		timestamp, len(configData.ClaudeAPIKey), configData.ClaudeModel)
 	
 	// Validar dados
 	if configData.ClaudeAPIKey == "" {
-		log.Printf("❌ [%s] Erro: Chave da API do Claude é obrigatória", timestamp)
+		customLogger.Printf("❌ [%s] Erro: Chave da API do Claude é obrigatória", timestamp)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -626,7 +660,7 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	}
 
 	if configData.TimeoutSec < 10 || configData.TimeoutSec > 300 {
-		log.Printf("❌ [%s] Erro: Timeout inválido: %d", timestamp, configData.TimeoutSec)
+		customLogger.Printf("❌ [%s] Erro: Timeout inválido: %d", timestamp, configData.TimeoutSec)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -653,11 +687,11 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	configStruct.Claude.MaxTokens = configData.MaxTokens
 	configStruct.Claude.TimeoutSec = configData.TimeoutSec
 
-	log.Printf("📦 [%s] Estrutura de configuração criada - APIKey length=%d", timestamp, len(configStruct.Claude.APIKey))
+	customLogger.Printf("📦 [%s] Estrutura de configuração criada - APIKey length=%d", timestamp, len(configStruct.Claude.APIKey))
 
 	configPath, err := getConfigPath()
 	if err != nil {
-		log.Printf("❌ [%s] Erro ao determinar caminho da configuração: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] Erro ao determinar caminho da configuração: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -665,14 +699,14 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 		}
 	}
 	
-	log.Printf("📁 [%s] Caminho da configuração: %s", timestamp, configPath)
+	customLogger.Printf("📁 [%s] Caminho da configuração: %s", timestamp, configPath)
 	configDir := filepath.Dir(configPath)
-	log.Printf("📁 [%s] Diretório da configuração: %s", timestamp, configDir)
+	customLogger.Printf("📁 [%s] Diretório da configuração: %s", timestamp, configDir)
 	
 	// Verificar se diretório é writável
 	testPath := filepath.Join(configDir, "write_test_temp.txt")
 	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
-		log.Printf("❌ [%s] Diretório não é writável: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] Diretório não é writável: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -680,12 +714,12 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 		}
 	}
 	os.Remove(testPath)
-	log.Printf("✅ [%s] Diretório é writável", timestamp)
+	customLogger.Printf("✅ [%s] Diretório é writável", timestamp)
 	
 	// Serializar para YAML
 	yamlData, err := yaml.Marshal(configStruct)
 	if err != nil {
-		log.Printf("❌ [%s] Erro ao serializar configuração: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] Erro ao serializar configuração: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -693,11 +727,11 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 		}
 	}
 	
-	log.Printf("📝 [%s] YAML gerado (%d bytes):\n%s", timestamp, len(yamlData), string(yamlData))
+	customLogger.Printf("📝 [%s] YAML gerado (%d bytes):\n%s", timestamp, len(yamlData), string(yamlData))
 	
 	// Salvar arquivo
 	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
-		log.Printf("❌ [%s] Erro ao salvar arquivo: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] Erro ao salvar arquivo: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
@@ -705,18 +739,18 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 		}
 	}
 	
-	log.Printf("✅ [%s] Arquivo salvo com sucesso", timestamp)
+	customLogger.Printf("✅ [%s] Arquivo salvo com sucesso", timestamp)
 	
 	// Verificar se arquivo foi realmente salvo lendo de volta
 	if savedContent, err := os.ReadFile(configPath); err != nil {
-		log.Printf("❌ [%s] Erro ao verificar arquivo salvo: %v", timestamp, err)
+		customLogger.Printf("❌ [%s] Erro ao verificar arquivo salvo: %v", timestamp, err)
 		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao verificar arquivo salvo: " + err.Error(),
 		}
 	} else {
-		log.Printf("✅ [%s] Verificação: arquivo contém %d bytes", timestamp, len(savedContent))
+		customLogger.Printf("✅ [%s] Verificação: arquivo contém %d bytes", timestamp, len(savedContent))
 		
 		// Parse de volta para verificar
 		var verifyStruct struct {
@@ -726,9 +760,9 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 		}
 		
 		if err := yaml.Unmarshal(savedContent, &verifyStruct); err != nil {
-			log.Printf("❌ [%s] Erro ao verificar YAML salvo: %v", timestamp, err)
+			customLogger.Printf("❌ [%s] Erro ao verificar YAML salvo: %v", timestamp, err)
 		} else {
-			log.Printf("✅ [%s] Verificação: chave salva tem %d caracteres", timestamp, len(verifyStruct.Claude.APIKey))
+			customLogger.Printf("✅ [%s] Verificação: chave salva tem %d caracteres", timestamp, len(verifyStruct.Claude.APIKey))
 		}
 	}
 
@@ -738,13 +772,13 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	config.GlobalConfig.Claude.MaxTokens = configData.MaxTokens
 	config.GlobalConfig.Claude.TimeoutSec = configData.TimeoutSec
 
-	log.Printf("✅ [%s] GlobalConfig atualizado", timestamp)
+	customLogger.Printf("✅ [%s] GlobalConfig atualizado", timestamp)
 
 	// Recriar clientes com nova configuração
 	a.aiClient = ai.NewClaudeClient()
 	a.dataClient = data.NewClient()
 
-	log.Printf("✅ [%s] Clientes recriados", timestamp)
+	customLogger.Printf("✅ [%s] Clientes recriados", timestamp)
 	
 	// Flush final para garantir que tudo foi escrito
 	flushLogs()
@@ -943,12 +977,13 @@ func (a *App) DownloadUpdate(updateInfo *updater.UpdateInfo) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Progress callback pode ser implementado para mostrar progresso no frontend
-	return a.updater.DownloadUpdate(ctx, updateInfo, func(downloaded, total int64) {
-		// Implementar callback de progresso se necessário
-		log.Printf("Download: %d/%d bytes (%.2f%%)",
+	// Callback para progresso de download
+	progressCallback := func(downloaded, total int64) {
+		customLogger.Printf("Download: %d/%d bytes (%.2f%%)",
 			downloaded, total, float64(downloaded)/float64(total)*100)
-	})
+	}
+
+	return a.updater.DownloadUpdate(ctx, updateInfo, progressCallback)
 }
 
 // InstallUpdate instala a atualização baixada
@@ -963,25 +998,23 @@ func (a *App) GetCurrentVersion() string {
 
 // ScheduleUpdateCheck agenda verificação automática de atualizações
 func (a *App) ScheduleUpdateCheck() {
-	if a.updater == nil {
-		log.Println("❌ Updater não inicializado - auto-update desabilitado")
-		return
-	}
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour) // Verificar a cada 24 horas
+		defer ticker.Stop()
 
-	log.Println("⏰ Iniciando verificação automática de atualizações (a cada 6 horas)")
-
-	// Usar callback do updater para verificação automática
-	a.updater.ScheduleUpdateCheck(6*time.Hour, func(updateInfo *updater.UpdateInfo, err error) {
-		if err != nil {
-			log.Printf("❌ Erro na verificação automática de updates: %v", err)
-		} else if updateInfo != nil && updateInfo.Available {
-			log.Printf("🚀 NOVA VERSÃO DISPONÍVEL: %s -> %s", version, updateInfo.Version)
-			log.Printf("📦 Download: %s", updateInfo.DownloadURL)
-			// Aqui você poderia implementar notificação para o usuário
-		} else {
-			log.Println("✅ Auto-update check: aplicativo já está na versão mais recente")
+		for {
+			select {
+			case <-ticker.C:
+				updateInfo, err := a.CheckForUpdates()
+				if err != nil {
+					customLogger.Printf("❌ Erro na verificação automática de updates: %v", err)
+				} else if updateInfo != nil && updateInfo.Available {
+					customLogger.Printf("🚀 NOVA VERSÃO DISPONÍVEL: %s -> %s", version, updateInfo.Version)
+					customLogger.Printf("📦 Download: %s", updateInfo.DownloadURL)
+				}
+			}
 		}
-	})
+	}()
 }
 
 // ===============================
@@ -1362,7 +1395,7 @@ func (a *App) ClearOldLogs() map[string]interface{} {
 				if info.ModTime().Before(cutoff) {
 					if err := os.Remove(filePath); err == nil {
 						removedFiles = append(removedFiles, file.Name())
-						log.Printf("🗑️ Log antigo removido: %s", file.Name())
+						customLogger.Printf("🗑️ Log antigo removido: %s", file.Name())
 					}
 				}
 			}
@@ -1381,8 +1414,8 @@ func (a *App) ClearOldLogs() map[string]interface{} {
 // SISTEMA DE LOGGING EM ARQUIVO
 // ===============================
 
-// initFileLogging inicializa o sistema de logging em arquivo
-func initFileLogging() error {
+// initCustomLogging inicializa o sistema de logging em arquivo
+func initCustomLogging() error {
 	// Determinar diretório de logs
 	exePath, err := os.Executable()
 	if err != nil {
@@ -1418,24 +1451,19 @@ func initFileLogging() error {
 
 	fmt.Printf("✅ Arquivo de log aberto com sucesso\n")
 
-	// Configurar logger para escrever tanto no console quanto no arquivo
-	multiWriter := io.MultiWriter(os.Stdout, logFile)
-	log.SetOutput(multiWriter)
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	// Criar logger personalizado
+	customLogger = &CustomLogger{file: logFile}
 
 	// TESTE IMEDIATO - escrever logs para verificar
 	fmt.Printf("🧪 Testando log no console...\n")
 	
 	// Log inicial
-	log.Printf("🚀 =================================")
-	log.Printf("🚀 LOTTERY OPTIMIZER v%s INICIADO", version)
-	log.Printf("🚀 =================================")
-	log.Printf("📁 Diretório de logs: %s", logDir)
-	log.Printf("📝 Arquivo de log: %s", logFilePath)
-	log.Printf("🧪 TESTE DE LOGGING - Se você está vendo isso, o sistema funciona!")
-	
-	// FORÇAR FLUSH do buffer
-	logFile.Sync()
+	customLogger.Printf("🚀 =================================")
+	customLogger.Printf("🚀 LOTTERY OPTIMIZER %s INICIADO", version)
+	customLogger.Printf("🚀 =================================")
+	customLogger.Printf("📁 Diretório de logs: %s", logDir)
+	customLogger.Printf("📝 Arquivo de log: %s", logFilePath)
+	customLogger.Printf("🧪 TESTE DE LOGGING - Se você está vendo isso, o sistema funciona!")
 
 	fmt.Printf("✅ Logs iniciais escritos e sincronizados\n")
 
@@ -1445,42 +1473,42 @@ func initFileLogging() error {
 	return nil
 }
 
-// rotateLogFiles remove logs antigos (mais de 7 dias)
+// rotateLogFiles remove logs antigos (manter últimos 7 dias)
 func rotateLogFiles() {
+	if logDir == "" {
+		return
+	}
+
 	files, err := os.ReadDir(logDir)
 	if err != nil {
-		log.Printf("❌ Erro ao ler diretório de logs: %v", err)
+		customLogger.Printf("❌ Erro ao ler diretório de logs: %v", err)
 		return
 	}
 
 	cutoff := time.Now().AddDate(0, 0, -7) // 7 dias atrás
+
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), "lottery-optimizer-") && strings.HasSuffix(file.Name(), ".log") {
-			filePath := filepath.Join(logDir, file.Name())
-			if info, err := file.Info(); err == nil {
-				if info.ModTime().Before(cutoff) {
-					os.Remove(filePath)
-					log.Printf("🗑️ Log antigo removido: %s", file.Name())
+			if info, err := file.Info(); err == nil && info.ModTime().Before(cutoff) {
+				logPath := filepath.Join(logDir, file.Name())
+				if err := os.Remove(logPath); err == nil {
+					customLogger.Printf("🗑️ Log antigo removido: %s", file.Name())
 				}
 			}
 		}
 	}
 }
 
-// flushLogs força a escrita dos logs para o arquivo
+// flushLogs força a sincronização dos logs para o disco
 func flushLogs() {
-	if logFile != nil {
-		logFile.Sync()
+	if customLogger != nil && customLogger.file != nil {
+		customLogger.file.Sync()
 	}
 }
 
 // closeFileLogging fecha o arquivo de log
 func closeFileLogging() {
-	if logFile != nil {
-		log.Printf("🚀 =================================")
-		log.Printf("🚀 LOTTERY OPTIMIZER FINALIZADO")
-		log.Printf("🚀 =================================")
-		flushLogs() // Garantir que tudo foi escrito
-		logFile.Close()
+	if customLogger != nil {
+		customLogger.Close()
 	}
 }

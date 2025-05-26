@@ -14,6 +14,10 @@ export function CheckGameResult(arg1) {
   return window['go']['main']['App']['CheckGameResult'](arg1);
 }
 
+export function ClearOldLogs() {
+  return window['go']['main']['App']['ClearOldLogs']();
+}
+
 export function DebugConfig() {
   return window['go']['main']['App']['DebugConfig']();
 }
@@ -54,6 +58,14 @@ export function GetDefaultConfig() {
   return window['go']['main']['App']['GetDefaultConfig']();
 }
 
+export function GetLogContent(arg1) {
+  return window['go']['main']['App']['GetLogContent'](arg1);
+}
+
+export function GetLogFiles() {
+  return window['go']['main']['App']['GetLogFiles']();
+}
+
 export function GetNextDraws() {
   return window['go']['main']['App']['GetNextDraws']();
 }
@@ -70,12 +82,20 @@ export function GetStatistics() {
   return window['go']['main']['App']['GetStatistics']();
 }
 
+export function GetTodayLogContent() {
+  return window['go']['main']['App']['GetTodayLogContent']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
 export function InstallUpdate(arg1) {
   return window['go']['main']['App']['InstallUpdate'](arg1);
+}
+
+export function OpenLogDirectory() {
+  return window['go']['main']['App']['OpenLogDirectory']();
 }
 
 export function SaveConfig(arg1) {
