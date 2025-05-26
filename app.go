@@ -20,7 +20,7 @@ import (
 )
 
 // version é a versão atual do aplicativo
-var version = "1.0.21.3"
+var version = "1.0.21.4"
 
 var (
 	githubRepo = "cccarv82/milhoes-desktop" // Repositório correto
@@ -908,7 +908,7 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 func (a *App) GetAppInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"success":           true,
-		"version":           "1.0.21.3",
+		"version":           "1.0.21.4",
 		"platform":          "windows",
 		"repository":        "cccarv82/milhoes-desktop",
 		"buildDate":         time.Now().Format("2006-01-02"),

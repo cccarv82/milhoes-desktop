@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21.4] - 2025-05-26
+
+### 🔧 Corrigido
+- **Windows Installer**: Corrigido problema na geração do instalador MSI
+- **Inno Setup Configuration**: Adicionado flag `skipifsourcedoesntexist` para arquivos opcionais
+- **CI/CD Pipeline**: Debug avançado na criação do instalador para identificar falhas
+- **Build Process**: Verificações robustas na criação do MilhoesSetup.exe
+
+### 📋 Detalhes Técnicos
+- Arquivos opcionais (LICENSE, README, config) não causam mais falha no build
+- Sistema de debug detalhado para troubleshooting do Inno Setup
+- Verificação pré e pós-compilação do instalador
+- Pipeline otimizado para garantir geração tanto do ZIP quanto do instalador
+
+### 🎯 Foco
+- **Instalador Windows**: Restaurar funcionalidade completa de geração do MilhoesSetup.exe
+- **Qualidade**: Ambos formatos de distribuição disponíveis em todos os releases
+
 ## [1.0.21.3] - 2025-05-26
 
 ### 🔧 Corrigido
