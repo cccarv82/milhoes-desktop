@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"log"
 	"lottery-optimizer-gui/internal/ai"
 	"lottery-optimizer-gui/internal/config"
 	"lottery-optimizer-gui/internal/data"
@@ -16,14 +17,13 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"log"
 )
 
 // version é a versão atual do aplicativo
 var version = "1.0.21"
 
 var (
-	githubRepo = "yourusername/milhoes" // Substitua pelo seu repo
+	githubRepo = "cccarv82/milhoes-desktop" // Repositório correto
 )
 
 // App struct - Bridge entre Frontend e Backend
@@ -39,7 +39,7 @@ type App struct {
 // NewApp creates a new App application struct
 func NewApp() *App {
 	dataClient := data.NewClient()
-	
+
 	// Inicializar banco de dados de jogos salvos
 	// Usar diretório absoluto baseado no executável
 	execPath, err := os.Executable()
@@ -47,30 +47,30 @@ func NewApp() *App {
 		fmt.Printf("Erro ao obter caminho do executável: %v\n", err)
 		execPath, _ = os.Getwd() // Fallback para diretório atual
 	}
-	
+
 	dataDir := filepath.Join(filepath.Dir(execPath), "data")
 	dbPath := filepath.Join(dataDir, "saved_games.db")
-	
+
 	// Criar diretório se não existir com permissões adequadas
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		fmt.Printf("❌ Erro ao criar diretório de dados (%s): %v\n", dataDir, err)
 	}
-	
+
 	fmt.Printf("📁 Inicializando banco de dados em: %s\n", dbPath)
-	
+
 	savedGamesDB, err := database.NewSavedGamesDB(dbPath)
 	if err != nil {
 		fmt.Printf("❌ ERRO ao inicializar banco de jogos salvos: %v\n", err)
 		fmt.Printf("   📂 Diretório: %s\n", dataDir)
 		fmt.Printf("   💾 Arquivo DB: %s\n", dbPath)
-		
+
 		// Verificar se o diretório existe
 		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 			fmt.Printf("   ⚠️  Diretório não existe: %s\n", dataDir)
 		} else {
 			fmt.Printf("   ✅ Diretório existe: %s\n", dataDir)
 		}
-		
+
 		// Verificar permissões
 		if file, err := os.OpenFile(filepath.Join(dataDir, "test_write.tmp"), os.O_CREATE|os.O_WRONLY, 0644); err != nil {
 			fmt.Printf("   ❌ Sem permissão de escrita no diretório: %v\n", err)
@@ -79,12 +79,12 @@ func NewApp() *App {
 			os.Remove(filepath.Join(dataDir, "test_write.tmp"))
 			fmt.Printf("   ✅ Permissão de escrita OK\n")
 		}
-		
+
 		savedGamesDB = nil // Garantir que seja nil em caso de erro
 	} else {
 		fmt.Printf("✅ Banco de jogos salvos inicializado com sucesso!\n")
 	}
-	
+
 	// Inicializar verificador de resultados usando o dataClient existente
 	var resultChecker *services.ResultChecker
 	if savedGamesDB != nil {
@@ -109,10 +109,10 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	
+
 	// Inicializar verificação automática de atualizações
 	a.ScheduleUpdateCheck()
-	
+
 	// Verificar atualizações após 30 segundos (não bloqueante)
 	go func() {
 		time.Sleep(30 * time.Second)
@@ -659,9 +659,9 @@ func (a *App) ScheduleUpdateCheck() {
 		log.Println("❌ Updater não inicializado - auto-update desabilitado")
 		return
 	}
-	
+
 	log.Println("⏰ Iniciando verificação automática de atualizações (a cada 6 horas)")
-	
+
 	// Usar callback do updater para verificação automática
 	a.updater.ScheduleUpdateCheck(6*time.Hour, func(updateInfo *updater.UpdateInfo, err error) {
 		if err != nil {
@@ -847,18 +847,18 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 	if err != nil {
 		execPath, _ = os.Getwd()
 	}
-	
+
 	dataDir := filepath.Join(filepath.Dir(execPath), "data")
 	dbPath := filepath.Join(dataDir, "saved_games.db")
-	
+
 	debug := map[string]interface{}{
-		"executablePath": execPath,
-		"dataDirectory": dataDir,
-		"databasePath":  dbPath,
-		"dbInitialized": a.savedGamesDB != nil,
+		"executablePath":           execPath,
+		"dataDirectory":            dataDir,
+		"databasePath":             dbPath,
+		"dbInitialized":            a.savedGamesDB != nil,
 		"resultCheckerInitialized": a.resultChecker != nil,
 	}
-	
+
 	// Verificar se diretório existe
 	if stat, err := os.Stat(dataDir); err != nil {
 		debug["directoryExists"] = false
@@ -867,7 +867,7 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 		debug["directoryExists"] = true
 		debug["directoryMode"] = stat.Mode().String()
 	}
-	
+
 	// Verificar se arquivo do banco existe
 	if stat, err := os.Stat(dbPath); err != nil {
 		debug["databaseFileExists"] = false
@@ -877,7 +877,7 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 		debug["databaseFileSize"] = stat.Size()
 		debug["databaseFileMode"] = stat.Mode().String()
 	}
-	
+
 	// Testar permissões de escrita
 	testFile := filepath.Join(dataDir, "test_write_permission.tmp")
 	if file, err := os.OpenFile(testFile, os.O_CREATE|os.O_WRONLY, 0644); err != nil {
@@ -888,7 +888,7 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 		os.Remove(testFile)
 		debug["writePermission"] = true
 	}
-	
+
 	// Tentar inicializar banco de dados se não estiver inicializado
 	if a.savedGamesDB == nil {
 		testDB, err := database.NewSavedGamesDB(dbPath)
@@ -900,18 +900,18 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 			testDB.Close()
 		}
 	}
-	
+
 	return debug
 }
 
 // GetAppInfo retorna informações do aplicativo
 func (a *App) GetAppInfo() map[string]interface{} {
 	return map[string]interface{}{
-		"success": true,
-		"version": "1.0.21",
-		"platform": "windows",
-		"repository": "cccarv82/milhoes-desktop",
-		"buildDate": time.Now().Format("2006-01-02"),
+		"success":           true,
+		"version":           "1.0.21",
+		"platform":          "windows",
+		"repository":        "cccarv82/milhoes-desktop",
+		"buildDate":         time.Now().Format("2006-01-02"),
 		"autoUpdateEnabled": true,
 	}
 }

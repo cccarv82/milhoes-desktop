@@ -83,7 +83,7 @@ func (rc *ResultChecker) CheckGameResult(game models.SavedGame) (*models.GameRes
 	userNumbers := []int(game.Numbers)
 	drawnNumbers := draw.Numbers.ToIntSlice()
 	matches := findMatches(userNumbers, drawnNumbers)
-	
+
 	result := &models.GameResult{
 		ContestNumber: draw.Number,
 		DrawDate:      draw.Date.String(),
@@ -155,7 +155,7 @@ func (rc *ResultChecker) calculatePrize(lotteryType string, hitCount int, draw *
 func (rc *ResultChecker) calculateMegaSenaPrize(hitCount int, draw *lottery.Draw) (string, float64, bool) {
 	// Buscar prêmios nos ganhadores
 	var senaValue, quinaValue, quadraValue float64
-	
+
 	for _, winner := range draw.Winners {
 		switch winner.Description {
 		case "Sena":
@@ -183,7 +183,7 @@ func (rc *ResultChecker) calculateMegaSenaPrize(hitCount int, draw *lottery.Draw
 func (rc *ResultChecker) calculateLotofacilPrize(hitCount int, draw *lottery.Draw) (string, float64, bool) {
 	// Buscar prêmios nos ganhadores
 	prizeMap := make(map[int]float64)
-	
+
 	for _, winner := range draw.Winners {
 		switch winner.Description {
 		case "15 acertos":
@@ -216,4 +216,4 @@ func (rc *ResultChecker) ScheduleAutoCheck() {
 			}
 		}
 	}()
-} 
+}

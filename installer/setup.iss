@@ -16,7 +16,7 @@ InfoBeforeFile=
 InfoAfterFile=
 OutputDir=build\installer
 OutputBaseFilename=MilhoesSetup
-SetupIconFile=build\appicon.ico
+; SetupIconFile=build\appicon.ico  ; Comentado até criarmos o ícone
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -73,7 +73,7 @@ Root: HKLM; Subkey: "Software\Classes\MilhoesFile\shell\open\command"; ValueType
 
 ; Chaves para auto-update (sistema)
 Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.20"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.21"; Flags: uninsdeletekey
 
 ; Adicionar ao PATH do sistema (opcional)
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath('{app}'); Tasks: addtopath
@@ -153,7 +153,7 @@ var
   CurrentVersion: String;
 begin
   Result := True;
-  CurrentVersion := '1.0.20';
+  CurrentVersion := '1.0.21';
   
   if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'Software\Milhoes', 'Version', InstalledVersion) then
   begin

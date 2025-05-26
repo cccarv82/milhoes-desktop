@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"lottery-optimizer-gui/internal/models"
 	"github.com/google/uuid"
+	"lottery-optimizer-gui/internal/models"
 	_ "modernc.org/sqlite"
 )
 
@@ -22,7 +22,7 @@ func NewSavedGamesDB(dbPath string) (*SavedGamesDB, error) {
 	}
 
 	sgdb := &SavedGamesDB{db: db}
-	
+
 	// Criar tabela se não existir
 	if err := sgdb.createTables(); err != nil {
 		return nil, fmt.Errorf("erro ao criar tabelas: %w", err)
@@ -71,13 +71,13 @@ func (sg *SavedGamesDB) SaveGame(request models.SaveGameRequest) (*models.SavedG
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := sg.db.Exec(query, 
-		game.ID, 
-		game.LotteryType, 
-		game.Numbers, 
-		game.ExpectedDraw, 
-		game.ContestNumber, 
-		game.Status, 
+	_, err := sg.db.Exec(query,
+		game.ID,
+		game.LotteryType,
+		game.Numbers,
+		game.ExpectedDraw,
+		game.ContestNumber,
+		game.Status,
 		game.CreatedAt,
 	)
 
@@ -179,7 +179,7 @@ func (sg *SavedGamesDB) DeleteGame(gameID string) error {
 // GetGameByID busca um jogo específico pelo ID
 func (sg *SavedGamesDB) GetGameByID(gameID string) (*models.SavedGame, error) {
 	query := "SELECT id, lottery_type, numbers, expected_draw, contest_number, status, created_at, checked_at FROM saved_games WHERE id = ?"
-	
+
 	var game models.SavedGame
 	var checkedAt sql.NullTime
 
@@ -260,4 +260,4 @@ func (sg *SavedGamesDB) GetStats() (map[string]interface{}, error) {
 // Close fecha a conexão com o banco de dados
 func (sg *SavedGamesDB) Close() error {
 	return sg.db.Close()
-} 
+}
