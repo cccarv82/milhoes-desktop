@@ -6,6 +6,12 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Required permissions for creating releases
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 env:
   WAILS_VERSION: v2.10.1
 
