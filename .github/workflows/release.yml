@@ -62,12 +62,32 @@ jobs:
         if (Test-Path "build/bin") { 
           echo "=== Build/bin Directory ==="
           Get-ChildItem -Path build/bin/ -Force | Format-Table -AutoSize 
+          echo "=== Checking milhoes.exe specifically ==="
+          if (Test-Path "build/bin/milhoes.exe") {
+            echo "✅ milhoes.exe found with size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
+          } else {
+            echo "❌ milhoes.exe NOT found in build/bin/"
+          }
         } else { 
-          echo "build/bin not found" 
+          echo "❌ build/bin directory not found" 
+          echo "=== All directories in build ==="
+          Get-ChildItem -Path build/ -Directory -Force | Format-Table -AutoSize
         }
       shell: pwsh
 
     - name: 📦 Compress Artifacts
+      run: |
+        echo "=== Preparing for compression ==="
+        if (Test-Path "build/bin/milhoes.exe") {
+          echo "✅ milhoes.exe found, proceeding with compression"
+          echo "File size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
+        } else {
+          echo "❌ milhoes.exe not found before compression"
+          exit 1
+        }
+      shell: pwsh
+
+    - name: 📦 Create Artifact ZIP
       uses: vimtor/action-zip@v1.2
       with:
         files: build/bin/
@@ -96,20 +116,27 @@ jobs:
     - name: 📂 Extract Build Artifacts
       run: |
         echo "=== Extracting artifacts ==="
-        Expand-Archive -Path milhoes-windows-amd64.zip -DestinationPath ./ -Force
+        echo "Original zip contents:"
+        7z l milhoes-windows-amd64.zip
+        echo ""
+        Expand-Archive -Path milhoes-windows-amd64.zip -DestinationPath ./extracted/ -Force
         echo "=== Contents after extraction ==="
-        Get-ChildItem -Recurse
-        echo "=== Ensuring correct structure ==="
-        if (Test-Path "bin/milhoes.exe") {
-          # If extracted to bin/, move to build/bin/
-          New-Item -ItemType Directory -Path "build/bin" -Force
-          Move-Item "bin/milhoes.exe" "build/bin/milhoes.exe"
-          echo "✅ Moved milhoes.exe to build/bin/"
-        } elseif (Test-Path "build/bin/milhoes.exe") {
-          echo "✅ milhoes.exe already in correct location"
+        Get-ChildItem -Recurse ./extracted/
+        echo ""
+        echo "=== Looking for milhoes.exe everywhere ==="
+        Get-ChildItem -Recurse -Name "*.exe" ./extracted/
+        echo ""
+        echo "=== Creating build structure ==="
+        New-Item -ItemType Directory -Path "build/bin" -Force
+        # Find and copy milhoes.exe wherever it is
+        $exeFile = Get-ChildItem -Recurse -Name "milhoes.exe" ./extracted/
+        if ($exeFile) {
+          $exePath = Join-Path ./extracted/ $exeFile
+          Copy-Item $exePath "build/bin/milhoes.exe" -Force
+          echo "✅ Copied milhoes.exe from $exePath to build/bin/"
         } else {
-          echo "❌ milhoes.exe not found in expected locations"
-          Get-ChildItem -Recurse -Name "*.exe"
+          echo "❌ milhoes.exe not found anywhere in extracted files"
+          exit 1
         }
 
     - name: 🛠️ Install Inno Setup
