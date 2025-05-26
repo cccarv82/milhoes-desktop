@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21.7] - 2025-05-26
+
+### 🔧 Debug e Correções
+- **Debug Extensivo**: Adicionado logging detalhado no processo de criação do instalador
+- **Inno Setup Verification**: Verificação completa da instalação e disponibilidade do comando `iscc`
+- **Setup.iss Simplificado**: Removidos arquivos opcionais, mantido apenas o executável principal
+- **Error Capture**: Captura completa de erros e códigos de saída do processo `iscc`
+- **File Verification**: Verificação robusta de todos os arquivos antes e após a criação
+
+### 📋 Detalhes Técnicos
+- **Diagnóstico Completo**: Logs para identificar exatamente onde o processo falha
+- **Simplified Installer**: Apenas `milhoes.exe` incluído para evitar dependências problemáticas
+- **Exit Code Monitoring**: Monitoramento de códigos de saída para debugging
+- **Path Verification**: Verificação se `iscc` está disponível no PATH após instalação
+
+### 🎯 Objetivo
+- **Identificar Root Cause**: Debug completo para encontrar por que o instalador não é gerado
+- **Instalador Funcional**: Garantir que MilhoesSetup.exe seja criado corretamente
+- **Pipeline Estável**: Workflow robusto com tratamento de erros completo
+
 ## [1.0.21.6] - 2025-05-26
 
 ### 🔧 Corrigido

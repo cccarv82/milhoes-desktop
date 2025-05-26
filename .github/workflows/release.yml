@@ -247,6 +247,16 @@ jobs:
       run: |
         echo "=== Installing Inno Setup ==="
         choco install innosetup -y
+        echo "=== Verifying Inno Setup installation ==="
+        Get-Command iscc -ErrorAction SilentlyContinue
+        if (Get-Command iscc -ErrorAction SilentlyContinue) {
+          echo "✅ iscc command found"
+          iscc /?
+        } else {
+          echo "❌ iscc command NOT found"
+          echo "=== Searching for iscc.exe ==="
+          Get-ChildItem -Path "C:\Program Files*" -Recurse -Name "iscc.exe" -ErrorAction SilentlyContinue
+        }
 
     - name: 📋 Verify Files Before Build
       run: |
@@ -256,14 +266,57 @@ jobs:
         echo "Directory contents:"
         Get-ChildItem -Recurse
         echo "=== Checking required files ==="
-        if (Test-Path "build/bin/milhoes.exe") { echo "✅ milhoes.exe found" } else { echo "❌ milhoes.exe NOT found" }
-        if (Test-Path "README.md") { echo "✅ README.md found" } else { echo "❌ README.md NOT found" }
-        if (Test-Path "LICENSE") { echo "✅ LICENSE found" } else { echo "❌ LICENSE NOT found" }
+        if (Test-Path "build/bin/milhoes.exe") { 
+          echo "✅ milhoes.exe found (size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes)" 
+        } else { 
+          echo "❌ milhoes.exe NOT found" 
+        }
+        if (Test-Path "installer/setup.iss") { 
+          echo "✅ setup.iss found" 
+          echo "=== setup.iss content preview ==="
+          Get-Content "installer/setup.iss" | Select-Object -First 20
+        } else { 
+          echo "❌ setup.iss NOT found" 
+        }
 
     - name: 🏗️ Create Installer
       run: |
         echo "=== Creating installer ==="
-        iscc installer/setup.iss
+        echo "Working directory: $(Get-Location)"
+        echo "About to run: iscc installer/setup.iss"
+        
+        # Run iscc with full error capture
+        try {
+          iscc installer/setup.iss
+          $exitCode = $LASTEXITCODE
+          echo "=== iscc exit code: $exitCode ==="
+          
+          if ($exitCode -eq 0) {
+            echo "✅ iscc completed successfully"
+          } else {
+            echo "❌ iscc failed with exit code: $exitCode"
+          }
+        } catch {
+          echo "❌ Exception running iscc: $($_.Exception.Message)"
+          throw
+        }
+        
+        echo "=== Checking if installer was created ==="
+        if (Test-Path "installer/Output/MilhoesSetup.exe") {
+          echo "✅ MilhoesSetup.exe created successfully"
+          echo "File size: $((Get-Item 'installer/Output/MilhoesSetup.exe').Length) bytes"
+          Get-ChildItem "installer/Output/" -Force
+        } else {
+          echo "❌ MilhoesSetup.exe was NOT created"
+          echo "=== Contents of installer directory ==="
+          if (Test-Path "installer") {
+            Get-ChildItem "installer" -Recurse -Force
+          } else {
+            echo "installer directory does not exist"
+          }
+          exit 1
+        }
+      shell: pwsh
 
     - name: 📤 Upload Installer
       uses: actions/upload-artifact@v4

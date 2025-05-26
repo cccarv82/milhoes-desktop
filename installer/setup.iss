@@ -2,8 +2,8 @@
 ; Informações básicas do app
 AppId={{B8E8F8A0-1234-5678-9ABC-DEF012345678}
 AppName=Milhões - Lottery Optimizer
-AppVersion=1.0.21.6
-AppVerName=Milhões - Lottery Optimizer 1.0.21.6
+AppVersion=1.0.21.7
+AppVerName=Milhões - Lottery Optimizer 1.0.21.7
 AppPublisher=Lottery Optimizer Team
 AppPublisherURL=https://github.com/cccarv82/milhoes-desktop
 AppSupportURL=https://github.com/cccarv82/milhoes-desktop/issues
@@ -30,12 +30,12 @@ ArchitecturesInstallIn64BitMode=x64
 ; WizardSmallImageFile=installer-icon.bmp
 
 ; Configurações de versionamento
-VersionInfoVersion=1.0.21.6.0
+VersionInfoVersion=1.0.21.7.0
 VersionInfoCompany=Lottery Optimizer Team
 VersionInfoDescription=Milhões - Lottery Optimizer
 VersionInfoCopyright=Copyright (C) 2025 Lottery Optimizer Team
 VersionInfoProductName=Milhões - Lottery Optimizer
-VersionInfoProductVersion=1.0.21.6
+VersionInfoProductVersion=1.0.21.7
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
@@ -47,13 +47,8 @@ Name: "associatefiles"; Description: "Associar arquivos .lottery com Milhões"; 
 Name: "addtopath"; Description: "Adicionar ao PATH do sistema (permite executar 'milhoes' no terminal)"; GroupDescription: "Opções avançadas:"; Flags: unchecked
 
 [Files]
-; Executável principal - OBRIGATÓRIO
+; Executável principal - ÚNICO ARQUIVO OBRIGATÓRIO
 Source: "..\build\bin\milhoes.exe"; DestDir: "{app}"; Flags: ignoreversion
-; Arquivos opcionais - não falhar se não existirem
-Source: "..\config\lottery-optimizer.yaml.example"; DestDir: "{app}\config"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "..\build\bin\*.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\Milhões"; Filename: "{app}\milhoes.exe"
@@ -71,7 +66,7 @@ Root: HKLM; Subkey: "Software\Classes\MilhoesFile\shell\open\command"; ValueType
 
 ; Chaves para auto-update (sistema)
 Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.21.6"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.21.7"; Flags: uninsdeletekey
 
 ; Adicionar ao PATH do sistema (opcional)
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath('{app}'); Tasks: addtopath
@@ -151,7 +146,7 @@ var
   CurrentVersion: String;
 begin
   Result := True;
-  CurrentVersion := '1.0.21.6';
+  CurrentVersion := '1.0.21.7';
   
   if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'Software\Milhoes', 'Version', InstalledVersion) then
   begin
