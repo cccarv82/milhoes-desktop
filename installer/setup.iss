@@ -81,26 +81,6 @@ Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\cache"
 
 [Code]
-// Função para verificar se uma versão mais nova já está instalada
-function InitializeSetup(): Boolean;
-var
-  InstalledVersion: String;
-  CurrentVersion: String;
-begin
-  Result := True;
-  CurrentVersion := '1.0.0';
-  
-  if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Milhoes', 'Version', InstalledVersion) then
-  begin
-    if CompareVersion(InstalledVersion, CurrentVersion) > 0 then
-    begin
-      if MsgBox('Uma versão mais recente (' + InstalledVersion + ') já está instalada. Deseja continuar?', 
-                mbConfirmation, MB_YESNO) = IDNO then
-        Result := False;
-    end;
-  end;
-end;
-
 // Função para comparar versões
 function CompareVersion(V1, V2: String): Integer;
 var
@@ -141,5 +121,25 @@ begin
       Result := -1
     else if N1 > N2 then
       Result := 1;
+  end;
+end; 
+
+// Função para verificar se uma versão mais nova já está instalada
+function InitializeSetup(): Boolean;
+var
+  InstalledVersion: String;
+  CurrentVersion: String;
+begin
+  Result := True;
+  CurrentVersion := '1.0.0';
+  
+  if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Milhoes', 'Version', InstalledVersion) then
+  begin
+    if CompareVersion(InstalledVersion, CurrentVersion) > 0 then
+    begin
+      if MsgBox('Uma versão mais recente (' + InstalledVersion + ') já está instalada. Deseja continuar?', 
+                mbConfirmation, MB_YESNO) = IDNO then
+        Result := False;
+    end;
   end;
 end; 
