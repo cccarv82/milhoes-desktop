@@ -2,8 +2,8 @@
 ; Informações básicas do app
 AppId={{B8C4F4A5-9D3E-4F2B-8C1A-7E5F9D2A3B4C}
 AppName=Milhões - Otimizador de Loterias
-AppVersion=1.0.0
-AppVerName=Milhões v1.0.0
+AppVersion=1.0.18
+AppVerName=Milhões v1.0.18
 AppPublisher=Milhões Team
 AppPublisherURL=https://github.com/yourusername/milhoes
 AppSupportURL=https://github.com/yourusername/milhoes/issues
@@ -19,7 +19,8 @@ OutputBaseFilename=MilhoesSetup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 
@@ -28,12 +29,12 @@ ArchitecturesInstallIn64BitMode=x64
 ; WizardSmallImageFile=installer-icon.bmp
 
 ; Configurações de versionamento
-VersionInfoVersion=1.0.0.0
+VersionInfoVersion=1.0.18.0
 VersionInfoCompany=Milhões Team
 VersionInfoDescription=Otimizador Inteligente de Loterias
 VersionInfoCopyright=Copyright (C) 2025 Milhões Team
 VersionInfoProductName=Milhões
-VersionInfoProductVersion=1.0.0
+VersionInfoProductVersion=1.0.18
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
@@ -42,6 +43,7 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1
 Name: "associatefiles"; Description: "Associar arquivos .lottery com Milhões"; GroupDescription: "Associações de arquivo:"; Flags: unchecked
+Name: "addtopath"; Description: "Adicionar ao PATH do sistema (permite executar 'milhoes' no terminal)"; GroupDescription: "Opções avançadas:"; Flags: unchecked
 
 [Files]
 ; Executável principal
@@ -62,15 +64,18 @@ Name: "{autodesktop}\Milhões"; Filename: "{app}\milhoes.exe"; Tasks: desktopico
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Milhões"; Filename: "{app}\milhoes.exe"; Tasks: quicklaunchicon
 
 [Registry]
-; Associações de arquivo
-Root: HKA; Subkey: "Software\Classes\.lottery"; ValueType: string; ValueName: ""; ValueData: "MilhoesFile"; Flags: uninsdeletevalue; Tasks: associatefiles
-Root: HKA; Subkey: "Software\Classes\MilhoesFile"; ValueType: string; ValueName: ""; ValueData: "Arquivo de Estratégia Milhões"; Flags: uninsdeletekey; Tasks: associatefiles
-Root: HKA; Subkey: "Software\Classes\MilhoesFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\milhoes.exe,0"; Tasks: associatefiles
-Root: HKA; Subkey: "Software\Classes\MilhoesFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\milhoes.exe"" ""%1"""; Tasks: associatefiles
+; Associações de arquivo (sistema)
+Root: HKLM; Subkey: "Software\Classes\.lottery"; ValueType: string; ValueName: ""; ValueData: "MilhoesFile"; Flags: uninsdeletevalue; Tasks: associatefiles
+Root: HKLM; Subkey: "Software\Classes\MilhoesFile"; ValueType: string; ValueName: ""; ValueData: "Arquivo de Estratégia Milhões"; Flags: uninsdeletekey; Tasks: associatefiles
+Root: HKLM; Subkey: "Software\Classes\MilhoesFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\milhoes.exe,0"; Tasks: associatefiles
+Root: HKLM; Subkey: "Software\Classes\MilhoesFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\milhoes.exe"" ""%1"""; Tasks: associatefiles
 
-; Chave para auto-update
-Root: HKCU; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.0"; Flags: uninsdeletekey
+; Chaves para auto-update (sistema)
+Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.18"; Flags: uninsdeletekey
+
+; Adicionar ao PATH do sistema (opcional)
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath('{app}'); Tasks: addtopath
 
 [Run]
 Filename: "{app}\milhoes.exe"; Description: "{cm:LaunchProgram,Milhões}"; Flags: nowait postinstall skipifsilent
@@ -81,6 +86,22 @@ Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\cache"
 
 [Code]
+// Função para verificar se o PATH já contém o diretório
+function NeedsAddPath(Param: string): boolean;
+var
+  OrigPath: string;
+begin
+  if not RegQueryStringValue(HKEY_LOCAL_MACHINE,
+    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+    'Path', OrigPath)
+  then begin
+    Result := True;
+    exit;
+  end;
+  // Verifica se o caminho já está no PATH
+  Result := Pos(';' + Param + ';', ';' + OrigPath + ';') = 0;
+end;
+
 // Função para comparar versões
 function CompareVersion(V1, V2: String): Integer;
 var
@@ -131,9 +152,9 @@ var
   CurrentVersion: String;
 begin
   Result := True;
-  CurrentVersion := '1.0.0';
+  CurrentVersion := '1.0.18';
   
-  if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Milhoes', 'Version', InstalledVersion) then
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'Software\Milhoes', 'Version', InstalledVersion) then
   begin
     if CompareVersion(InstalledVersion, CurrentVersion) > 0 then
     begin

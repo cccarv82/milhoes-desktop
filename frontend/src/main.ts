@@ -1392,9 +1392,9 @@ function renderError(message: string) {
                         Tentar Novamente
                     </button>
                 </div>
-            </div>
-        </div>
-    `;
+      </div>
+    </div>
+`;
 }
 
 // ===============================
