@@ -161,23 +161,27 @@ jobs:
     - name: 📦 Compress Artifacts
       run: |
         echo "=== Preparing for compression ==="
-        # Find milhoes.exe wherever it is
-        $exeFile = Get-ChildItem -Recurse -Name "milhoes.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($exeFile) {
-          echo "✅ Found milhoes.exe at: $exeFile"
-          $exeFullPath = Get-ChildItem -Recurse -Filter "milhoes.exe" | Select-Object -First 1 | ForEach-Object { $_.FullName }
-          echo "Full path: $exeFullPath"
-          echo "File size: $((Get-Item $exeFullPath).Length) bytes"
-          
-          # Create proper structure for compression
-          New-Item -ItemType Directory -Path "build/bin" -Force
-          Copy-Item $exeFullPath "build/bin/milhoes.exe" -Force
-          echo "✅ Copied to build/bin/milhoes.exe for compression"
+        echo "=== Verifying milhoes.exe exists ==="
+        if (Test-Path "build/bin/milhoes.exe") {
+          echo "✅ milhoes.exe found at build/bin/milhoes.exe"
+          echo "File size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
+          echo "✅ File is already in the correct location for compression"
         } else {
-          echo "❌ milhoes.exe not found anywhere!"
-          echo "=== Final desperate search ==="
-          Get-ChildItem -Recurse -Filter "*.exe" | ForEach-Object { echo "$($_.FullName)" }
-          exit 1
+          echo "❌ milhoes.exe not found at expected location build/bin/milhoes.exe"
+          echo "=== Searching for milhoes.exe everywhere ==="
+          Get-ChildItem -Recurse -Filter "milhoes.exe" | ForEach-Object { 
+            echo "Found: $($_.FullName)"
+            # Copy to expected location if found elsewhere
+            if (!(Test-Path "build/bin")) { New-Item -ItemType Directory -Path "build/bin" -Force }
+            Copy-Item $_.FullName "build/bin/milhoes.exe" -Force
+            echo "✅ Copied to build/bin/milhoes.exe"
+          }
+          
+          # Final check
+          if (!(Test-Path "build/bin/milhoes.exe")) {
+            echo "❌ Could not locate milhoes.exe anywhere!"
+            exit 1
+          }
         }
       shell: pwsh
 
