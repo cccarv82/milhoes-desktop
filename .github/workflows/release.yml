@@ -55,6 +55,42 @@ jobs:
         echo "Wails build completed successfully"
       shell: pwsh
 
+    - name: 🔍 Debug Build Output
+      run: |
+        echo "=== Complete file system scan for milhoes.exe ==="
+        Get-ChildItem -Recurse -Name "milhoes.exe" -ErrorAction SilentlyContinue
+        echo ""
+        echo "=== All .exe files found ==="
+        Get-ChildItem -Recurse -Name "*.exe" -ErrorAction SilentlyContinue
+        echo ""
+        echo "=== Root directory contents ==="
+        Get-ChildItem -Force | Format-Table -AutoSize
+        echo ""
+        echo "=== Build directory structure (if exists) ==="
+        if (Test-Path "build") {
+          Get-ChildItem -Recurse build/ -Force | Format-Table -AutoSize
+        } else {
+          echo "No build directory found"
+        }
+        echo ""
+        echo "=== Checking common Wails output locations ==="
+        $possiblePaths = @(
+          "build/bin/milhoes.exe",
+          "build/milhoes.exe", 
+          "bin/milhoes.exe",
+          "milhoes.exe",
+          "app-builds/milhoes.exe",
+          "dist/milhoes.exe"
+        )
+        foreach ($path in $possiblePaths) {
+          if (Test-Path $path) {
+            echo "✅ Found at: $path (size: $((Get-Item $path).Length) bytes)"
+          } else {
+            echo "❌ Not found: $path"
+          }
+        }
+      shell: pwsh
+
     - name: 📋 List Build Output
       run: |
         echo "=== Build Directory ==="
@@ -78,11 +114,22 @@ jobs:
     - name: 📦 Compress Artifacts
       run: |
         echo "=== Preparing for compression ==="
-        if (Test-Path "build/bin/milhoes.exe") {
-          echo "✅ milhoes.exe found, proceeding with compression"
-          echo "File size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
+        # Find milhoes.exe wherever it is
+        $exeFile = Get-ChildItem -Recurse -Name "milhoes.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($exeFile) {
+          echo "✅ Found milhoes.exe at: $exeFile"
+          $exeFullPath = Get-ChildItem -Recurse -Filter "milhoes.exe" | Select-Object -First 1 | ForEach-Object { $_.FullName }
+          echo "Full path: $exeFullPath"
+          echo "File size: $((Get-Item $exeFullPath).Length) bytes"
+          
+          # Create proper structure for compression
+          New-Item -ItemType Directory -Path "build/bin" -Force
+          Copy-Item $exeFullPath "build/bin/milhoes.exe" -Force
+          echo "✅ Copied to build/bin/milhoes.exe for compression"
         } else {
-          echo "❌ milhoes.exe not found before compression"
+          echo "❌ milhoes.exe not found anywhere!"
+          echo "=== Final desperate search ==="
+          Get-ChildItem -Recurse -Filter "*.exe" | ForEach-Object { echo "$($_.FullName)" }
           exit 1
         }
       shell: pwsh
