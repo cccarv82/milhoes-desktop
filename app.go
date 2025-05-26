@@ -169,6 +169,66 @@ type ConfigData struct {
 // FUNÇÕES AUXILIARES
 // ===============================
 
+// getConfigPath retorna o caminho do arquivo de configuração com estratégia de fallback
+func getConfigPath() (string, error) {
+	configFileName := "lottery-optimizer.yaml"
+	
+	// ESTRATÉGIA 1: Diretório de dados do usuário (APPDATA no Windows)
+	userConfigDir, err := os.UserConfigDir()
+	if err == nil {
+		appDataDir := filepath.Join(userConfigDir, "lottery-optimizer")
+		appDataConfigPath := filepath.Join(appDataDir, configFileName)
+		
+		// Criar diretório se não existir
+		if err := os.MkdirAll(appDataDir, 0755); err == nil {
+			// Verificar se pode escrever
+			testFile := filepath.Join(appDataDir, "write_test.tmp")
+			if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
+				os.Remove(testFile)
+				log.Printf("✅ Usando diretório de dados do usuário: %s", appDataConfigPath)
+				
+				// MIGRAÇÃO AUTOMÁTICA: Se arquivo existe no diretório do executável, copiar para APPDATA
+				if _, err := os.Stat(appDataConfigPath); os.IsNotExist(err) {
+					if exePath, err := os.Executable(); err == nil {
+						oldConfigPath := filepath.Join(filepath.Dir(exePath), configFileName)
+						if _, err := os.Stat(oldConfigPath); err == nil {
+							if content, err := os.ReadFile(oldConfigPath); err == nil {
+								if err := os.WriteFile(appDataConfigPath, content, 0644); err == nil {
+									log.Printf("🔄 Migração automática: %s -> %s", oldConfigPath, appDataConfigPath)
+								}
+							}
+						}
+					}
+				}
+				
+				return appDataConfigPath, nil
+			}
+		}
+	}
+	
+	// ESTRATÉGIA 2: Diretório do executável (fallback)
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Printf("❌ Erro ao obter caminho do executável: %v", err)
+		return configFileName, err // Fallback para diretório atual
+	}
+	
+	exeDir := filepath.Dir(exePath)
+	exeConfigPath := filepath.Join(exeDir, configFileName)
+	
+	// Verificar se pode escrever no diretório do executável
+	testFile := filepath.Join(exeDir, "write_test.tmp")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
+		os.Remove(testFile)
+		log.Printf("⚠️ Usando diretório do executável (fallback): %s", exeConfigPath)
+		return exeConfigPath, nil
+	}
+	
+	// ESTRATÉGIA 3: Diretório atual (último recurso)
+	log.Printf("⚠️ Usando diretório atual (último recurso): %s", configFileName)
+	return configFileName, nil
+}
+
 // mapStrategy mapeia estratégias do frontend para o backend
 func mapStrategy(frontendStrategy string) string {
 	switch frontendStrategy {
@@ -408,15 +468,18 @@ func (a *App) Greet(name string) string {
 func (a *App) GetCurrentConfig() ConfigData {
 	log.Printf("🔄 GetCurrentConfig iniciado")
 	
-	// CORREÇÃO: Sempre ler direto do arquivo YAML para garantir dados atualizados
-	exePath, err := os.Executable()
-	var configPath string
+	// CORREÇÃO: Usar nova função de resolução de caminho
+	configPath, err := getConfigPath()
 	if err != nil {
-		log.Printf("⚠️ Erro ao obter caminho do executável: %v, usando fallback", err)
-		configPath = "lottery-optimizer.yaml"
-	} else {
-		exeDir := filepath.Dir(exePath)
-		configPath = filepath.Join(exeDir, "lottery-optimizer.yaml")
+		log.Printf("❌ Erro ao determinar caminho da configuração: %v", err)
+		// Retornar configuração padrão em caso de erro
+		return ConfigData{
+			ClaudeAPIKey: "",
+			ClaudeModel:  "claude-3-5-sonnet-20241022",
+			TimeoutSec:   60,
+			MaxTokens:    8000,
+			Verbose:      false,
+		}
 	}
 	
 	log.Printf("📁 Tentando ler configuração de: %s", configPath)
@@ -527,24 +590,22 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 
 	log.Printf("📦 Estrutura de configuração criada - APIKey length=%d", len(configStruct.Claude.APIKey))
 
-	// Determinar local do arquivo de configuração (mesmo diretório do executável)
-	exePath, err := os.Executable()
+	// CORREÇÃO: Usar nova função de resolução de caminho
+	configPath, err := getConfigPath()
 	if err != nil {
-		log.Printf("❌ Erro ao determinar diretório do executável: %v", err)
+		log.Printf("❌ Erro ao determinar caminho da configuração: %v", err)
 		return map[string]interface{}{
 			"success": false,
-			"error":   "Erro ao determinar diretório do executável: " + err.Error(),
+			"error":   "Erro ao determinar caminho da configuração: " + err.Error(),
 		}
 	}
-
-	exeDir := filepath.Dir(exePath)
-	configPath := filepath.Join(exeDir, "lottery-optimizer.yaml")
 	
 	log.Printf("📁 Caminho da configuração: %s", configPath)
-	log.Printf("📁 Diretório do executável: %s", exeDir)
+	configDir := filepath.Dir(configPath)
+	log.Printf("📁 Diretório da configuração: %s", configDir)
 
-	// Verificar se diretório é writável
-	testPath := filepath.Join(exeDir, "write_test_temp.txt")
+	// Verificar se diretório é writável (já testado em getConfigPath, mas verificar novamente)
+	testPath := filepath.Join(configDir, "write_test_temp.txt")
 	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
 		log.Printf("❌ Diretório não é writável: %v", err)
 		return map[string]interface{}{
@@ -701,47 +762,81 @@ func (a *App) DebugConfigPath() map[string]interface{} {
 		result["executableDir"] = filepath.Dir(exePath)
 	}
 
-	// Caminho da configuração
-	var configPath string
+	// Diretório de dados do usuário (APPDATA)
+	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
-		configPath = "lottery-optimizer.yaml"
+		result["userConfigDirError"] = err.Error()
+		result["userConfigDir"] = "ERRO"
 	} else {
-		configPath = filepath.Join(filepath.Dir(exePath), "lottery-optimizer.yaml")
-	}
-	result["configPath"] = configPath
-
-	// Verificar se arquivo existe
-	if stat, err := os.Stat(configPath); err != nil {
-		result["configExists"] = false
-		result["configError"] = err.Error()
-	} else {
-		result["configExists"] = true
-		result["configSize"] = stat.Size()
-		result["configModTime"] = stat.ModTime().Format("2006-01-02 15:04:05")
-		result["configMode"] = stat.Mode().String()
-	}
-
-	// Tentar ler conteúdo
-	if content, err := os.ReadFile(configPath); err != nil {
-		result["readError"] = err.Error()
-	} else {
-		result["configContent"] = string(content)
-		result["configLength"] = len(content)
-	}
-
-	// Testar permissões de escrita
-	if err := os.WriteFile(configPath+"_test", []byte("test"), 0644); err != nil {
-		result["writePermissionError"] = err.Error()
-		result["canWrite"] = false
-	} else {
-		result["canWrite"] = true
-		os.Remove(configPath + "_test") // Limpar arquivo de teste
+		result["userConfigDir"] = userConfigDir
+		appDataDir := filepath.Join(userConfigDir, "lottery-optimizer")
+		result["appDataDir"] = appDataDir
+		
+		// Verificar se diretório APPDATA existe
+		if stat, err := os.Stat(appDataDir); err != nil {
+			result["appDataDirExists"] = false
+			result["appDataDirError"] = err.Error()
+		} else {
+			result["appDataDirExists"] = true
+			result["appDataDirMode"] = stat.Mode().String()
+		}
+		
+		// Testar permissões de escrita no APPDATA
+		testFile := filepath.Join(appDataDir, "write_test.tmp")
+		if err := os.MkdirAll(appDataDir, 0755); err != nil {
+			result["appDataWritable"] = false
+			result["appDataWriteError"] = err.Error()
+		} else if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			result["appDataWritable"] = false
+			result["appDataWriteError"] = err.Error()
+		} else {
+			result["appDataWritable"] = true
+			os.Remove(testFile)
+		}
 	}
 
-	// Informações do diretório
-	if err == nil {
-		dir := filepath.Dir(configPath)
-		if files, err := os.ReadDir(dir); err != nil {
+	// Caminho final resolvido
+	configPath, err := getConfigPath()
+	if err != nil {
+		result["finalConfigPathError"] = err.Error()
+		result["finalConfigPath"] = "ERRO"
+	} else {
+		result["finalConfigPath"] = configPath
+		result["finalConfigDir"] = filepath.Dir(configPath)
+	}
+
+	// Verificar se arquivo final existe
+	if configPath != "ERRO" {
+		if stat, err := os.Stat(configPath); err != nil {
+			result["configExists"] = false
+			result["configError"] = err.Error()
+		} else {
+			result["configExists"] = true
+			result["configSize"] = stat.Size()
+			result["configModTime"] = stat.ModTime().Format("2006-01-02 15:04:05")
+			result["configMode"] = stat.Mode().String()
+		}
+
+		// Tentar ler conteúdo
+		if content, err := os.ReadFile(configPath); err != nil {
+			result["readError"] = err.Error()
+		} else {
+			result["configContent"] = string(content)
+			result["configLength"] = len(content)
+		}
+
+		// Testar permissões de escrita no diretório final
+		configDir := filepath.Dir(configPath)
+		if err := os.WriteFile(configPath+"_test", []byte("test"), 0644); err != nil {
+			result["writePermissionError"] = err.Error()
+			result["canWrite"] = false
+		} else {
+			result["canWrite"] = true
+			os.Remove(configPath + "_test") // Limpar arquivo de teste
+		}
+
+		// Informações do diretório final
+		if files, err := os.ReadDir(configDir); err != nil {
 			result["dirListError"] = err.Error()
 		} else {
 			fileList := []string{}
@@ -750,6 +845,14 @@ func (a *App) DebugConfigPath() map[string]interface{} {
 			}
 			result["dirFiles"] = fileList
 		}
+	}
+
+	// Estratégias testadas
+	result["strategies"] = map[string]interface{}{
+		"1_appdata":    result["appDataDir"],
+		"2_executable": result["executableDir"],
+		"3_current":    "lottery-optimizer.yaml",
+		"final_chosen": result["finalConfigPath"],
 	}
 
 	return result
