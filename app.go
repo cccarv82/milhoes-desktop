@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"io"
 	"log"
 	"lottery-optimizer-gui/internal/ai"
 	"lottery-optimizer-gui/internal/config"
@@ -15,6 +16,7 @@ import (
 	"lottery-optimizer-gui/internal/updater"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -24,6 +26,8 @@ import (
 
 var (
 	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
+	logFile *os.File
+	logDir  string
 )
 
 // App struct - Bridge entre Frontend e Backend
@@ -38,13 +42,19 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	// Inicializar logging em arquivo PRIMEIRO
+	if err := initFileLogging(); err != nil {
+		log.Printf("⚠️ Erro ao inicializar logging em arquivo: %v", err)
+		// Continuar sem logging em arquivo
+	}
+
 	dataClient := data.NewClient()
 
 	// Inicializar banco de dados de jogos salvos
 	// Usar diretório absoluto baseado no executável
 	execPath, err := os.Executable()
 	if err != nil {
-		fmt.Printf("Erro ao obter caminho do executável: %v\n", err)
+		log.Printf("Erro ao obter caminho do executável: %v", err)
 		execPath, _ = os.Getwd() // Fallback para diretório atual
 	}
 
@@ -53,36 +63,36 @@ func NewApp() *App {
 
 	// Criar diretório se não existir com permissões adequadas
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		fmt.Printf("❌ Erro ao criar diretório de dados (%s): %v\n", dataDir, err)
+		log.Printf("❌ Erro ao criar diretório de dados (%s): %v", dataDir, err)
 	}
 
-	fmt.Printf("📁 Inicializando banco de dados em: %s\n", dbPath)
+	log.Printf("📁 Inicializando banco de dados em: %s", dbPath)
 
 	savedGamesDB, err := database.NewSavedGamesDB(dbPath)
 	if err != nil {
-		fmt.Printf("❌ ERRO ao inicializar banco de jogos salvos: %v\n", err)
-		fmt.Printf("   📂 Diretório: %s\n", dataDir)
-		fmt.Printf("   💾 Arquivo DB: %s\n", dbPath)
+		log.Printf("❌ ERRO ao inicializar banco de jogos salvos: %v", err)
+		log.Printf("   📂 Diretório: %s", dataDir)
+		log.Printf("   💾 Arquivo DB: %s", dbPath)
 
 		// Verificar se o diretório existe
 		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-			fmt.Printf("   ⚠️  Diretório não existe: %s\n", dataDir)
+			log.Printf("   ⚠️  Diretório não existe: %s", dataDir)
 		} else {
-			fmt.Printf("   ✅ Diretório existe: %s\n", dataDir)
+			log.Printf("   ✅ Diretório existe: %s", dataDir)
 		}
 
 		// Verificar permissões
 		if file, err := os.OpenFile(filepath.Join(dataDir, "test_write.tmp"), os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-			fmt.Printf("   ❌ Sem permissão de escrita no diretório: %v\n", err)
+			log.Printf("   ❌ Sem permissão de escrita no diretório: %v", err)
 		} else {
 			file.Close()
 			os.Remove(filepath.Join(dataDir, "test_write.tmp"))
-			fmt.Printf("   ✅ Permissão de escrita OK\n")
+			log.Printf("   ✅ Permissão de escrita OK")
 		}
 
 		savedGamesDB = nil // Garantir que seja nil em caso de erro
 	} else {
-		fmt.Printf("✅ Banco de jogos salvos inicializado com sucesso!\n")
+		log.Printf("✅ Banco de jogos salvos inicializado com sucesso!")
 	}
 
 	// Inicializar verificador de resultados usando o dataClient existente
@@ -91,9 +101,9 @@ func NewApp() *App {
 		resultChecker = services.NewResultChecker(dataClient, savedGamesDB)
 		// Iniciar verificação automática
 		resultChecker.ScheduleAutoCheck()
-		fmt.Printf("✅ Verificador de resultados inicializado e agendado!\n")
+		log.Printf("✅ Verificador de resultados inicializado e agendado!")
 	} else {
-		fmt.Printf("⚠️  Verificador de resultados não inicializado (banco indisponível)\n")
+		log.Printf("⚠️  Verificador de resultados não inicializado (banco indisponível)")
 	}
 
 	return &App{
@@ -173,59 +183,88 @@ type ConfigData struct {
 func getConfigPath() (string, error) {
 	configFileName := "lottery-optimizer.yaml"
 	
+	log.Printf("🔍 getConfigPath iniciado - procurando por: %s", configFileName)
+	
 	// ESTRATÉGIA 1: Diretório de dados do usuário (APPDATA no Windows)
 	userConfigDir, err := os.UserConfigDir()
+	log.Printf("📁 ESTRATÉGIA 1 - UserConfigDir: %s, err: %v", userConfigDir, err)
+	
 	if err == nil {
 		appDataDir := filepath.Join(userConfigDir, "lottery-optimizer")
 		appDataConfigPath := filepath.Join(appDataDir, configFileName)
 		
+		log.Printf("📁 Tentando APPDATA: %s", appDataConfigPath)
+		
 		// Criar diretório se não existir
 		if err := os.MkdirAll(appDataDir, 0755); err == nil {
+			log.Printf("✅ Diretório APPDATA criado/existe: %s", appDataDir)
+			
 			// Verificar se pode escrever
 			testFile := filepath.Join(appDataDir, "write_test.tmp")
 			if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
 				os.Remove(testFile)
-				log.Printf("✅ Usando diretório de dados do usuário: %s", appDataConfigPath)
+				log.Printf("✅ APPDATA é writável - usando: %s", appDataConfigPath)
 				
 				// MIGRAÇÃO AUTOMÁTICA: Se arquivo existe no diretório do executável, copiar para APPDATA
 				if _, err := os.Stat(appDataConfigPath); os.IsNotExist(err) {
+					log.Printf("🔍 Arquivo não existe em APPDATA, verificando migração...")
 					if exePath, err := os.Executable(); err == nil {
 						oldConfigPath := filepath.Join(filepath.Dir(exePath), configFileName)
+						log.Printf("🔍 Verificando arquivo antigo em: %s", oldConfigPath)
 						if _, err := os.Stat(oldConfigPath); err == nil {
+							log.Printf("📁 Arquivo encontrado no local antigo, migrando...")
 							if content, err := os.ReadFile(oldConfigPath); err == nil {
 								if err := os.WriteFile(appDataConfigPath, content, 0644); err == nil {
-									log.Printf("🔄 Migração automática: %s -> %s", oldConfigPath, appDataConfigPath)
+									log.Printf("🔄 Migração automática CONCLUÍDA: %s -> %s", oldConfigPath, appDataConfigPath)
+								} else {
+									log.Printf("❌ Erro na migração - escrita: %v", err)
 								}
+							} else {
+								log.Printf("❌ Erro na migração - leitura: %v", err)
 							}
+						} else {
+							log.Printf("📁 Arquivo antigo não encontrado em: %s", oldConfigPath)
 						}
 					}
+				} else {
+					log.Printf("✅ Arquivo já existe em APPDATA")
 				}
 				
 				return appDataConfigPath, nil
+			} else {
+				log.Printf("❌ APPDATA não é writável: %v", err)
 			}
+		} else {
+			log.Printf("❌ Erro ao criar diretório APPDATA: %v", err)
 		}
 	}
 	
 	// ESTRATÉGIA 2: Diretório do executável (fallback)
+	log.Printf("🔍 ESTRATÉGIA 2 - Tentando diretório do executável...")
 	exePath, err := os.Executable()
 	if err != nil {
 		log.Printf("❌ Erro ao obter caminho do executável: %v", err)
+		log.Printf("🔍 ESTRATÉGIA 3 - Usando diretório atual como último recurso")
 		return configFileName, err // Fallback para diretório atual
 	}
 	
 	exeDir := filepath.Dir(exePath)
 	exeConfigPath := filepath.Join(exeDir, configFileName)
 	
+	log.Printf("📁 Testando diretório do executável: %s", exeConfigPath)
+	
 	// Verificar se pode escrever no diretório do executável
 	testFile := filepath.Join(exeDir, "write_test.tmp")
 	if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
 		os.Remove(testFile)
-		log.Printf("⚠️ Usando diretório do executável (fallback): %s", exeConfigPath)
+		log.Printf("⚠️ USANDO diretório do executável (fallback): %s", exeConfigPath)
 		return exeConfigPath, nil
+	} else {
+		log.Printf("❌ Diretório do executável não é writável: %v", err)
 	}
 	
 	// ESTRATÉGIA 3: Diretório atual (último recurso)
-	log.Printf("⚠️ Usando diretório atual (último recurso): %s", configFileName)
+	log.Printf("⚠️ USANDO diretório atual (último recurso): %s", configFileName)
 	return configFileName, nil
 }
 
@@ -373,9 +412,9 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 
 	// Debug: mostrar quantos jogos a IA gerou
 	if config.IsVerbose() {
-		fmt.Printf("🎯 IA gerou %d jogos com custo total R$ %.2f\n", len(response.Strategy.Games), response.Strategy.TotalCost)
+		log.Printf("🎯 IA gerou %d jogos com custo total R$ %.2f", len(response.Strategy.Games), response.Strategy.TotalCost)
 		for i, game := range response.Strategy.Games {
-			fmt.Printf("   Jogo %d: %s - %v - R$ %.2f\n", i+1, game.Type, game.Numbers, game.Cost)
+			log.Printf("   Jogo %d: %s - %v - R$ %.2f", i+1, game.Type, game.Numbers, game.Cost)
 		}
 	}
 
@@ -384,7 +423,7 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 
 	// Debug: mostrar jogos após "validação"
 	if config.IsVerbose() {
-		fmt.Printf("✅ Após validação: %d jogos com custo total R$ %.2f\n", len(validatedStrategy.Games), validatedStrategy.TotalCost)
+		log.Printf("✅ Após validação: %d jogos com custo total R$ %.2f", len(validatedStrategy.Games), validatedStrategy.TotalCost)
 	}
 
 	// Converter loterias falhas para strings
@@ -466,7 +505,7 @@ func (a *App) Greet(name string) string {
 
 // GetCurrentConfig retorna a configuração atual
 func (a *App) GetCurrentConfig() ConfigData {
-	log.Printf("🔄 GetCurrentConfig iniciado")
+	log.Printf("🔄 GetCurrentConfig iniciado - TIMESTAMP: %s", time.Now().Format("2006-01-02 15:04:05.000"))
 	
 	// CORREÇÃO: Usar nova função de resolução de caminho
 	configPath, err := getConfigPath()
@@ -482,7 +521,7 @@ func (a *App) GetCurrentConfig() ConfigData {
 		}
 	}
 	
-	log.Printf("📁 Tentando ler configuração de: %s", configPath)
+	log.Printf("📁 GetCurrentConfig vai ler de: %s", configPath)
 
 	// Verificar se arquivo existe
 	if stat, err := os.Stat(configPath); err != nil {
@@ -550,7 +589,8 @@ func (a *App) GetCurrentConfig() ConfigData {
 
 // SaveConfig salva a configuração
 func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
-	log.Printf("🔧 SaveConfig iniciado - Dados recebidos: APIKey length=%d, Model=%s", len(configData.ClaudeAPIKey), configData.ClaudeModel)
+	log.Printf("🔧 SaveConfig iniciado - TIMESTAMP: %s - Dados recebidos: APIKey length=%d, Model=%s", 
+		time.Now().Format("2006-01-02 15:04:05.000"), len(configData.ClaudeAPIKey), configData.ClaudeModel)
 	
 	// Validar dados
 	if configData.ClaudeAPIKey == "" {
@@ -874,7 +914,7 @@ func (a *App) DownloadUpdate(updateInfo *updater.UpdateInfo) error {
 	// Progress callback pode ser implementado para mostrar progresso no frontend
 	return a.updater.DownloadUpdate(ctx, updateInfo, func(downloaded, total int64) {
 		// Implementar callback de progresso se necessário
-		fmt.Printf("Download: %d/%d bytes (%.2f%%)\n",
+		log.Printf("Download: %d/%d bytes (%.2f%%)",
 			downloaded, total, float64(downloaded)/float64(total)*100)
 	})
 }
@@ -1149,5 +1189,237 @@ func (a *App) GetAppInfo() map[string]interface{} {
 		"repository":        "cccarv82/milhoes-desktop",
 		"buildDate":         time.Now().Format("2006-01-02"),
 		"autoUpdateEnabled": true,
+		"logDirectory":      logDir,
+	}
+}
+
+// ===============================
+// MÉTODOS PARA GERENCIAR LOGS
+// ===============================
+
+// GetLogFiles retorna lista de arquivos de log disponíveis
+func (a *App) GetLogFiles() map[string]interface{} {
+	if logDir == "" {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Diretório de logs não inicializado",
+		}
+	}
+
+	files, err := os.ReadDir(logDir)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao ler diretório de logs: %v", err),
+		}
+	}
+
+	var logFiles []map[string]interface{}
+	for _, file := range files {
+		if strings.HasPrefix(file.Name(), "lottery-optimizer-") && strings.HasSuffix(file.Name(), ".log") {
+			info, err := file.Info()
+			if err != nil {
+				continue
+			}
+
+			logFiles = append(logFiles, map[string]interface{}{
+				"name":     file.Name(),
+				"size":     info.Size(),
+				"modTime":  info.ModTime().Format("2006-01-02 15:04:05"),
+				"path":     filepath.Join(logDir, file.Name()),
+				"isToday":  file.Name() == fmt.Sprintf("lottery-optimizer-%s.log", time.Now().Format("2006-01-02")),
+			})
+		}
+	}
+
+	// Ordenar por data (mais recente primeiro)
+	sort.Slice(logFiles, func(i, j int) bool {
+		return logFiles[i]["name"].(string) > logFiles[j]["name"].(string)
+	})
+
+	return map[string]interface{}{
+		"success":   true,
+		"logFiles":  logFiles,
+		"logDir":    logDir,
+		"totalFiles": len(logFiles),
+	}
+}
+
+// GetLogContent retorna o conteúdo de um arquivo de log
+func (a *App) GetLogContent(fileName string) map[string]interface{} {
+	if logDir == "" {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Diretório de logs não inicializado",
+		}
+	}
+
+	// Validar nome do arquivo por segurança
+	if !strings.HasPrefix(fileName, "lottery-optimizer-") || !strings.HasSuffix(fileName, ".log") {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Nome de arquivo inválido",
+		}
+	}
+
+	filePath := filepath.Join(logDir, fileName)
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao ler arquivo de log: %v", err),
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"content": string(content),
+		"size":    len(content),
+		"file":    fileName,
+	}
+}
+
+// GetTodayLogContent retorna o conteúdo do log de hoje
+func (a *App) GetTodayLogContent() map[string]interface{} {
+	todayFileName := fmt.Sprintf("lottery-optimizer-%s.log", time.Now().Format("2006-01-02"))
+	return a.GetLogContent(todayFileName)
+}
+
+// OpenLogDirectory abre o diretório de logs no explorador
+func (a *App) OpenLogDirectory() map[string]interface{} {
+	if logDir == "" {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Diretório de logs não inicializado",
+		}
+	}
+
+	// No Windows, usar o comando explorer
+	// Nota: Esta função pode precisar de ajustes dependendo do sistema
+	return map[string]interface{}{
+		"success": true,
+		"message": "Use o explorador de arquivos para navegar até: " + logDir,
+		"path":    logDir,
+	}
+}
+
+// ClearOldLogs remove logs antigos (mais de 7 dias)
+func (a *App) ClearOldLogs() map[string]interface{} {
+	if logDir == "" {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Diretório de logs não inicializado",
+		}
+	}
+
+	files, err := os.ReadDir(logDir)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao ler diretório de logs: %v", err),
+		}
+	}
+
+	var removedFiles []string
+	cutoff := time.Now().AddDate(0, 0, -7) // 7 dias atrás
+
+	for _, file := range files {
+		if strings.HasPrefix(file.Name(), "lottery-optimizer-") && strings.HasSuffix(file.Name(), ".log") {
+			filePath := filepath.Join(logDir, file.Name())
+			if info, err := file.Info(); err == nil {
+				if info.ModTime().Before(cutoff) {
+					if err := os.Remove(filePath); err == nil {
+						removedFiles = append(removedFiles, file.Name())
+						log.Printf("🗑️ Log antigo removido: %s", file.Name())
+					}
+				}
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"success":      true,
+		"removedFiles": removedFiles,
+		"totalRemoved": len(removedFiles),
+		"message":      fmt.Sprintf("Removidos %d arquivos de log antigos", len(removedFiles)),
+	}
+}
+
+// ===============================
+// SISTEMA DE LOGGING EM ARQUIVO
+// ===============================
+
+// initFileLogging inicializa o sistema de logging em arquivo
+func initFileLogging() error {
+	// Determinar diretório de logs
+	exePath, err := os.Executable()
+	if err != nil {
+		logDir = "logs"
+	} else {
+		logDir = filepath.Join(filepath.Dir(exePath), "logs")
+	}
+
+	// Criar diretório de logs
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return fmt.Errorf("erro ao criar diretório de logs: %v", err)
+	}
+
+	// Nome do arquivo de log com data
+	logFileName := fmt.Sprintf("lottery-optimizer-%s.log", time.Now().Format("2006-01-02"))
+	logFilePath := filepath.Join(logDir, logFileName)
+
+	// Abrir arquivo de log
+	logFile, err = os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("erro ao abrir arquivo de log: %v", err)
+	}
+
+	// Configurar logger para escrever tanto no console quanto no arquivo
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(multiWriter)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	// Log inicial
+	log.Printf("🚀 =================================")
+	log.Printf("🚀 LOTTERY OPTIMIZER v%s INICIADO", version)
+	log.Printf("🚀 =================================")
+	log.Printf("📁 Diretório de logs: %s", logDir)
+	log.Printf("📝 Arquivo de log: %s", logFilePath)
+
+	// Rotação de logs (manter últimos 7 dias)
+	go rotateLogFiles()
+
+	return nil
+}
+
+// rotateLogFiles remove logs antigos (mais de 7 dias)
+func rotateLogFiles() {
+	files, err := os.ReadDir(logDir)
+	if err != nil {
+		log.Printf("❌ Erro ao ler diretório de logs: %v", err)
+		return
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -7) // 7 dias atrás
+	for _, file := range files {
+		if strings.HasPrefix(file.Name(), "lottery-optimizer-") && strings.HasSuffix(file.Name(), ".log") {
+			filePath := filepath.Join(logDir, file.Name())
+			if info, err := file.Info(); err == nil {
+				if info.ModTime().Before(cutoff) {
+					os.Remove(filePath)
+					log.Printf("🗑️ Log antigo removido: %s", file.Name())
+				}
+			}
+		}
+	}
+}
+
+// closeFileLogging fecha o arquivo de log
+func closeFileLogging() {
+	if logFile != nil {
+		log.Printf("🚀 =================================")
+		log.Printf("🚀 LOTTERY OPTIMIZER FINALIZADO")
+		log.Printf("🚀 =================================")
+		logFile.Close()
 	}
 }
