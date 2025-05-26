@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21.8] - 2024-12-19
+
+### 🔧 Fixed
+- **CI/CD**: Reverted to proven working workflow from v1.0.20
+- **Release**: Restored stable installer generation process
+- **Build**: Removed complex debugging workflow in favor of simple, reliable approach
+- **Installer**: Maintained simplified setup.iss for better reliability
+
+### 📝 Notes
+- Back to basics: using the working v1.0.20 workflow structure
+- Focus on reliability over complex debugging
+- Both ZIP and installer artifacts should now generate correctly
+
 ## [1.0.21.7] - 2025-05-26
 
 ### 🔧 Debug e Correções
