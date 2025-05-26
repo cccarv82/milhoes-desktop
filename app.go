@@ -7,7 +7,10 @@ import (
 	"lottery-optimizer-gui/internal/ai"
 	"lottery-optimizer-gui/internal/config"
 	"lottery-optimizer-gui/internal/data"
+	"lottery-optimizer-gui/internal/database"
 	"lottery-optimizer-gui/internal/lottery"
+	"lottery-optimizer-gui/internal/models"
+	"lottery-optimizer-gui/internal/services"
 	"lottery-optimizer-gui/internal/updater"
 	"os"
 	"path/filepath"
@@ -16,24 +19,86 @@ import (
 )
 
 var (
-	version    = "1.0.0"                // Será injetado durante build
+	version    = "1.0.20"                // Será injetado durante build
 	githubRepo = "yourusername/milhoes" // Substitua pelo seu repo
 )
 
 // App struct - Bridge entre Frontend e Backend
 type App struct {
-	ctx        context.Context
-	dataClient *data.Client
-	aiClient   *ai.ClaudeClient
-	updater    *updater.Updater
+	ctx           context.Context
+	dataClient    *data.Client
+	aiClient      *ai.ClaudeClient
+	updater       *updater.Updater
+	savedGamesDB  *database.SavedGamesDB
+	resultChecker *services.ResultChecker
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	dataClient := data.NewClient()
+	
+	// Inicializar banco de dados de jogos salvos
+	// Usar diretório absoluto baseado no executável
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Printf("Erro ao obter caminho do executável: %v\n", err)
+		execPath, _ = os.Getwd() // Fallback para diretório atual
+	}
+	
+	dataDir := filepath.Join(filepath.Dir(execPath), "data")
+	dbPath := filepath.Join(dataDir, "saved_games.db")
+	
+	// Criar diretório se não existir com permissões adequadas
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		fmt.Printf("❌ Erro ao criar diretório de dados (%s): %v\n", dataDir, err)
+	}
+	
+	fmt.Printf("📁 Inicializando banco de dados em: %s\n", dbPath)
+	
+	savedGamesDB, err := database.NewSavedGamesDB(dbPath)
+	if err != nil {
+		fmt.Printf("❌ ERRO ao inicializar banco de jogos salvos: %v\n", err)
+		fmt.Printf("   📂 Diretório: %s\n", dataDir)
+		fmt.Printf("   💾 Arquivo DB: %s\n", dbPath)
+		
+		// Verificar se o diretório existe
+		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+			fmt.Printf("   ⚠️  Diretório não existe: %s\n", dataDir)
+		} else {
+			fmt.Printf("   ✅ Diretório existe: %s\n", dataDir)
+		}
+		
+		// Verificar permissões
+		if file, err := os.OpenFile(filepath.Join(dataDir, "test_write.tmp"), os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+			fmt.Printf("   ❌ Sem permissão de escrita no diretório: %v\n", err)
+		} else {
+			file.Close()
+			os.Remove(filepath.Join(dataDir, "test_write.tmp"))
+			fmt.Printf("   ✅ Permissão de escrita OK\n")
+		}
+		
+		savedGamesDB = nil // Garantir que seja nil em caso de erro
+	} else {
+		fmt.Printf("✅ Banco de jogos salvos inicializado com sucesso!\n")
+	}
+	
+	// Inicializar verificador de resultados usando o dataClient existente
+	var resultChecker *services.ResultChecker
+	if savedGamesDB != nil {
+		resultChecker = services.NewResultChecker(dataClient, savedGamesDB)
+		// Iniciar verificação automática
+		resultChecker.ScheduleAutoCheck()
+		fmt.Printf("✅ Verificador de resultados inicializado e agendado!\n")
+	} else {
+		fmt.Printf("⚠️  Verificador de resultados não inicializado (banco indisponível)\n")
+	}
+
 	return &App{
-		dataClient: data.NewClient(),
-		aiClient:   ai.NewClaudeClient(),
-		updater:    updater.NewUpdater(version, githubRepo),
+		dataClient:    dataClient,
+		aiClient:      ai.NewClaudeClient(),
+		updater:       updater.NewUpdater(version, githubRepo),
+		savedGamesDB:  savedGamesDB,
+		resultChecker: resultChecker,
 	}
 }
 
@@ -563,7 +628,235 @@ func (a *App) InstallUpdate(updateInfo *updater.UpdateInfo) error {
 	return a.updater.InstallUpdate(updateInfo)
 }
 
-// GetCurrentVersion retorna a versão atual do app
+// GetCurrentVersion retorna a versão atual do aplicativo
 func (a *App) GetCurrentVersion() string {
-	return a.updater.GetCurrentVersion()
+	return version
+}
+
+// ===============================
+// MÉTODOS PARA JOGOS SALVOS
+// ===============================
+
+// SaveGame salva um jogo para verificação posterior
+func (a *App) SaveGame(request models.SaveGameRequest) map[string]interface{} {
+	if a.savedGamesDB == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Banco de dados de jogos salvos não disponível",
+		}
+	}
+
+	game, err := a.savedGamesDB.SaveGame(request)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao salvar jogo: %v", err),
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"game":    game,
+		"message": "Jogo salvo com sucesso!",
+	}
+}
+
+// GetSavedGames busca jogos salvos com filtros opcionais
+func (a *App) GetSavedGames(filter models.SavedGamesFilter) map[string]interface{} {
+	if a.savedGamesDB == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Banco de dados de jogos salvos não disponível",
+		}
+	}
+
+	games, err := a.savedGamesDB.GetSavedGames(filter)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao buscar jogos salvos: %v", err),
+		}
+	}
+
+	// Adicionar resultados aos jogos que já foram verificados
+	for i := range games {
+		if games[i].Status == "checked" && a.resultChecker != nil {
+			// Buscar resultado do jogo
+			result, err := a.resultChecker.CheckSingleGame(games[i].ID)
+			if err == nil && result != nil {
+				games[i].Result = result
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"games":   games,
+		"total":   len(games),
+	}
+}
+
+// CheckGameResult verifica o resultado de um jogo específico
+func (a *App) CheckGameResult(gameID string) map[string]interface{} {
+	if a.resultChecker == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Verificador de resultados não disponível",
+		}
+	}
+
+	result, err := a.resultChecker.CheckSingleGame(gameID)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao verificar resultado: %v", err),
+		}
+	}
+
+	if result == nil {
+		return map[string]interface{}{
+			"success": true,
+			"pending": true,
+			"message": "Sorteio ainda não foi realizado",
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"result":  result,
+		"message": fmt.Sprintf("Resultado verificado: %d acertos", result.HitCount),
+	}
+}
+
+// CheckAllPendingResults verifica todos os jogos pendentes
+func (a *App) CheckAllPendingResults() map[string]interface{} {
+	if a.resultChecker == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Verificador de resultados não disponível",
+		}
+	}
+
+	err := a.resultChecker.CheckPendingResults()
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao verificar jogos pendentes: %v", err),
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"message": "Verificação de jogos pendentes concluída",
+	}
+}
+
+// DeleteSavedGame remove um jogo salvo
+func (a *App) DeleteSavedGame(gameID string) map[string]interface{} {
+	if a.savedGamesDB == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Banco de dados de jogos salvos não disponível",
+		}
+	}
+
+	err := a.savedGamesDB.DeleteGame(gameID)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao deletar jogo: %v", err),
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"message": "Jogo removido com sucesso",
+	}
+}
+
+// GetSavedGamesStats retorna estatísticas dos jogos salvos
+func (a *App) GetSavedGamesStats() map[string]interface{} {
+	if a.savedGamesDB == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Banco de dados de jogos salvos não disponível",
+		}
+	}
+
+	stats, err := a.savedGamesDB.GetStats()
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao buscar estatísticas: %v", err),
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"stats":   stats,
+	}
+}
+
+// DebugSavedGamesDB retorna informações de diagnóstico do banco de dados
+func (a *App) DebugSavedGamesDB() map[string]interface{} {
+	// Obter informações do caminho do banco
+	execPath, err := os.Executable()
+	if err != nil {
+		execPath, _ = os.Getwd()
+	}
+	
+	dataDir := filepath.Join(filepath.Dir(execPath), "data")
+	dbPath := filepath.Join(dataDir, "saved_games.db")
+	
+	debug := map[string]interface{}{
+		"executablePath": execPath,
+		"dataDirectory": dataDir,
+		"databasePath":  dbPath,
+		"dbInitialized": a.savedGamesDB != nil,
+		"resultCheckerInitialized": a.resultChecker != nil,
+	}
+	
+	// Verificar se diretório existe
+	if stat, err := os.Stat(dataDir); err != nil {
+		debug["directoryExists"] = false
+		debug["directoryError"] = err.Error()
+	} else {
+		debug["directoryExists"] = true
+		debug["directoryMode"] = stat.Mode().String()
+	}
+	
+	// Verificar se arquivo do banco existe
+	if stat, err := os.Stat(dbPath); err != nil {
+		debug["databaseFileExists"] = false
+		debug["databaseFileError"] = err.Error()
+	} else {
+		debug["databaseFileExists"] = true
+		debug["databaseFileSize"] = stat.Size()
+		debug["databaseFileMode"] = stat.Mode().String()
+	}
+	
+	// Testar permissões de escrita
+	testFile := filepath.Join(dataDir, "test_write_permission.tmp")
+	if file, err := os.OpenFile(testFile, os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+		debug["writePermission"] = false
+		debug["writePermissionError"] = err.Error()
+	} else {
+		file.Close()
+		os.Remove(testFile)
+		debug["writePermission"] = true
+	}
+	
+	// Tentar inicializar banco de dados se não estiver inicializado
+	if a.savedGamesDB == nil {
+		testDB, err := database.NewSavedGamesDB(dbPath)
+		if err != nil {
+			debug["reinitializationTest"] = false
+			debug["reinitializationError"] = err.Error()
+		} else {
+			debug["reinitializationTest"] = true
+			testDB.Close()
+		}
+	}
+	
+	return debug
 }

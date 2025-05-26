@@ -1,7 +1,25 @@
 import './style.css';
 import './app.css';
 
-import { GenerateStrategy, TestConnections, GetNextDraws, SaveConfig, ValidateConfig, GetDefaultConfig, GetStatistics, TestConnectionsWithConfig, DebugClaudeConfig } from '../wailsjs/go/main/App';
+import { 
+    GenerateStrategy, 
+    TestConnections, 
+    GetNextDraws, 
+    SaveConfig, 
+    ValidateConfig, 
+    GetDefaultConfig, 
+    GetStatistics, 
+    TestConnectionsWithConfig, 
+    DebugClaudeConfig,
+    SaveGame,
+    GetSavedGames,
+    CheckGameResult,
+    CheckAllPendingResults,
+    DeleteSavedGame,
+    DebugSavedGamesDB
+} from '../wailsjs/go/main/App';
+
+import { models } from '../wailsjs/go/models';
 
 // Tipos TypeScript para nossa aplicação
 interface UserPreferences {
@@ -53,6 +71,30 @@ interface ConfigData {
     timeoutSec: number;
     maxTokens: number;
     verbose: boolean;
+}
+
+// Interfaces para jogos salvos
+interface SavedGame {
+    id: string;
+    lottery_type: string;
+    numbers: number[];
+    expected_draw: string;
+    contest_number: number;
+    status: string; // "pending", "checked", "error"
+    created_at: string;
+    checked_at?: string;
+    result?: GameResult;
+}
+
+interface GameResult {
+    contest_number: number;
+    draw_date: string;
+    drawn_numbers: number[];
+    matches: number[];
+    hit_count: number;
+    prize: string;
+    prize_amount: number;
+    is_winner: boolean;
 }
 
 // Estado global da aplicação
@@ -476,6 +518,10 @@ function renderWelcome() {
                     <button class="btn-primary" onclick="startStrategyWizard()">
                         <span class="btn-icon">🎲</span>
                         Gerar Estratégia Inteligente
+                    </button>
+                    <button class="btn-secondary" onclick="renderSavedGamesScreen()">
+                        <span class="btn-icon">💾</span>
+                        Jogos Salvos
                     </button>
                     <button class="btn-secondary" onclick="renderConfigurationScreen()">
                         <span class="btn-icon">⚙️</span>
@@ -1054,6 +1100,12 @@ function renderStrategyResult(response: StrategyResponse) {
                                 <div class="game-numbers">
                                     ${game.numbers.map((num: number) => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
                                 </div>
+                                <div class="game-actions" style="margin-top: var(--spacing-3); text-align: center;">
+                                    <button class="btn-save-game" onclick="showSaveGameModal('${game.type}', [${game.numbers.join(',')}])" style="background: var(--accent-success); color: white; border: none; padding: var(--spacing-2) var(--spacing-4); border-radius: var(--border-radius); font-size: var(--font-size-sm); cursor: pointer; display: inline-flex; align-items: center; gap: var(--spacing-1);">
+                                        <span>💾</span>
+                                        Salvar Jogo
+                                    </button>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -1392,27 +1444,445 @@ function renderError(message: string) {
                         Tentar Novamente
                     </button>
                 </div>
-      </div>
-    </div>
-`;
+            </div>
+        </div>
+    `;
 }
 
 // ===============================
-// FUNÇÕES GLOBAIS
+// JOGOS SALVOS
 // ===============================
 
-// Disponibilizar funções globalmente
-(window as any).renderWelcome = renderWelcome;
-(window as any).renderConfigurationScreen = renderConfigurationScreen;
-(window as any).renderPreferencesForm = renderPreferencesForm;
-(window as any).startStrategyWizard = startStrategyWizard;
-(window as any).setBudget = setBudget;
-(window as any).handlePreferencesSubmit = handlePreferencesSubmit;
-(window as any).handleConfigSave = handleConfigSave;
-(window as any).testConnections = testConnections;
-(window as any).loadDefaultConfig = loadDefaultConfig;
-(window as any).checkConfigAndRender = checkConfigAndRender;
-(window as any).printStrategy = printStrategy;
+// Mostrar modal para salvar jogo
+function showSaveGameModal(lotteryType: string, numbers: number[]) {
+    // Buscar informações do próximo sorteio
+    GetNextDraws().then(nextDraws => {
+        const nextDraw = lotteryType === 'megasena' ? nextDraws.megasena : nextDraws.lotofacil;
+        const expectedDate = nextDraw ? nextDraw.date : '';
+        const contestNumber = nextDraw ? nextDraw.number : 0;
+        
+        // Criar modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>💾 Salvar Jogo</h3>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="save-game-form">
+                        <div class="form-section">
+                            <h4>${lotteryType === 'megasena' ? 'Mega-Sena' : 'Lotofácil'}</h4>
+                            <div class="game-numbers">
+                                ${numbers.map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <label for="expectedDate">Data do Próximo Sorteio</label>
+                            <input type="text" id="expectedDate" value="${expectedDate}" readonly style="background: var(--bg-tertiary); color: var(--text-secondary);">
+                        </div>
+                        
+                        <div class="form-section">
+                            <label for="contestNumber">Número do Concurso</label>
+                            <input type="number" id="contestNumber" value="${contestNumber}" readonly style="background: var(--bg-tertiary); color: var(--text-secondary);">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button class="btn-primary" onclick="confirmSaveGame('${lotteryType}', [${numbers.join(',')}], '${expectedDate}', ${contestNumber})">
+                        <span>💾</span>
+                        Salvar Jogo
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }).catch(error => {
+        console.error('Erro ao buscar próximos sorteios:', error);
+        alert('Erro ao buscar informações do próximo sorteio. Tente novamente.');
+    });
+}
+
+// Fechar modal
+function closeModal() {
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Confirmar salvamento do jogo
+async function confirmSaveGame(lotteryType: string, numbers: number[], expectedDraw: string, contestNumber: number) {
+    try {
+        const request = new models.SaveGameRequest({
+            lottery_type: lotteryType === 'megasena' ? 'mega-sena' : 'lotofacil',
+            numbers: numbers,
+            expected_draw: expectedDraw.split('/').reverse().join('-'), // Converter DD/MM/YYYY para YYYY-MM-DD
+            contest_number: contestNumber
+        });
+        
+        const response = await SaveGame(request);
+        
+        if (response.success) {
+            closeModal();
+            alert('✅ Jogo salvo com sucesso! Você será notificado quando o resultado estiver disponível.');
+        } else {
+            alert('❌ Erro ao salvar jogo: ' + (response.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar jogo:', error);
+        alert('❌ Erro ao salvar jogo. Tente novamente.');
+    }
+}
+
+// Renderizar tela de jogos salvos
+async function renderSavedGamesScreen() {
+    const app = document.getElementById('app')!;
+    
+    // Mostrar loading primeiro
+    app.innerHTML = `
+        <div class="container">
+            <header class="header">
+                <div class="header-content">
+                    <h1 class="logo">🎰 Lottery Optimizer</h1>
+                    <p class="tagline">Jogos Salvos</p>
+                </div>
+                <button class="btn-back" onclick="renderWelcome()">
+                    <span class="btn-icon">🏠</span>
+                    Início
+                </button>
+            </header>
+            
+            <div class="main-content">
+                <div class="loading">Carregando jogos salvos...</div>
+            </div>
+        </div>
+    `;
+    
+    try {
+        // Buscar jogos salvos
+        const filter = new models.SavedGamesFilter({});
+        const response = await GetSavedGames(filter);
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Erro ao carregar jogos salvos');
+        }
+        
+        const savedGames: SavedGame[] = response.games || [];
+        
+        // Renderizar interface completa
+        app.innerHTML = `
+            <div class="container">
+                <header class="header">
+                    <div class="header-content">
+                        <h1 class="logo">🎰 Lottery Optimizer</h1>
+                        <p class="tagline">Jogos Salvos</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn-back" onclick="renderWelcome()">
+                            <span class="btn-icon">🏠</span>
+                            Início
+                        </button>
+                        <button class="btn-secondary" onclick="checkAllPendingGames()">
+                            <span class="btn-icon">🔄</span>
+                            Verificar Resultados
+                        </button>
+                    </div>
+                </header>
+                
+                <div class="main-content">
+                    <!-- Filtros -->
+                    <div class="filters-section">
+                        <h3>
+                            <span>🔍</span>
+                            Filtros
+                        </h3>
+                        <div class="filters-grid">
+                            <select id="lotteryFilter" onchange="filterSavedGames()">
+                                <option value="">Todas as Loterias</option>
+                                <option value="mega-sena">Mega-Sena</option>
+                                <option value="lotofacil">Lotofácil</option>
+                            </select>
+                            <select id="statusFilter" onchange="filterSavedGames()">
+                                <option value="">Todos os Status</option>
+                                <option value="pending">Pendente</option>
+                                <option value="checked">Verificado</option>
+                                <option value="error">Erro</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Lista de jogos salvos -->
+                    <div class="saved-games-section">
+                        <h3>
+                            <span>💾</span>
+                            Seus Jogos (${savedGames.length})
+                        </h3>
+                        
+                        ${savedGames.length === 0 ? `
+                            <div class="no-games">
+                                <div class="no-games-icon">🎲</div>
+                                <h4>Nenhum jogo salvo</h4>
+                                <p>Gere uma estratégia e salve seus jogos para acompanhar os resultados!</p>
+                                <button class="btn-primary" onclick="startStrategyWizard()">
+                                    <span class="btn-icon">🎲</span>
+                                    Gerar Estratégia
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="saved-games-grid" id="savedGamesGrid">
+                                ${renderSavedGamesList(savedGames)}
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Erro ao carregar jogos salvos:', error);
+        app.innerHTML = `
+            <div class="container">
+                <header class="header">
+                    <div class="header-content">
+                        <h1 class="logo">🎰 Lottery Optimizer</h1>
+                        <p class="tagline">Jogos Salvos</p>
+                    </div>
+                    <button class="btn-back" onclick="renderWelcome()">
+                        <span class="btn-icon">🏠</span>
+                        Início
+                    </button>
+                </header>
+                
+                <div class="main-content">
+                    <div class="error-content">
+                        <div class="error-icon">❌</div>
+                        <h2>Erro ao Carregar</h2>
+                        <p class="error-message">${error instanceof Error ? error.message : 'Erro desconhecido'}</p>
+                        <button class="btn-primary" onclick="renderSavedGamesScreen()">
+                            <span class="btn-icon">🔄</span>
+                            Tentar Novamente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Renderizar lista de jogos salvos
+function renderSavedGamesList(savedGames: SavedGame[]): string {
+    return savedGames.map(game => {
+        const lotteryIcon = game.lottery_type === 'mega-sena' ? '🔥' : '⭐';
+        const lotteryName = game.lottery_type === 'mega-sena' ? 'Mega-Sena' : 'Lotofácil';
+        const statusClass = getStatusClass(game.status);
+        const statusText = getStatusText(game.status);
+        const statusIcon = getStatusIcon(game.status);
+        
+        return `
+            <div class="saved-game-card ${statusClass}">
+                <div class="saved-game-header">
+                    <span class="game-icon">${lotteryIcon}</span>
+                    <div class="game-info">
+                        <h4>${lotteryName}</h4>
+                        <small>Concurso ${game.contest_number} • ${formatDate(game.expected_draw)}</small>
+                    </div>
+                    <div class="status-badge">
+                        <span class="status-icon">${statusIcon}</span>
+                        <span class="status-text">${statusText}</span>
+                    </div>
+                </div>
+                
+                <div class="saved-game-numbers">
+                    ${game.numbers.map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                </div>
+                
+                ${game.result ? renderGameResult(game.result) : ''}
+                
+                <div class="saved-game-actions">
+                    ${game.status === 'pending' ? `
+                        <button class="btn-small btn-secondary" onclick="checkSingleGame('${game.id}')">
+                            <span>🔍</span>
+                            Verificar
+                        </button>
+                    ` : ''}
+                    <button class="btn-small btn-danger" onclick="deleteSavedGame('${game.id}')">
+                        <span>🗑️</span>
+                        Excluir
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Renderizar resultado do jogo
+function renderGameResult(result: GameResult): string {
+    const isWinner = result.is_winner;
+    const matchClass = isWinner ? 'result-winner' : 'result-no-prize';
+    
+    return `
+        <div class="game-result ${matchClass}">
+            <div class="result-header">
+                <span class="result-icon">${isWinner ? '🏆' : '📊'}</span>
+                <span class="result-text">${result.prize}</span>
+                ${isWinner ? `<span class="prize-amount">R$ ${result.prize_amount.toFixed(2)}</span>` : ''}
+            </div>
+            
+            <div class="result-details">
+                <div class="result-info">
+                    <small>Sorteio ${result.contest_number} • ${result.draw_date}</small>
+                </div>
+                
+                <div class="numbers-comparison">
+                    <div class="drawn-numbers">
+                        <span class="label">Sorteados:</span>
+                        <div class="numbers">
+                            ${result.drawn_numbers.map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="matched-numbers">
+                        <span class="label">Seus acertos (${result.hit_count}):</span>
+                        <div class="numbers">
+                            ${result.matches.map(num => `<span class="number match">${num.toString().padStart(2, '0')}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Funções auxiliares para status
+function getStatusClass(status: string): string {
+    switch (status) {
+        case 'pending': return 'status-pending';
+        case 'checked': return 'status-checked';
+        case 'error': return 'status-error';
+        default: return '';
+    }
+}
+
+function getStatusText(status: string): string {
+    switch (status) {
+        case 'pending': return 'Pendente';
+        case 'checked': return 'Verificado';
+        case 'error': return 'Erro';
+        default: return status;
+    }
+}
+
+function getStatusIcon(status: string): string {
+    switch (status) {
+        case 'pending': return '⏳';
+        case 'checked': return '✅';
+        case 'error': return '❌';
+        default: return '❓';
+    }
+}
+
+// Formatar data
+function formatDate(dateStr: string): string {
+    try {
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}/${year}`;
+    } catch {
+        return dateStr;
+    }
+}
+
+// Filtrar jogos salvos
+async function filterSavedGames() {
+    const lotteryFilter = (document.getElementById('lotteryFilter') as HTMLSelectElement).value;
+    const statusFilter = (document.getElementById('statusFilter') as HTMLSelectElement).value;
+    
+    try {
+        const filter = new models.SavedGamesFilter({
+            lottery_type: lotteryFilter || undefined,
+            status: statusFilter || undefined
+        });
+        
+        const response = await GetSavedGames(filter);
+        
+        if (response.success) {
+            const savedGames: SavedGame[] = response.games || [];
+            const gridElement = document.getElementById('savedGamesGrid');
+            if (gridElement) {
+                gridElement.innerHTML = renderSavedGamesList(savedGames);
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao filtrar jogos:', error);
+    }
+}
+
+// Verificar jogo individual
+async function checkSingleGame(gameId: string) {
+    try {
+        const response = await CheckGameResult(gameId);
+        
+        if (response.success) {
+            if (response.pending) {
+                alert('⏳ Sorteio ainda não foi realizado. Verifique novamente após o sorteio.');
+            } else {
+                alert('✅ Resultado verificado! A página será atualizada.');
+                renderSavedGamesScreen(); // Recarregar a tela
+            }
+        } else {
+            alert('❌ Erro ao verificar resultado: ' + (response.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao verificar jogo:', error);
+        alert('❌ Erro ao verificar resultado. Tente novamente.');
+    }
+}
+
+// Verificar todos os jogos pendentes
+async function checkAllPendingGames() {
+    try {
+        const response = await CheckAllPendingResults();
+        
+        if (response.success) {
+            alert('✅ Verificação concluída! A página será atualizada.');
+            renderSavedGamesScreen(); // Recarregar a tela
+        } else {
+            alert('❌ Erro na verificação: ' + (response.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao verificar jogos pendentes:', error);
+        alert('❌ Erro ao verificar jogos pendentes. Tente novamente.');
+    }
+}
+
+// Deletar jogo salvo
+async function deleteSavedGame(gameId: string) {
+    if (!confirm('Tem certeza que deseja excluir este jogo salvo?')) {
+        return;
+    }
+    
+    try {
+        const response = await DeleteSavedGame(gameId);
+        
+        if (response.success) {
+            alert('✅ Jogo excluído com sucesso!');
+            renderSavedGamesScreen(); // Recarregar a tela
+        } else {
+            alert('❌ Erro ao excluir jogo: ' + (response.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir jogo:', error);
+        alert('❌ Erro ao excluir jogo. Tente novamente.');
+    }
+}
+
+// ===============================
+// DEBUG
+// ===============================
 
 // Função de debug específica para Claude
 async function debugClaudeConfig() {
@@ -1452,11 +1922,51 @@ async function debugClaudeConfig() {
     }
 }
 
+// Função de debug específica para SQLite/Saved Games
+async function debugSavedGamesDB() {
+    console.log('🔍 [DEBUG] Testando banco de dados SQLite...');
+    
+    try {
+        const debugInfo = await DebugSavedGamesDB();
+        console.log('🔍 [DEBUG] Informações do banco SQLite:', debugInfo);
+        
+        // Mostrar info detalhada no console
+        console.table(debugInfo);
+        
+        // Mostrar alerta com informações principais
+        const summary = `
+🔍 DEBUG SQLITE DATABASE:
+• Executable Path: ${debugInfo.executablePath}
+• Data Directory: ${debugInfo.dataDirectory}
+• Database Path: ${debugInfo.databasePath}
+• DB Initialized: ${debugInfo.dbInitialized}
+• Result Checker Initialized: ${debugInfo.resultCheckerInitialized}
+• Directory Exists: ${debugInfo.directoryExists}
+• Database File Exists: ${debugInfo.databaseFileExists}
+• Write Permission: ${debugInfo.writePermission}
+${debugInfo.directoryError ? `• Directory Error: ${debugInfo.directoryError}` : ''}
+${debugInfo.databaseFileError ? `• DB File Error: ${debugInfo.databaseFileError}` : ''}
+${debugInfo.writePermissionError ? `• Write Error: ${debugInfo.writePermissionError}` : ''}
+${debugInfo.reinitializationError ? `• Reinit Error: ${debugInfo.reinitializationError}` : ''}
+`;
+        
+        alert(summary);
+        
+        return debugInfo;
+        
+    } catch (error) {
+        console.error('❌ [DEBUG] Erro ao testar SQLite:', error);
+        alert('❌ Erro ao testar banco de dados SQLite: ' + error);
+        return null;
+    }
+}
+
 // Função para adicionar botão de debug na interface
 function addDebugButton() {
-    const debugButton = document.createElement('button');
-    debugButton.textContent = '🔍 Debug Claude';
-    debugButton.style.cssText = `
+    // Botão de debug do Claude
+    const debugClaudeButton = document.createElement('button');
+    debugClaudeButton.textContent = '🔍 Debug Claude';
+    debugClaudeButton.style.cssText = `
         position: fixed;
         bottom: 10px;
         right: 10px;
@@ -1469,6 +1979,52 @@ function addDebugButton() {
         cursor: pointer;
         font-size: 12px;
     `;
-    debugButton.onclick = debugClaudeConfig;
-    document.body.appendChild(debugButton);
+    debugClaudeButton.onclick = debugClaudeConfig;
+    document.body.appendChild(debugClaudeButton);
+    
+    // Botão de debug do SQLite
+    const debugSQLiteButton = document.createElement('button');
+    debugSQLiteButton.textContent = '💾 Debug SQLite';
+    debugSQLiteButton.style.cssText = `
+        position: fixed;
+        bottom: 10px;
+        right: 140px;
+        z-index: 9999;
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+    `;
+    debugSQLiteButton.onclick = debugSavedGamesDB;
+    document.body.appendChild(debugSQLiteButton);
 }
+
+// Adicionar debug button se necessário
+addDebugButton();
+
+// Expor funções globalmente para uso em onclick handlers
+(window as any).testConnections = testConnections;
+(window as any).loadDefaultConfig = loadDefaultConfig;
+(window as any).handleConfigSave = handleConfigSave;
+(window as any).startStrategyWizard = startStrategyWizard;
+(window as any).setBudget = setBudget;
+(window as any).handlePreferencesSubmit = handlePreferencesSubmit;
+(window as any).renderWelcome = renderWelcome;
+(window as any).renderConfigurationScreen = renderConfigurationScreen;
+(window as any).renderSavedGamesScreen = renderSavedGamesScreen;
+(window as any).showSaveGameModal = showSaveGameModal;
+(window as any).closeModal = closeModal;
+(window as any).confirmSaveGame = confirmSaveGame;
+(window as any).filterSavedGames = filterSavedGames;
+(window as any).checkSingleGame = checkSingleGame;
+(window as any).checkAllPendingGames = checkAllPendingGames;
+(window as any).deleteSavedGame = deleteSavedGame;
+(window as any).renderPreferencesForm = renderPreferencesForm;
+(window as any).generateStrategy = generateStrategy;
+(window as any).renderStrategyResult = renderStrategyResult;
+(window as any).printStrategy = printStrategy;
+(window as any).debugClaudeConfig = debugClaudeConfig;
+(window as any).debugSavedGamesDB = debugSavedGamesDB;

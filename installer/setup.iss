@@ -1,9 +1,9 @@
 [Setup]
 ; Informações básicas do app
-AppId={{B8C4F4A5-9D3E-4F2B-8C1A-7E5F9D2A3B4C}
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 AppName=Milhões - Otimizador de Loterias
-AppVersion=1.0.18
-AppVerName=Milhões v1.0.18
+AppVersion=1.0.20
+AppVerName=Milhões v1.0.20
 AppPublisher=Milhões Team
 AppPublisherURL=https://github.com/yourusername/milhoes
 AppSupportURL=https://github.com/yourusername/milhoes/issues
@@ -29,12 +29,12 @@ ArchitecturesInstallIn64BitMode=x64
 ; WizardSmallImageFile=installer-icon.bmp
 
 ; Configurações de versionamento
-VersionInfoVersion=1.0.18.0
+VersionInfoVersion=1.0.20.0
 VersionInfoCompany=Milhões Team
 VersionInfoDescription=Otimizador Inteligente de Loterias
 VersionInfoCopyright=Copyright (C) 2025 Milhões Team
 VersionInfoProductName=Milhões
-VersionInfoProductVersion=1.0.18
+VersionInfoProductVersion=1.0.20
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
@@ -72,7 +72,7 @@ Root: HKLM; Subkey: "Software\Classes\MilhoesFile\shell\open\command"; ValueType
 
 ; Chaves para auto-update (sistema)
 Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.18"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.0.20"; Flags: uninsdeletekey
 
 ; Adicionar ao PATH do sistema (opcional)
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath('{app}'); Tasks: addtopath
@@ -152,7 +152,7 @@ var
   CurrentVersion: String;
 begin
   Result := True;
-  CurrentVersion := '1.0.18';
+  CurrentVersion := '1.0.20';
   
   if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'Software\Milhoes', 'Version', InstalledVersion) then
   begin

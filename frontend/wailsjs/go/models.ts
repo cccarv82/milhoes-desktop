@@ -197,6 +197,47 @@ export namespace main {
 
 }
 
+export namespace models {
+	
+	export class SaveGameRequest {
+	    lottery_type: string;
+	    numbers: number[];
+	    expected_draw: string;
+	    contest_number: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SaveGameRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lottery_type = source["lottery_type"];
+	        this.numbers = source["numbers"];
+	        this.expected_draw = source["expected_draw"];
+	        this.contest_number = source["contest_number"];
+	    }
+	}
+	export class SavedGamesFilter {
+	    lottery_type?: string;
+	    status?: string;
+	    from_date?: string;
+	    to_date?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SavedGamesFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lottery_type = source["lottery_type"];
+	        this.status = source["status"];
+	        this.from_date = source["from_date"];
+	        this.to_date = source["to_date"];
+	    }
+	}
+
+}
+
 export namespace updater {
 	
 	export class UpdateInfo {
