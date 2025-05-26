@@ -69,16 +69,26 @@ jobs:
         Get-ChildItem -Force | Format-Table -AutoSize
         echo ""
         echo "Building with version: ${{ github.ref_name }}"
+        echo "=== Starting Wails Build ==="
         
-        # Run Wails build (correct syntax without -v)
-        wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
+        # Capture Wails build output
+        try {
+          $ErrorActionPreference = "Continue"
+          wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}" 2>&1 | Tee-Object -Variable buildOutput
+          echo "=== Wails Build Output ==="
+          echo $buildOutput
+          echo "=== Build Exit Code: $LASTEXITCODE ==="
+        } catch {
+          echo "❌ Exception during Wails build: $_"
+          throw
+        }
         
-        # Check exit code
+        # Check if build was successful
         if ($LASTEXITCODE -ne 0) {
           echo "❌ Wails build failed with exit code: $LASTEXITCODE"
           exit $LASTEXITCODE
         } else {
-          echo "✅ Wails build completed successfully"
+          echo "✅ Wails build completed with exit code 0"
         }
       shell: pwsh
 
@@ -120,21 +130,32 @@ jobs:
 
     - name: 📋 List Build Output
       run: |
-        echo "=== Build Directory ==="
-        Get-ChildItem -Path build/ -Force | Format-Table -AutoSize
-        if (Test-Path "build/bin") { 
-          echo "=== Build/bin Directory ==="
-          Get-ChildItem -Path build/bin/ -Force | Format-Table -AutoSize 
-          echo "=== Checking milhoes.exe specifically ==="
-          if (Test-Path "build/bin/milhoes.exe") {
-            echo "✅ milhoes.exe found with size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
-          } else {
-            echo "❌ milhoes.exe NOT found in build/bin/"
+        echo "=== Post-build file scan ==="
+        echo "Current directory: $(Get-Location)"
+        echo ""
+        if (Test-Path "build") {
+          echo "=== Build Directory ==="
+          Get-ChildItem -Path build/ -Force | Format-Table -AutoSize
+          if (Test-Path "build/bin") { 
+            echo "=== Build/bin Directory ==="
+            Get-ChildItem -Path build/bin/ -Force | Format-Table -AutoSize 
+            echo "=== Checking milhoes.exe specifically ==="
+            if (Test-Path "build/bin/milhoes.exe") {
+              echo "✅ milhoes.exe found with size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
+            } else {
+              echo "❌ milhoes.exe NOT found in build/bin/"
+            }
+          } else { 
+            echo "❌ build/bin directory not found" 
+            echo "=== All directories in build ==="
+            Get-ChildItem -Path build/ -Directory -Force -ErrorAction SilentlyContinue | Format-Table -AutoSize
           }
-        } else { 
-          echo "❌ build/bin directory not found" 
-          echo "=== All directories in build ==="
-          Get-ChildItem -Path build/ -Directory -Force | Format-Table -AutoSize
+        } else {
+          echo "❌ No build directory created by Wails!"
+          echo "=== Searching for any .exe files ==="
+          Get-ChildItem -Recurse -Name "*.exe" -ErrorAction SilentlyContinue
+          echo "=== Root directory contents after build ==="
+          Get-ChildItem -Force | Format-Table -AutoSize
         }
       shell: pwsh
 
