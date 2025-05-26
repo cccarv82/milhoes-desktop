@@ -57,14 +57,21 @@ jobs:
         echo "Node version: $(node --version)"
         echo "NPM version: $(npm --version)"
         echo ""
+        echo "=== Cleaning old build files ==="
+        # Remove any existing executables that might conflict
+        Remove-Item -Path "lottery-optimizer.exe" -ErrorAction SilentlyContinue
+        Remove-Item -Path "lottery-optimizer" -ErrorAction SilentlyContinue  
+        Remove-Item -Path "test-binary" -ErrorAction SilentlyContinue
+        Remove-Item -Path "build" -Recurse -ErrorAction SilentlyContinue
+        echo "✅ Cleaned old files"
+        echo ""
         echo "=== Pre-build file structure ==="
         Get-ChildItem -Force | Format-Table -AutoSize
         echo ""
         echo "Building with version: ${{ github.ref_name }}"
         
-        # Run Wails build with verbose output
-        $output = wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}" -v 2>&1
-        echo $output
+        # Run Wails build (correct syntax without -v)
+        wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
         
         # Check exit code
         if ($LASTEXITCODE -ne 0) {
