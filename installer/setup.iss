@@ -15,7 +15,7 @@ LicenseFile=..\LICENSE
 InfoBeforeFile=..\README.md
 OutputDir=Output
 OutputBaseFilename=MilhoesSetup
-SetupIconFile=..\build\appicon.ico
+; SetupIconFile=..\build\appicon.ico  ; Desabilitado até criarmos o ícone
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -23,9 +23,9 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 
-; Configurações visuais
-WizardImageFile=installer-banner.bmp
-WizardSmallImageFile=installer-icon.bmp
+; Configurações visuais (desabilitadas até criarmos as imagens)
+; WizardImageFile=installer-banner.bmp
+; WizardSmallImageFile=installer-icon.bmp
 
 ; Configurações de versionamento
 VersionInfoVersion=1.0.0.0

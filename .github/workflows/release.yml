@@ -1,4 +1,4 @@
-name: Build and Release
+name: 🚀 Build and Release
 
 on:
   push:
@@ -11,6 +11,7 @@ env:
 
 jobs:
   build:
+    name: 🏗️ Build App
     strategy:
       matrix:
         build: [
@@ -20,81 +21,113 @@ jobs:
     runs-on: ${{ matrix.build.os }}
     
     steps:
-    - name: Checkout
+    - name: 📥 Checkout Code
       uses: actions/checkout@v4
       with:
         submodules: false
 
-    - name: Setup Go
+    - name: 🔧 Setup Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
 
-    - name: Setup Node
+    - name: 🔧 Setup Node
       uses: actions/setup-node@v4
       with:
         node-version: '18'
 
-    - name: Setup Wails
+    - name: 📦 Install Wails
       run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
 
-    - name: Build App
+    - name: 🏗️ Build Wails App
       run: |
+        echo "Building with version: ${{ github.ref_name }}"
         wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
 
-    - name: Compress artifacts
+    - name: 📋 List Build Output
+      run: |
+        echo "=== Build Directory ==="
+        ls -la build/
+        if (Test-Path "build/bin") { ls -la build/bin/ } else { echo "build/bin not found" }
+      shell: pwsh
+
+    - name: 📦 Compress Artifacts
       uses: vimtor/action-zip@v1.2
       with:
         files: build/bin/
         dest: milhoes-${{ matrix.build.name }}-${{ matrix.build.arch }}.zip
 
-    - name: Upload artifacts
+    - name: 📤 Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: milhoes-${{ matrix.build.name }}-${{ matrix.build.arch }}
         path: milhoes-${{ matrix.build.name }}-${{ matrix.build.arch }}.zip
 
   create-installer:
+    name: 📦 Create Windows Installer
     needs: build
     runs-on: windows-latest
     
     steps:
-    - name: Checkout
+    - name: 📥 Checkout Code
       uses: actions/checkout@v4
 
-    - name: Download Windows artifacts
+    - name: 📥 Download Build Artifacts
       uses: actions/download-artifact@v4
       with:
         name: milhoes-windows-amd64
 
-    - name: Extract artifacts
+    - name: 📂 Extract Build Artifacts
       run: |
-        Expand-Archive -Path milhoes-windows-amd64.zip -DestinationPath ./build/
+        echo "=== Extracting artifacts ==="
+        Expand-Archive -Path milhoes-windows-amd64.zip -DestinationPath ./build/ -Force
+        echo "=== Build contents after extraction ==="
+        Get-ChildItem -Recurse build/
 
-    - name: Setup Inno Setup
+    - name: 🛠️ Install Inno Setup
       run: |
+        echo "=== Installing Inno Setup ==="
         choco install innosetup -y
 
-    - name: Create installer
+    - name: 📋 Verify Files Before Build
       run: |
+        echo "=== Verifying installer requirements ==="
+        echo "Current directory:"
+        Get-Location
+        echo "Directory contents:"
+        Get-ChildItem -Recurse
+        echo "=== Checking required files ==="
+        if (Test-Path "build/bin/milhoes.exe") { echo "✅ milhoes.exe found" } else { echo "❌ milhoes.exe NOT found" }
+        if (Test-Path "README.md") { echo "✅ README.md found" } else { echo "❌ README.md NOT found" }
+        if (Test-Path "LICENSE") { echo "✅ LICENSE found" } else { echo "❌ LICENSE NOT found" }
+
+    - name: 🏗️ Create Installer
+      run: |
+        echo "=== Creating installer ==="
         iscc installer/setup.iss
 
-    - name: Upload installer
+    - name: 📤 Upload Installer
       uses: actions/upload-artifact@v4
       with:
         name: milhoes-installer
         path: installer/Output/MilhoesSetup.exe
 
   release:
+    name: 🚀 Create GitHub Release
     needs: [build, create-installer]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
     steps:
-    - name: Download all artifacts
+    - name: 📥 Download All Artifacts
       uses: actions/download-artifact@v4
 
-    - name: Create Release
+    - name: 📋 List Downloaded Artifacts
+      run: |
+        echo "=== Downloaded artifacts ==="
+        find . -type f -name "*.exe" -o -name "*.zip" | head -20
+
+    - name: 🚀 Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
@@ -102,5 +135,22 @@ jobs:
           milhoes-installer/MilhoesSetup.exe
         generate_release_notes: true
         prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+        body: |
+          ## 🎯 Milhões - Otimizador de Loterias ${{ github.ref_name }}
+          
+          ### 📦 Downloads Disponíveis:
+          - **`MilhoesSetup.exe`** - Instalador profissional Windows (recomendado)
+          - **`milhoes-windows-amd64.zip`** - Versão portável
+          
+          ### 🚀 Instalação:
+          1. Baixe o `MilhoesSetup.exe`
+          2. Execute como administrador
+          3. Siga o assistente de instalação
+          
+          ### ⚙️ Primeira Configuração:
+          1. Obtenha sua chave da API do Claude em: https://console.anthropic.com/
+          2. Configure no app: Menu → Configurações
+          3. Teste a conexão
+          4. Comece a otimizar suas loterias! 🎰
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

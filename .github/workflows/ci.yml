@@ -3,6 +3,8 @@ name: 🚀 CI/CD Pipeline
 on:
   push:
     branches: [ main, develop ]
+    tags-ignore:
+      - 'v*'  # Não rodar CI para tags de release
     paths-ignore:
       - '**.md'
       - '.gitignore'
