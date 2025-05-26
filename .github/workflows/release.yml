@@ -304,28 +304,72 @@ jobs:
         echo "=== Downloaded artifacts ==="
         find . -type f -name "*.exe" -o -name "*.zip" | head -20
 
-    - name: 📂 Checkout Public Repository
-      uses: actions/checkout@v4
-      with:
-        repository: cccarv82/milhoes-releases
-        token: ${{ secrets.RELEASES_TOKEN }}
-        path: public-repo
-
     - name: 🏷️ Create Tag in Public Repository
       run: |
-        cd public-repo
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        
-        # Extract tag name from the trigger
         TAG_NAME=${GITHUB_REF#refs/tags/}
-        echo "Creating tag: $TAG_NAME"
+        echo "Creating tag: $TAG_NAME in public repository"
         
-        # Create and push tag
-        git tag $TAG_NAME
-        git push origin $TAG_NAME
-      env:
-        GITHUB_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        # Get current commit SHA from the main repo
+        MAIN_REPO_SHA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/cccarv82/milhoes-desktop/git/refs/tags/$TAG_NAME" | \
+          jq -r '.object.sha')
+        
+        echo "Main repo SHA for tag $TAG_NAME: $MAIN_REPO_SHA"
+        
+        # Check if public repo exists and has any commits
+        echo "Checking public repository status..."
+        PUBLIC_REPO_STATUS=$(curl -s -H "Authorization: token ${{ secrets.RELEASES_TOKEN }}" \
+          "https://api.github.com/repos/cccarv82/milhoes-releases" | jq -r '.size')
+        
+        if [ "$PUBLIC_REPO_STATUS" = "0" ]; then
+          echo "Public repository is empty, creating initial commit..."
+          
+          # Create initial commit in public repo
+          curl -X PUT -H "Authorization: token ${{ secrets.RELEASES_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/cccarv82/milhoes-releases/contents/README.md" \
+            -d '{
+              "message": "Initial commit for releases",
+              "content": "IyBNaWxow7VlcyAtIFJlbGVhc2VzIFDDumJsaWNhcw=="
+            }'
+          
+          echo "Initial commit created"
+          sleep 5
+          
+          # Get the new commit SHA
+          COMMIT_SHA=$(curl -s -H "Authorization: token ${{ secrets.RELEASES_TOKEN }}" \
+            "https://api.github.com/repos/cccarv82/milhoes-releases/git/refs/heads/main" | \
+            jq -r '.object.sha')
+        else
+          echo "Public repository has content, getting latest commit..."
+          COMMIT_SHA=$(curl -s -H "Authorization: token ${{ secrets.RELEASES_TOKEN }}" \
+            "https://api.github.com/repos/cccarv82/milhoes-releases/git/refs/heads/main" | \
+            jq -r '.object.sha')
+        fi
+        
+        echo "Using commit SHA: $COMMIT_SHA"
+        
+        # Create tag in public repository
+        curl -X POST -H "Authorization: token ${{ secrets.RELEASES_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/cccarv82/milhoes-releases/git/tags" \
+          -d "{
+            \"tag\": \"$TAG_NAME\",
+            \"message\": \"Release $TAG_NAME\",
+            \"object\": \"$COMMIT_SHA\",
+            \"type\": \"commit\"
+          }"
+        
+        # Create tag reference
+        curl -X POST -H "Authorization: token ${{ secrets.RELEASES_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/cccarv82/milhoes-releases/git/refs" \
+          -d "{
+            \"ref\": \"refs/tags/$TAG_NAME\",
+            \"sha\": \"$COMMIT_SHA\"
+          }"
+        
+        echo "Tag $TAG_NAME created in public repository"
 
     - name: 🚀 Create GitHub Release (Public Repository)
       uses: softprops/action-gh-release@v1
