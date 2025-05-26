@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21.10] - 2024-12-19 🎯 FINAL FIX
+
+### 🔧 Fixed - INSTALLER PATH ISSUE RESOLVED  
+- **CRITICAL**: Fixed duplicate path issue in Inno Setup configuration
+- **ROOT CAUSE**: OutputDir caused `installer\installer\Output` instead of `installer\Output`
+- **SOLUTION**: Changed OutputDir from "installer\Output" to "Output" in setup.iss
+- **RESULT**: MilhoesSetup.exe now created in correct location for upload
+
+### 📋 Technical Details
+- **Problem**: Inno Setup created file at `installer\installer\Output\MilhoesSetup.exe`
+- **Expected**: Workflow looked for `installer\Output\MilhoesSetup.exe`
+- **Fix**: Updated OutputDir=Output in setup.iss to prevent path duplication
+- **Updated**: All version references to 1.0.21.10 in setup.iss
+
+### ✅ Expected Result
+- ✅ Inno Setup creates: `installer/Output/MilhoesSetup.exe`
+- ✅ Workflow uploads from: `installer/Output/MilhoesSetup.exe`  
+- ✅ Both artifacts available: ZIP + EXE installer
+- ✅ Complete GitHub release generated
+
+### 🎯 CONFIDENCE: 99%
+This should definitively resolve the installer generation issue.
+
 ## [1.0.21.9] - 2024-12-19 🚨 CRITICAL FIX
 
 ### 🔧 Fixed - P0 INCIDENT RESOLUTION

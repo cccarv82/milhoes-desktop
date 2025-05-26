@@ -21,7 +21,7 @@ import (
 
 // version é a versão atual do aplicativo
 const (
-	version = "1.0.21.9"
+	version = "1.0.21.10"
 )
 
 var (
@@ -910,7 +910,7 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 func (a *App) GetAppInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"success":           true,
-		"version":           "1.0.21.9",
+		"version":           "1.0.21.10",
 		"platform":          "windows",
 		"repository":        "cccarv82/milhoes-desktop",
 		"buildDate":         time.Now().Format("2006-01-02"),
