@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         build: [
-          {name: windows, os: windows-latest, arch: amd64, extension: .exe}
+          {name: windows, os: windows-latest, arch: amd64, extension: .exe, wails_platform: windows}
         ]
     
     runs-on: ${{ matrix.build.os }}
@@ -70,11 +70,11 @@ jobs:
         echo ""
         echo "Building with version: ${{ github.ref_name }}"
         echo "=== Starting Wails Build ==="
-        echo "Command: wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags `"-X main.version=${{ github.ref_name }}`""
+        echo "Command: wails build -platform ${{ matrix.build.wails_platform }}/${{ matrix.build.arch }} -ldflags `"-X main.version=${{ github.ref_name }}`""
         echo ""
         
         # Run Wails build with direct output
-        wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
+        wails build -platform ${{ matrix.build.wails_platform }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
         $wailsExitCode = $LASTEXITCODE
         
         echo ""
