@@ -22,6 +22,8 @@ export function DownloadUpdate(arg1:updater.UpdateInfo):Promise<void>;
 
 export function GenerateStrategy(arg1:main.UserPreferences):Promise<main.StrategyResponse>;
 
+export function GetAppInfo():Promise<Record<string, any>>;
+
 export function GetCurrentConfig():Promise<main.ConfigData>;
 
 export function GetCurrentVersion():Promise<string>;
@@ -43,6 +45,8 @@ export function InstallUpdate(arg1:updater.UpdateInfo):Promise<void>;
 export function SaveConfig(arg1:main.ConfigData):Promise<Record<string, any>>;
 
 export function SaveGame(arg1:models.SaveGameRequest):Promise<Record<string, any>>;
+
+export function ScheduleUpdateCheck():Promise<void>;
 
 export function TestConnections():Promise<main.ConnectionStatus>;
 

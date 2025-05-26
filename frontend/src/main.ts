@@ -16,7 +16,9 @@ import {
     CheckGameResult,
     CheckAllPendingResults,
     DeleteSavedGame,
-    DebugSavedGamesDB
+    DebugSavedGamesDB,
+    GetAppInfo,
+    CheckForUpdates
 } from '../wailsjs/go/main/App';
 
 import { models } from '../wailsjs/go/models';
@@ -97,6 +99,16 @@ interface GameResult {
     is_winner: boolean;
 }
 
+// Interfaces para informações do app
+interface AppInfo {
+    success: boolean;
+    version: string;
+    platform: string;
+    repository: string;
+    buildDate: string;
+    autoUpdateEnabled: boolean;
+}
+
 // Estado global da aplicação
 let userPreferences: UserPreferences = {
     lotteryTypes: [],
@@ -115,6 +127,9 @@ let currentConfig: ConfigData = {
     verbose: false
 };
 
+// Estado global da aplicação
+let appInfo: AppInfo | null = null;
+
 // ===============================
 // INICIALIZAÇÃO
 // ===============================
@@ -122,12 +137,59 @@ let currentConfig: ConfigData = {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎰 Lottery Optimizer iniciado!');
     
+    // Carregar informações do app
+    await loadAppInfo();
+    
     // Adicionar botão de debug
     addDebugButton();
     
     // Verificar configuração e renderizar tela apropriada
     await checkConfigAndRender();
 });
+
+// ===============================
+// INFORMAÇÕES DO APP E AUTO-UPDATE
+// ===============================
+
+async function loadAppInfo() {
+    try {
+        const response = await GetAppInfo();
+        if (response.success) {
+            appInfo = response as AppInfo;
+            console.log(`🎰 App Info carregado: v${appInfo.version} (${appInfo.platform})`);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar informações do app:', error);
+        appInfo = {
+            success: false,
+            version: 'Unknown',
+            platform: 'Unknown',
+            repository: 'cccarv82/milhoes-desktop',
+            buildDate: new Date().toISOString().split('T')[0],
+            autoUpdateEnabled: false
+        };
+    }
+}
+
+async function checkForUpdatesManually() {
+    try {
+        console.log('🔄 Verificando atualizações manualmente...');
+        const updateInfo = await CheckForUpdates();
+        
+        if (updateInfo && updateInfo.available) {
+            alert(`🎉 Nova versão disponível!\n\nVersão atual: ${appInfo?.version}\nNova versão: ${updateInfo.version}\n\nReinicie o app para que ele baixe automaticamente a atualização.`);
+        } else {
+            alert('✅ Seu app já está na versão mais recente!');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao verificar atualizações:', error);
+        let errorMessage = 'Erro desconhecido';
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        alert(`❌ Erro ao verificar atualizações:\n${errorMessage}`);
+    }
+}
 
 // ===============================
 // TELA DE CONFIGURAÇÃO OBRIGATÓRIA
@@ -295,6 +357,32 @@ function renderConfigurationScreen() {
                         <div id="connectionStatus"></div>
                     </div>
 
+                    <!-- Auto-Update -->
+                    <div class="form-section">
+                        <h3>
+                            <span>🔄</span>
+                            Atualizações Automáticas
+                        </h3>
+                        <p style="color: var(--text-secondary); margin-bottom: var(--spacing-4);">
+                            ${appInfo ? `Versão atual: <strong>v${appInfo.version}</strong> | Auto-update: <strong>${appInfo.autoUpdateEnabled ? 'Ativado' : 'Desativado'}</strong>` : 'Carregando informações...'}
+                        </p>
+                        
+                        <div style="display: flex; gap: var(--spacing-4); margin-bottom: var(--spacing-6); flex-wrap: wrap;">
+                            <button type="button" class="btn-secondary" onclick="checkForUpdatesManually()">
+                                <span class="btn-icon">🔍</span>
+                                Verificar Atualizações
+                            </button>
+                        </div>
+                        
+                        <div class="info-box" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--border-radius); padding: var(--spacing-4); color: var(--text-secondary);">
+                            <strong>ℹ️ Como funciona:</strong><br>
+                            • O app verifica atualizações automaticamente a cada 6 horas<br>
+                            • Verificação inicial ocorre 30 segundos após iniciar o app<br>
+                            • Quando uma nova versão é detectada, o download é automático<br>
+                            • Logs detalhados aparecem no console do sistema
+                        </div>
+                    </div>
+
                     <!-- Ações -->
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" onclick="loadDefaultConfig()">
@@ -459,9 +547,12 @@ function renderWelcome() {
                     <h1 class="logo">🎰 Lottery Optimizer</h1>
                     <p class="tagline">Estratégias Inteligentes para Loterias</p>
                 </div>
-                <div class="ai-badge">
-                    <span class="ai-icon">🤖</span>
-                    Powered by Claude AI
+                <div class="header-actions">
+                    ${appInfo ? `<div class="version-badge">v${appInfo.version}</div>` : ''}
+                    <div class="ai-badge">
+                        <span class="ai-icon">🤖</span>
+                        Powered by Claude AI
+                    </div>
                 </div>
             </header>
             
@@ -1401,7 +1492,7 @@ function printStrategy() {
             
             <div class="footer">
                 <p><strong>Estratégia gerada com base em análise estatística de dados históricos</strong></p>
-                <p>Esta estratégia foi criada usando inteligência artificial que analisou ${strategy.statistics?.analyzedDraws || 100} sorteios históricos</p>
+                <p>Esta estratégia foi criada usando inteligência artificial que analisou ${strategy.statistics.analyzedDraws || 100} sorteios históricos</p>
                 <p>Números podem ser marcados em qualquer lotérica ou site oficial da CAIXA</p>
                 <p style="margin-top: 15px; font-size: 10px;">Lottery Optimizer © 2025 - Powered by Claude AI</p>
             </div>
@@ -2028,3 +2119,7 @@ addDebugButton();
 (window as any).printStrategy = printStrategy;
 (window as any).debugClaudeConfig = debugClaudeConfig;
 (window as any).debugSavedGamesDB = debugSavedGamesDB;
+
+// Adicionando funções ao objeto global window para acessibilidade
+(window as any).loadAppInfo = loadAppInfo;
+(window as any).checkForUpdatesManually = checkForUpdatesManually;

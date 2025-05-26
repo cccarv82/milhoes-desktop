@@ -38,6 +38,10 @@ export function GenerateStrategy(arg1) {
   return window['go']['main']['App']['GenerateStrategy'](arg1);
 }
 
+export function GetAppInfo() {
+  return window['go']['main']['App']['GetAppInfo']();
+}
+
 export function GetCurrentConfig() {
   return window['go']['main']['App']['GetCurrentConfig']();
 }
@@ -80,6 +84,10 @@ export function SaveConfig(arg1) {
 
 export function SaveGame(arg1) {
   return window['go']['main']['App']['SaveGame'](arg1);
+}
+
+export function ScheduleUpdateCheck() {
+  return window['go']['main']['App']['ScheduleUpdateCheck']();
 }
 
 export function TestConnections() {

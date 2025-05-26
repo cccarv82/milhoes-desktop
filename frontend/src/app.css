@@ -159,6 +159,36 @@ body {
   font-size: var(--font-size-lg);
 }
 
+/* Version Badge */
+.version-badge {
+  display: flex;
+  align-items: center;
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-success);
+  border: 1px solid var(--accent-success);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: var(--transition);
+}
+
+.version-badge:hover {
+  background: rgba(16, 185, 129, 0.3);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+/* Header Actions Layout */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
 /* Main Content */
 .main-content, .wizard-content, .strategy-content {
   position: relative;

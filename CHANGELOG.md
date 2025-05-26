@@ -39,9 +39,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated releases with GoReleaser
 - Comprehensive documentation
 
-## [1.0.20] - 2025-05-26
+## [1.0.21] - 2025-05-26
 
-### ✨ Nova Funcionalidade - Jogos Salvos
+### ✨ Adicionado
+- **Sistema de Auto-Update Completo**: Verificação automática de atualizações a cada 6 horas
+- **Verificação Inicial**: Check de updates 30 segundos após inicialização do app
+- **Badge de Versão**: Exibição da versão atual no header da interface
+- **Verificação Manual**: Botão para verificar atualizações manualmente nas configurações
+- **Logs Detalhados**: Sistema de logging completo para monitoramento de updates
+- **Interface de Auto-Update**: Seção dedicada nas configurações com informações do sistema
+
+### 🔧 Melhorado
+- **Função GetAppInfo**: Nova API para obter informações detalhadas do aplicativo
+- **Inicialização do App**: Startup aprimorado com inicialização automática do sistema de updates
+- **Interface de Configurações**: Seção expandida com informações de versão e auto-update
+- **Experiência do Usuário**: Feedback visual claro sobre status de atualizações
+
+### 🐛 Corrigido
+- **Bindings TypeScript**: Regeneração correta dos bindings para novas funções
+- **Campos UpdateInfo**: Correção dos nomes de campos (available/version vs Available/Version)
+- **Compilação**: Resolução de erros de compilação relacionados ao auto-update
+
+### 📋 Técnico
+- **Backend**: Implementação completa do sistema de auto-update no startup
+- **Frontend**: Integração das funções de verificação manual e exibição de versão
+- **CSS**: Estilização do badge de versão e seções de auto-update
+- **Logs**: Sistema de logging estruturado para debugging e monitoramento
 
 #### 🎯 Principais Adições:
 - **Sistema de Jogos Salvos**: Salve seus jogos gerados para acompanhar resultados automaticamente

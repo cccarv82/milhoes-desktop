@@ -16,10 +16,13 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"log"
 )
 
+// version é a versão atual do aplicativo
+var version = "1.0.21"
+
 var (
-	version    = "1.0.20"                // Será injetado durante build
 	githubRepo = "yourusername/milhoes" // Substitua pelo seu repo
 )
 
@@ -106,6 +109,23 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	
+	// Inicializar verificação automática de atualizações
+	a.ScheduleUpdateCheck()
+	
+	// Verificar atualizações após 30 segundos (não bloqueante)
+	go func() {
+		time.Sleep(30 * time.Second)
+		log.Println("🔄 Verificando atualizações na inicialização...")
+		updateInfo, err := a.CheckForUpdates()
+		if err != nil {
+			log.Printf("❌ Erro ao verificar atualizações: %v", err)
+		} else if updateInfo != nil && updateInfo.Available {
+			log.Printf("🎉 Nova versão disponível: %s -> %s", version, updateInfo.Version)
+		} else {
+			log.Println("✅ App atualizado - versão mais recente já instalada")
+		}
+	}()
 }
 
 // UserPreferences representa as preferências do usuário para o frontend
@@ -633,6 +653,29 @@ func (a *App) GetCurrentVersion() string {
 	return version
 }
 
+// ScheduleUpdateCheck agenda verificação automática de atualizações
+func (a *App) ScheduleUpdateCheck() {
+	if a.updater == nil {
+		log.Println("❌ Updater não inicializado - auto-update desabilitado")
+		return
+	}
+	
+	log.Println("⏰ Iniciando verificação automática de atualizações (a cada 6 horas)")
+	
+	// Usar callback do updater para verificação automática
+	a.updater.ScheduleUpdateCheck(6*time.Hour, func(updateInfo *updater.UpdateInfo, err error) {
+		if err != nil {
+			log.Printf("❌ Erro na verificação automática de updates: %v", err)
+		} else if updateInfo != nil && updateInfo.Available {
+			log.Printf("🚀 NOVA VERSÃO DISPONÍVEL: %s -> %s", version, updateInfo.Version)
+			log.Printf("📦 Download: %s", updateInfo.DownloadURL)
+			// Aqui você poderia implementar notificação para o usuário
+		} else {
+			log.Println("✅ Auto-update check: aplicativo já está na versão mais recente")
+		}
+	})
+}
+
 // ===============================
 // MÉTODOS PARA JOGOS SALVOS
 // ===============================
@@ -859,4 +902,16 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 	}
 	
 	return debug
+}
+
+// GetAppInfo retorna informações do aplicativo
+func (a *App) GetAppInfo() map[string]interface{} {
+	return map[string]interface{}{
+		"success": true,
+		"version": "1.0.21",
+		"platform": "windows",
+		"repository": "cccarv82/milhoes-desktop",
+		"buildDate": time.Now().Format("2006-01-02"),
+		"autoUpdateEnabled": true,
+	}
 }

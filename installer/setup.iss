@@ -1,21 +1,22 @@
 [Setup]
 ; Informações básicas do app
-AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
-AppName=Milhões - Otimizador de Loterias
-AppVersion=1.0.20
-AppVerName=Milhões v1.0.20
-AppPublisher=Milhões Team
-AppPublisherURL=https://github.com/yourusername/milhoes
-AppSupportURL=https://github.com/yourusername/milhoes/issues
-AppUpdatesURL=https://github.com/yourusername/milhoes/releases
+AppId={{B8E8F8A0-1234-5678-9ABC-DEF012345678}
+AppName=Milhões - Lottery Optimizer
+AppVersion=1.0.21
+AppVerName=Milhões - Lottery Optimizer 1.0.21
+AppPublisher=Lottery Optimizer Team
+AppPublisherURL=https://github.com/cccarv82/milhoes-desktop
+AppSupportURL=https://github.com/cccarv82/milhoes-desktop/issues
+AppUpdatesURL=https://github.com/cccarv82/milhoes-desktop/releases
 DefaultDirName={autopf}\Milhoes
-DefaultGroupName=Milhões
+DefaultGroupName=Milhões - Lottery Optimizer
 AllowNoIcons=yes
-LicenseFile=..\LICENSE
-InfoBeforeFile=..\README.md
-OutputDir=Output
+LicenseFile=
+InfoBeforeFile=
+InfoAfterFile=
+OutputDir=build\installer
 OutputBaseFilename=MilhoesSetup
-; SetupIconFile=..\build\appicon.ico  ; Desabilitado até criarmos o ícone
+SetupIconFile=build\appicon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -29,12 +30,12 @@ ArchitecturesInstallIn64BitMode=x64
 ; WizardSmallImageFile=installer-icon.bmp
 
 ; Configurações de versionamento
-VersionInfoVersion=1.0.20.0
-VersionInfoCompany=Milhões Team
-VersionInfoDescription=Otimizador Inteligente de Loterias
-VersionInfoCopyright=Copyright (C) 2025 Milhões Team
-VersionInfoProductName=Milhões
-VersionInfoProductVersion=1.0.20
+VersionInfoVersion=1.0.21.0
+VersionInfoCompany=Lottery Optimizer Team
+VersionInfoDescription=Milhões - Lottery Optimizer
+VersionInfoCopyright=Copyright (C) 2025 Lottery Optimizer Team
+VersionInfoProductName=Milhões - Lottery Optimizer
+VersionInfoProductVersion=1.0.21
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
@@ -58,7 +59,7 @@ Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Milhões"; Filename: "{app}\milhoes.exe"
-Name: "{group}\{cm:ProgramOnTheWeb,Milhões}"; Filename: "https://github.com/yourusername/milhoes"
+Name: "{group}\{cm:ProgramOnTheWeb,Milhões}"; Filename: "https://github.com/cccarv82/milhoes-desktop"
 Name: "{group}\{cm:UninstallProgram,Milhões}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Milhões"; Filename: "{app}\milhoes.exe"; Tasks: desktopicon
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Milhões"; Filename: "{app}\milhoes.exe"; Tasks: quicklaunchicon
