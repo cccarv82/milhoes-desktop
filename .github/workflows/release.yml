@@ -50,9 +50,29 @@ jobs:
 
     - name: 🏗️ Build Wails App
       run: |
+        echo "=== Pre-build environment check ==="
+        echo "Current directory: $(Get-Location)"
+        echo "Go version: $(go version)"
+        echo "Wails version: $(wails version)"
+        echo "Node version: $(node --version)"
+        echo "NPM version: $(npm --version)"
+        echo ""
+        echo "=== Pre-build file structure ==="
+        Get-ChildItem -Force | Format-Table -AutoSize
+        echo ""
         echo "Building with version: ${{ github.ref_name }}"
-        wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
-        echo "Wails build completed successfully"
+        
+        # Run Wails build with verbose output
+        $output = wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}" -v 2>&1
+        echo $output
+        
+        # Check exit code
+        if ($LASTEXITCODE -ne 0) {
+          echo "❌ Wails build failed with exit code: $LASTEXITCODE"
+          exit $LASTEXITCODE
+        } else {
+          echo "✅ Wails build completed successfully"
+        }
       shell: pwsh
 
     - name: 🔍 Debug Build Output
