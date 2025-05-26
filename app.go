@@ -3,20 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"lottery-optimizer-gui/internal/ai"
+	"lottery-optimizer-gui/internal/config"
 	"lottery-optimizer-gui/internal/data"
 	"lottery-optimizer-gui/internal/lottery"
-	"lottery-optimizer-gui/internal/config"
 	"lottery-optimizer-gui/internal/updater"
 	"os"
 	"path/filepath"
-	"gopkg.in/yaml.v3"
 	"strings"
 	"time"
 )
 
 var (
-	version = "1.0.0" // Será injetado durante build
+	version    = "1.0.0"                // Será injetado durante build
 	githubRepo = "yourusername/milhoes" // Substitua pelo seu repo
 )
 
@@ -45,29 +45,29 @@ func (a *App) startup(ctx context.Context) {
 
 // UserPreferences representa as preferências do usuário para o frontend
 type UserPreferences struct {
-	LotteryTypes     []string  `json:"lotteryTypes"`
-	Budget           float64   `json:"budget"`
-	Strategy         string    `json:"strategy"`
-	AvoidPatterns    bool      `json:"avoidPatterns"`
-	FavoriteNumbers  []int     `json:"favoriteNumbers"`
-	ExcludeNumbers   []int     `json:"excludeNumbers"`
+	LotteryTypes    []string `json:"lotteryTypes"`
+	Budget          float64  `json:"budget"`
+	Strategy        string   `json:"strategy"`
+	AvoidPatterns   bool     `json:"avoidPatterns"`
+	FavoriteNumbers []int    `json:"favoriteNumbers"`
+	ExcludeNumbers  []int    `json:"excludeNumbers"`
 }
 
 // StrategyResponse resposta da geração de estratégia
 type StrategyResponse struct {
-	Success          bool                   `json:"success"`
-	Strategy         *lottery.Strategy      `json:"strategy,omitempty"`
-	Confidence       float64                `json:"confidence"`
-	Error            string                 `json:"error,omitempty"`
-	AvailableLotteries []string             `json:"availableLotteries,omitempty"`
-	FailedLotteries    []string             `json:"failedLotteries,omitempty"`
+	Success            bool              `json:"success"`
+	Strategy           *lottery.Strategy `json:"strategy,omitempty"`
+	Confidence         float64           `json:"confidence"`
+	Error              string            `json:"error,omitempty"`
+	AvailableLotteries []string          `json:"availableLotteries,omitempty"`
+	FailedLotteries    []string          `json:"failedLotteries,omitempty"`
 }
 
 // ConnectionStatus status das conexões
 type ConnectionStatus struct {
-	CaixaAPI   bool   `json:"caixaAPI"`
-	CaixaError string `json:"caixaError,omitempty"`
-	ClaudeAPI  bool   `json:"claudeAPI"`
+	CaixaAPI    bool   `json:"caixaAPI"`
+	CaixaError  string `json:"caixaError,omitempty"`
+	ClaudeAPI   bool   `json:"claudeAPI"`
 	ClaudeError string `json:"claudeError,omitempty"`
 }
 
@@ -101,7 +101,7 @@ func mapStrategy(frontendStrategy string) string {
 // TestConnectionsWithConfig testa as conexões com uma configuração específica
 func (a *App) TestConnectionsWithConfig(configData ConfigData) ConnectionStatus {
 	status := ConnectionStatus{}
-	
+
 	// Testar API da Caixa (não depende da configuração)
 	if err := a.dataClient.TestConnection(); err != nil {
 		status.CaixaAPI = false
@@ -109,7 +109,7 @@ func (a *App) TestConnectionsWithConfig(configData ConfigData) ConnectionStatus 
 	} else {
 		status.CaixaAPI = true
 	}
-	
+
 	// Testar Claude API com a configuração fornecida
 	testClient := ai.NewClaudeClientWithConfig(configData.ClaudeAPIKey, configData.ClaudeModel, configData.MaxTokens, configData.TimeoutSec)
 	if err := testClient.TestConnection(); err != nil {
@@ -118,14 +118,14 @@ func (a *App) TestConnectionsWithConfig(configData ConfigData) ConnectionStatus 
 	} else {
 		status.ClaudeAPI = true
 	}
-	
+
 	return status
 }
 
 // TestConnections testa as conexões com APIs
 func (a *App) TestConnections() ConnectionStatus {
 	status := ConnectionStatus{}
-	
+
 	// Testar API da Caixa
 	if err := a.dataClient.TestConnection(); err != nil {
 		status.CaixaAPI = false
@@ -133,7 +133,7 @@ func (a *App) TestConnections() ConnectionStatus {
 	} else {
 		status.CaixaAPI = true
 	}
-	
+
 	// Testar Claude API
 	if err := a.aiClient.TestConnection(); err != nil {
 		status.ClaudeAPI = false
@@ -141,7 +141,7 @@ func (a *App) TestConnections() ConnectionStatus {
 	} else {
 		status.ClaudeAPI = true
 	}
-	
+
 	return status
 }
 
@@ -155,7 +155,7 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 		FavoriteNumbers: preferences.FavoriteNumbers,
 		ExcludeNumbers:  preferences.ExcludeNumbers,
 	}
-	
+
 	// Converter tipos de loteria
 	for _, ltype := range preferences.LotteryTypes {
 		switch ltype {
@@ -165,25 +165,25 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 			internalPrefs.LotteryTypes = append(internalPrefs.LotteryTypes, lottery.Lotofacil)
 		}
 	}
-	
+
 	// Buscar dados históricos com lógica de fallback
 	var allDraws []lottery.Draw
 	var allRules []lottery.LotteryRules
 	var availableLotteries []lottery.LotteryType
 	var failedLotteries []lottery.LotteryType
-	
+
 	for _, ltype := range internalPrefs.LotteryTypes {
 		draws, err := a.dataClient.GetLatestDraws(ltype, 100)
 		if err != nil {
 			failedLotteries = append(failedLotteries, ltype)
 			continue
 		}
-		
+
 		allDraws = append(allDraws, draws...)
 		allRules = append(allRules, lottery.GetRules(ltype))
 		availableLotteries = append(availableLotteries, ltype)
 	}
-	
+
 	// Implementar lógica de fallback
 	if len(availableLotteries) == 0 {
 		return StrategyResponse{
@@ -191,24 +191,24 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 			Error:   "Não foi possível obter dados de nenhuma loteria. API da CAIXA indisponível e cache expirado.",
 		}
 	}
-	
+
 	if len(internalPrefs.LotteryTypes) == 1 && len(failedLotteries) > 0 {
 		return StrategyResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Loteria %s indisponível. Tente novamente mais tarde ou inclua ambas as loterias.", failedLotteries[0]),
 		}
 	}
-	
+
 	// Atualizar preferências para usar apenas loterias disponíveis
 	internalPrefs.LotteryTypes = availableLotteries
-	
+
 	// Preparar requisição para IA
 	analysisReq := lottery.AnalysisRequest{
 		Draws:       allDraws,
 		Preferences: *internalPrefs,
 		Rules:       allRules,
 	}
-	
+
 	// Analisar com IA
 	response, err := a.aiClient.AnalyzeStrategy(analysisReq)
 	if err != nil {
@@ -219,13 +219,13 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 				Error:   "Erro de autenticação com Claude API. Verifique se sua chave está correta e válida.",
 			}
 		}
-		
+
 		return StrategyResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Erro na análise da IA: %v", err),
 		}
 	}
-	
+
 	// Debug: mostrar quantos jogos a IA gerou
 	if config.IsVerbose() {
 		fmt.Printf("🎯 IA gerou %d jogos com custo total R$ %.2f\n", len(response.Strategy.Games), response.Strategy.TotalCost)
@@ -233,27 +233,27 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 			fmt.Printf("   Jogo %d: %s - %v - R$ %.2f\n", i+1, game.Type, game.Numbers, game.Cost)
 		}
 	}
-	
+
 	// TEMPORÁRIO: Pular validação para debug - usar estratégia da IA diretamente
 	validatedStrategy := &response.Strategy
-	
+
 	// Debug: mostrar jogos após "validação"
 	if config.IsVerbose() {
 		fmt.Printf("✅ Após validação: %d jogos com custo total R$ %.2f\n", len(validatedStrategy.Games), validatedStrategy.TotalCost)
 	}
-	
+
 	// Converter loterias falhas para strings
 	var failedLotteriesStr []string
 	var availableLotteriesStr []string
-	
+
 	for _, ltype := range failedLotteries {
 		failedLotteriesStr = append(failedLotteriesStr, string(ltype))
 	}
-	
+
 	for _, ltype := range availableLotteries {
 		availableLotteriesStr = append(availableLotteriesStr, string(ltype))
 	}
-	
+
 	return StrategyResponse{
 		Success:            true,
 		Strategy:           validatedStrategy,
@@ -266,7 +266,7 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 // GetNextDraws retorna informações dos próximos sorteios
 func (a *App) GetNextDraws() map[string]interface{} {
 	result := make(map[string]interface{})
-	
+
 	// Mega Sena
 	if nextDate, nextNum, err := a.dataClient.GetNextDrawInfo(lottery.MegaSena); err == nil {
 		result["megasena"] = map[string]interface{}{
@@ -274,7 +274,7 @@ func (a *App) GetNextDraws() map[string]interface{} {
 			"date":   nextDate.Format("02/01/2006"),
 		}
 	}
-	
+
 	// Lotofácil
 	if nextDate, nextNum, err := a.dataClient.GetNextDrawInfo(lottery.Lotofacil); err == nil {
 		result["lotofacil"] = map[string]interface{}{
@@ -282,14 +282,14 @@ func (a *App) GetNextDraws() map[string]interface{} {
 			"date":   nextDate.Format("02/01/2006"),
 		}
 	}
-	
+
 	return result
 }
 
 // GetStatistics retorna estatísticas das loterias
 func (a *App) GetStatistics() map[string]interface{} {
 	result := make(map[string]interface{})
-	
+
 	// Buscar dados para estatísticas
 	megaDraws, err := a.dataClient.GetLatestDraws(lottery.MegaSena, 20)
 	if err == nil {
@@ -298,7 +298,7 @@ func (a *App) GetStatistics() map[string]interface{} {
 			"lastDraw":   megaDraws[0].Number,
 		}
 	}
-	
+
 	lotofacilDraws, err := a.dataClient.GetLatestDraws(lottery.Lotofacil, 20)
 	if err == nil {
 		result["lotofacil"] = map[string]interface{}{
@@ -306,7 +306,7 @@ func (a *App) GetStatistics() map[string]interface{} {
 			"lastDraw":   lotofacilDraws[0].Number,
 		}
 	}
-	
+
 	return result
 }
 
@@ -427,10 +427,10 @@ func (a *App) ValidateConfig() map[string]interface{} {
 		errors = append(errors, "Chave da API do Claude não configurada")
 	} else {
 		result["claudeConfigured"] = true
-		
+
 		// Testar Claude API
 		if err := a.aiClient.TestConnection(); err != nil {
-			errors = append(errors, "Claude API: " + err.Error())
+			errors = append(errors, "Claude API: "+err.Error())
 		} else {
 			result["claudeValid"] = true
 		}
@@ -438,7 +438,7 @@ func (a *App) ValidateConfig() map[string]interface{} {
 
 	// Testar API da Caixa
 	if err := a.dataClient.TestConnection(); err != nil {
-		errors = append(errors, "API Caixa: " + err.Error())
+		errors = append(errors, "API Caixa: "+err.Error())
 	} else {
 		result["caixaValid"] = true
 	}
@@ -474,12 +474,12 @@ func (a *App) DebugConfig() map[string]interface{} {
 // DebugClaudeConfig função para debug detalhado da configuração do Claude
 func (a *App) DebugClaudeConfig() map[string]interface{} {
 	result := map[string]interface{}{}
-	
+
 	// Informações básicas da configuração
 	apiKey := config.GetClaudeAPIKey()
 	result["hasApiKey"] = apiKey != ""
 	result["apiKeyLength"] = len(apiKey)
-	
+
 	if apiKey != "" {
 		// Mostrar primeiros e últimos caracteres para verificar se é válida
 		if len(apiKey) > 10 {
@@ -487,26 +487,26 @@ func (a *App) DebugClaudeConfig() map[string]interface{} {
 		} else {
 			result["apiKeyPreview"] = apiKey
 		}
-		
+
 		// Verificar se parece com uma chave válida da Anthropic
 		result["apiKeyLooksValid"] = strings.HasPrefix(apiKey, "sk-ant-")
 	} else {
 		result["apiKeyPreview"] = "VAZIA"
 		result["apiKeyLooksValid"] = false
 	}
-	
+
 	result["claudeModel"] = config.GetClaudeModel()
 	result["maxTokens"] = config.GetMaxTokens()
 	result["timeout"] = config.GlobalConfig.Claude.TimeoutSec
 	result["verbose"] = config.IsVerbose()
-	
+
 	// Testar conexão se tiver chave
 	if apiKey != "" {
 		result["connectionTest"] = "testing..."
-		
+
 		// Criar cliente de teste
 		testClient := ai.NewClaudeClientWithConfig(apiKey, config.GetClaudeModel(), config.GetMaxTokens(), config.GlobalConfig.Claude.TimeoutSec)
-		
+
 		if err := testClient.TestConnection(); err != nil {
 			result["connectionTest"] = "FALHOU"
 			result["connectionError"] = err.Error()
@@ -516,24 +516,24 @@ func (a *App) DebugClaudeConfig() map[string]interface{} {
 	} else {
 		result["connectionTest"] = "SEM_CHAVE"
 	}
-	
+
 	// Informações do arquivo de configuração
 	exePath, _ := os.Executable()
 	exeDir := filepath.Dir(exePath)
 	configPath := filepath.Join(exeDir, "lottery-optimizer.yaml")
-	
+
 	result["configPath"] = configPath
 	result["configExists"] = false
-	
+
 	if _, err := os.Stat(configPath); err == nil {
 		result["configExists"] = true
-		
+
 		// Ler conteúdo do arquivo para debug
 		if content, err := os.ReadFile(configPath); err == nil {
 			result["configContent"] = string(content)
 		}
 	}
-	
+
 	return result
 }
 
@@ -541,7 +541,7 @@ func (a *App) DebugClaudeConfig() map[string]interface{} {
 func (a *App) CheckForUpdates() (*updater.UpdateInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	return a.updater.CheckForUpdates(ctx)
 }
 
@@ -549,11 +549,11 @@ func (a *App) CheckForUpdates() (*updater.UpdateInfo, error) {
 func (a *App) DownloadUpdate(updateInfo *updater.UpdateInfo) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	
+
 	// Progress callback pode ser implementado para mostrar progresso no frontend
 	return a.updater.DownloadUpdate(ctx, updateInfo, func(downloaded, total int64) {
 		// Implementar callback de progresso se necessário
-		fmt.Printf("Download: %d/%d bytes (%.2f%%)\n", 
+		fmt.Printf("Download: %d/%d bytes (%.2f%%)\n",
 			downloaded, total, float64(downloaded)/float64(total)*100)
 	})
 }

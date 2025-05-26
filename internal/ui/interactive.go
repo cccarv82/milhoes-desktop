@@ -19,19 +19,19 @@ func ShowWelcome() {
 	cyan := color.New(color.FgCyan, color.Bold)
 	yellow := color.New(color.FgYellow, color.Bold)
 	green := color.New(color.FgGreen, color.Bold)
-	
+
 	fmt.Println()
 	cyan.Println("🎰 ═══════════════════════════════════════════════════════════════")
 	cyan.Println("🎰 LOTTERY OPTIMIZER - Estratégias Inteligentes para Loterias")
 	cyan.Println("🎰 ═══════════════════════════════════════════════════════════════")
 	fmt.Println()
-	
+
 	yellow.Println("✨ Usando Inteligência Artificial Claude Sonnet 4")
 	yellow.Println("📊 Análise estatística avançada de dados históricos")
 	yellow.Println("🎯 Otimização matemática para maximizar suas chances")
 	yellow.Println("💰 Gestão inteligente de orçamento")
 	fmt.Println()
-	
+
 	green.Println("🍀 Que a sorte esteja com você! 🍀")
 	fmt.Println()
 }
@@ -40,7 +40,7 @@ func ShowWelcome() {
 func StartInteractiveMode() {
 	for {
 		action := showMainMenu()
-		
+
 		switch action {
 		case "generate":
 			generateStrategy()
@@ -72,13 +72,13 @@ func showMainMenu() string {
 			"🚪 Sair",
 		},
 	}
-	
+
 	_, result, err := prompt.Run()
 	if err != nil {
 		fmt.Printf("Erro: %v\n", err)
 		return "exit"
 	}
-	
+
 	switch result {
 	case "🎲 Gerar Estratégia Otimizada":
 		return "generate"
@@ -100,31 +100,31 @@ func generateStrategy() {
 	cyan := color.New(color.FgCyan, color.Bold)
 	yellow := color.New(color.FgYellow)
 	red := color.New(color.FgRed)
-	
+
 	cyan.Println("\n🎯 GERAÇÃO DE ESTRATÉGIA OTIMIZADA")
 	fmt.Println("═══════════════════════════════════════")
-	
+
 	// Coletar preferências do usuário
 	prefs, err := collectUserPreferences()
 	if err != nil {
 		color.Red("❌ Erro ao coletar preferências: %v", err)
 		return
 	}
-	
+
 	yellow.Println("\n🤖 Conectando com a IA...")
-	
+
 	// Criar clientes
 	dataClient := data.NewClient()
 	aiClient := ai.NewClaudeClient()
-	
+
 	// Buscar dados históricos com lógica de fallback
 	yellow.Println("📥 Buscando dados históricos...")
-	
+
 	var allDraws []lottery.Draw
 	var allRules []lottery.LotteryRules
 	var availableLotteries []lottery.LotteryType
 	var failedLotteries []lottery.LotteryType
-	
+
 	for _, ltype := range prefs.LotteryTypes {
 		draws, err := dataClient.GetLatestDraws(ltype, 50)
 		if err != nil {
@@ -132,16 +132,16 @@ func generateStrategy() {
 			failedLotteries = append(failedLotteries, ltype)
 			continue
 		}
-		
+
 		allDraws = append(allDraws, draws...)
 		allRules = append(allRules, lottery.GetRules(ltype))
 		availableLotteries = append(availableLotteries, ltype)
-		
+
 		if config.IsVerbose() {
 			fmt.Printf("✅ Obtidos %d sorteios de %s\n", len(draws), ltype)
 		}
 	}
-	
+
 	// Implementar lógica de fallback conforme especificação do usuário
 	if len(availableLotteries) == 0 {
 		// Nenhuma loteria disponível
@@ -158,7 +158,7 @@ func generateStrategy() {
 		fmt.Println()
 		return
 	}
-	
+
 	if len(prefs.LotteryTypes) == 1 && len(failedLotteries) > 0 {
 		// Usuário escolheu apenas uma loteria e ela falhou
 		red.Printf("\n❌ LOTERIA INDISPONÍVEL: %s\n", failedLotteries[0])
@@ -174,39 +174,39 @@ func generateStrategy() {
 		fmt.Println()
 		return
 	}
-	
+
 	if len(failedLotteries) > 0 && len(availableLotteries) > 0 {
 		// Algumas loterias falharam, outras funcionaram
 		yellow.Printf("\n⚠️  Usando apenas: %v\n", availableLotteries)
 		fmt.Printf("❌ Indisponível: %v\n", failedLotteries)
 		fmt.Println()
 	}
-	
+
 	// Atualizar preferências para usar apenas loterias disponíveis
 	prefs.LotteryTypes = availableLotteries
-	
+
 	// Preparar requisição para IA
 	analysisReq := lottery.AnalysisRequest{
 		Draws:       allDraws,
 		Preferences: *prefs,
 		Rules:       allRules,
 	}
-	
+
 	yellow.Println("🧠 Analisando com IA Claude Sonnet 4...")
-	
+
 	// Analisar com IA
 	response, err := aiClient.AnalyzeStrategy(analysisReq)
 	if err != nil {
 		color.Red("❌ Erro na análise da IA: %v", err)
 		return
 	}
-	
+
 	// Validar e ajustar estratégia
 	strategy := strategy.ValidateAndAdjustStrategy(&response.Strategy, *prefs)
-	
+
 	// Exibir resultado
 	displayStrategy(strategy, response.Confidence)
-	
+
 	// Opção de salvar
 	if askYesNo("💾 Deseja salvar esta estratégia?") {
 		saveStrategy(strategy)
@@ -216,7 +216,7 @@ func generateStrategy() {
 // collectUserPreferences coleta as preferências do usuário
 func collectUserPreferences() (*lottery.UserPreferences, error) {
 	prefs := &lottery.UserPreferences{}
-	
+
 	// Selecionar tipos de loteria
 	lotteryPrompt := promptui.Select{
 		Label: "🎲 Quais loterias deseja jogar?",
@@ -226,12 +226,12 @@ func collectUserPreferences() (*lottery.UserPreferences, error) {
 			"🎲 Ambas (estratégia mista)",
 		},
 	}
-	
+
 	_, lotteryChoice, err := lotteryPrompt.Run()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch lotteryChoice {
 	case "🎯 Apenas Mega Sena":
 		prefs.LotteryTypes = []lottery.LotteryType{lottery.MegaSena}
@@ -240,22 +240,22 @@ func collectUserPreferences() (*lottery.UserPreferences, error) {
 	default:
 		prefs.LotteryTypes = []lottery.LotteryType{lottery.MegaSena, lottery.Lotofacil}
 	}
-	
+
 	// Orçamento
 	budgetPrompt := promptui.Prompt{
 		Label:    "💰 Qual seu orçamento disponível? (R$)",
 		Validate: validateBudget,
 		Default:  "50",
 	}
-	
+
 	budgetStr, err := budgetPrompt.Run()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	budget, _ := strconv.ParseFloat(budgetStr, 64)
 	prefs.Budget = budget
-	
+
 	// Estratégia
 	strategyPrompt := promptui.Select{
 		Label: "📈 Qual tipo de estratégia prefere?",
@@ -265,12 +265,12 @@ func collectUserPreferences() (*lottery.UserPreferences, error) {
 			"🚀 Agressiva (maior risco/retorno)",
 		},
 	}
-	
+
 	_, strategyChoice, err := strategyPrompt.Run()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch strategyChoice {
 	case "🛡️  Conservadora (menor risco)":
 		prefs.Strategy = "conservative"
@@ -279,20 +279,20 @@ func collectUserPreferences() (*lottery.UserPreferences, error) {
 	default:
 		prefs.Strategy = "balanced"
 	}
-	
+
 	// Perguntas adicionais
 	prefs.AvoidPatterns = askYesNo("🔢 Evitar padrões óbvios (sequências, múltiplos)?")
-	
+
 	if askYesNo("⭐ Tem números da sorte?") {
 		favNumbers := askForNumbers("Digite os números da sorte (separados por vírgula):")
 		prefs.FavoriteNumbers = favNumbers
 	}
-	
+
 	if askYesNo("❌ Tem números que quer evitar?") {
 		excNumbers := askForNumbers("Digite os números a evitar (separados por vírgula):")
 		prefs.ExcludeNumbers = excNumbers
 	}
-	
+
 	return prefs, nil
 }
 
@@ -302,21 +302,21 @@ func displayStrategy(strategy *lottery.Strategy, confidence float64) {
 	cyan := color.New(color.FgCyan, color.Bold)
 	yellow := color.New(color.FgYellow, color.Bold)
 	white := color.New(color.FgWhite, color.Bold)
-	
+
 	fmt.Println("\n" + strings.Repeat("═", 60))
 	green.Println("🎯 ESTRATÉGIA GERADA PELA IA")
 	fmt.Println(strings.Repeat("═", 60))
-	
+
 	cyan.Printf("💰 Orçamento: R$ %.2f\n", strategy.Budget)
 	cyan.Printf("💸 Custo Total: R$ %.2f\n", strategy.TotalCost)
 	cyan.Printf("📊 Confiança da IA: %.1f%%\n", confidence*100)
 	cyan.Printf("🎲 Total de Jogos: %d\n", len(strategy.Games))
 	fmt.Println()
-	
+
 	// Agrupar jogos por tipo
 	megaSenaGames := []lottery.Game{}
 	lotofacilGames := []lottery.Game{}
-	
+
 	for _, game := range strategy.Games {
 		if game.Type == lottery.MegaSena {
 			megaSenaGames = append(megaSenaGames, game)
@@ -324,7 +324,7 @@ func displayStrategy(strategy *lottery.Strategy, confidence float64) {
 			lotofacilGames = append(lotofacilGames, game)
 		}
 	}
-	
+
 	// Exibir jogos da Mega Sena
 	if len(megaSenaGames) > 0 {
 		yellow.Println("🎯 MEGA SENA:")
@@ -340,7 +340,7 @@ func displayStrategy(strategy *lottery.Strategy, confidence float64) {
 		}
 		fmt.Println()
 	}
-	
+
 	// Exibir jogos da Lotofácil
 	if len(lotofacilGames) > 0 {
 		yellow.Println("🍀 LOTOFÁCIL:")
@@ -356,20 +356,20 @@ func displayStrategy(strategy *lottery.Strategy, confidence float64) {
 		}
 		fmt.Println()
 	}
-	
+
 	// Exibir raciocínio da IA - LIMPO e SEM JSON
 	cyan.Println("🤖 JUSTIFICATIVA DA IA:")
-	
+
 	// Limpar o reasoning removendo JSON e informações duplicadas
 	cleanReasoning := cleanAIReasoning(strategy.Reasoning)
 	fmt.Println(cleanReasoning)
 	fmt.Println()
-	
+
 	// Estatísticas - RESUMIDAS
 	if strategy.Statistics.TotalDraws > 0 {
 		cyan.Println("📊 ESTATÍSTICAS:")
 		fmt.Printf("• Sorteios analisados: %d\n", strategy.Statistics.AnalyzedDraws)
-		
+
 		if len(strategy.Statistics.HotNumbers) > 0 {
 			fmt.Print("• Números quentes: ")
 			for i, num := range strategy.Statistics.HotNumbers {
@@ -380,7 +380,7 @@ func displayStrategy(strategy *lottery.Strategy, confidence float64) {
 			}
 			fmt.Println()
 		}
-		
+
 		if len(strategy.Statistics.ColdNumbers) > 0 {
 			fmt.Print("• Números frios: ")
 			for i, num := range strategy.Statistics.ColdNumbers {
@@ -393,10 +393,10 @@ func displayStrategy(strategy *lottery.Strategy, confidence float64) {
 		}
 		fmt.Println()
 	}
-	
+
 	// Próximos sorteios
 	showNextDraws()
-	
+
 	fmt.Println(strings.Repeat("═", 60))
 	green.Println("🍀 BOA SORTE! 🍀")
 	fmt.Println(strings.Repeat("═", 60))
@@ -407,69 +407,69 @@ func cleanAIReasoning(reasoning string) string {
 	if reasoning == "" {
 		return "Estratégia baseada em análise estatística dos dados históricos."
 	}
-	
+
 	// Remover JSON blocks
 	lines := strings.Split(reasoning, "\n")
 	cleanLines := []string{}
 	skipJSON := false
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		// Detectar início de JSON
 		if strings.Contains(line, "{") && (strings.Contains(line, "strategy") || strings.Contains(line, "games")) {
 			skipJSON = true
 			continue
 		}
-		
+
 		// Detectar fim de JSON
 		if skipJSON && strings.Contains(line, "}") {
 			skipJSON = false
 			continue
 		}
-		
+
 		// Pular linhas dentro do JSON
 		if skipJSON {
 			continue
 		}
-		
+
 		// Pular linhas vazias ou com apenas símbolos
 		if line == "" || strings.Trim(line, "{}[],\"") == "" {
 			continue
 		}
-		
+
 		// Pular linhas que são claramente JSON
 		if strings.HasPrefix(line, "\"") || strings.HasPrefix(line, "{") || strings.HasPrefix(line, "}") {
 			continue
 		}
-		
+
 		// Pular dados técnicos duplicados
-		if strings.Contains(line, "\"type\":") || strings.Contains(line, "\"numbers\":") || 
-		   strings.Contains(line, "\"cost\":") || strings.Contains(line, "\"probability\":") {
+		if strings.Contains(line, "\"type\":") || strings.Contains(line, "\"numbers\":") ||
+			strings.Contains(line, "\"cost\":") || strings.Contains(line, "\"probability\":") {
 			continue
 		}
-		
+
 		// Limpar prefixos numerados desnecessários
-		if strings.HasPrefix(line, "1.") || strings.HasPrefix(line, "2.") || 
-		   strings.HasPrefix(line, "3.") || strings.HasPrefix(line, "4.") || 
-		   strings.HasPrefix(line, "5.") {
+		if strings.HasPrefix(line, "1.") || strings.HasPrefix(line, "2.") ||
+			strings.HasPrefix(line, "3.") || strings.HasPrefix(line, "4.") ||
+			strings.HasPrefix(line, "5.") {
 			line = strings.TrimSpace(line[2:])
 		}
-		
+
 		// Manter apenas linhas com conteúdo útil
 		if len(line) > 10 && !strings.Contains(line, "createdAt") && !strings.Contains(line, "confidence") {
 			cleanLines = append(cleanLines, line)
 		}
 	}
-	
+
 	// Se não sobrou nada útil, usar texto padrão
 	if len(cleanLines) == 0 {
 		return "Estratégia baseada em análise estatística avançada dos dados históricos, considerando frequência de números, padrões temporais e otimização do orçamento disponível."
 	}
-	
+
 	// Juntar e limitar tamanho
 	result := strings.Join(cleanLines, "\n")
-	
+
 	// Limitar tamanho para não poluir a tela
 	if len(result) > 500 {
 		words := strings.Fields(result)
@@ -477,7 +477,7 @@ func cleanAIReasoning(reasoning string) string {
 			result = strings.Join(words[:60], " ") + "..."
 		}
 	}
-	
+
 	return result
 }
 
@@ -501,12 +501,12 @@ func askYesNo(question string) bool {
 		Label: question,
 		Items: []string{"Sim", "Não"},
 	}
-	
+
 	_, result, err := prompt.Run()
 	if err != nil {
 		return false
 	}
-	
+
 	return result == "Sim"
 }
 
@@ -514,12 +514,12 @@ func askForNumbers(prompt string) []int {
 	numberPrompt := promptui.Prompt{
 		Label: prompt,
 	}
-	
+
 	result, err := numberPrompt.Run()
 	if err != nil {
 		return nil
 	}
-	
+
 	var numbers []int
 	parts := strings.Split(result, ",")
 	for _, part := range parts {
@@ -528,29 +528,29 @@ func askForNumbers(prompt string) []int {
 			numbers = append(numbers, num)
 		}
 	}
-	
+
 	return numbers
 }
 
 func showNextDraws() {
 	cyan := color.New(color.FgCyan, color.Bold)
-	
+
 	dataClient := data.NewClient()
-	
+
 	cyan.Println("📅 PRÓXIMOS SORTEIOS:")
-	
+
 	// Mega Sena
 	if nextDate, nextNum, err := dataClient.GetNextDrawInfo(lottery.MegaSena); err == nil {
-		fmt.Printf("• Mega Sena: Concurso %d em %s\n", 
+		fmt.Printf("• Mega Sena: Concurso %d em %s\n",
 			nextNum, nextDate.Format("02/01/2006"))
 	}
-	
+
 	// Lotofácil
 	if nextDate, nextNum, err := dataClient.GetNextDrawInfo(lottery.Lotofacil); err == nil {
-		fmt.Printf("• Lotofácil: Concurso %d em %s\n", 
+		fmt.Printf("• Lotofácil: Concurso %d em %s\n",
 			nextNum, nextDate.Format("02/01/2006"))
 	}
-	
+
 	fmt.Println()
 }
 
@@ -571,10 +571,10 @@ func testConnections() {
 	cyan := color.New(color.FgCyan, color.Bold)
 	green := color.New(color.FgGreen)
 	red := color.New(color.FgRed)
-	
+
 	cyan.Println("\n🔧 TESTANDO CONEXÕES")
 	fmt.Println("═══════════════════════")
-	
+
 	// Testar API da Caixa
 	fmt.Print("🌐 API Loterias Caixa... ")
 	dataClient := data.NewClient()
@@ -583,7 +583,7 @@ func testConnections() {
 	} else {
 		green.Println("✅ OK")
 	}
-	
+
 	// Testar Claude API
 	fmt.Print("🤖 Claude API... ")
 	aiClient := ai.NewClaudeClient()
@@ -592,13 +592,13 @@ func testConnections() {
 	} else {
 		green.Println("✅ OK")
 	}
-	
+
 	fmt.Println()
 }
 
 func showHelp() {
 	cyan := color.New(color.FgCyan, color.Bold)
-	
+
 	cyan.Println("\n❓ AJUDA")
 	fmt.Println("═══════════")
 	fmt.Println("Este programa usa inteligência artificial para analisar dados")
@@ -616,10 +616,10 @@ func showHelp() {
 
 func showGoodbye() {
 	green := color.New(color.FgGreen, color.Bold)
-	
+
 	fmt.Println()
 	green.Println("🍀 Obrigado por usar o Lottery Optimizer!")
 	green.Println("🎯 Que os números escolhidos pela IA sejam os sorteados!")
 	green.Println("💰 Boa sorte! ��")
 	fmt.Println()
-} 
+}

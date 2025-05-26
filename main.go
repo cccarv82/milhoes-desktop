@@ -16,17 +16,17 @@ var assets embed.FS
 func main() {
 	// Inicializar configuração
 	config.Init()
-	
+
 	// Create an instance of the app structure
 	app := NewApp()
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:         "🎰 Lottery Optimizer - Estratégias Inteligentes",
-		Width:         1200,
-		Height:        800,
-		MinWidth:      1000,
-		MinHeight:     700,
+		Title:     "🎰 Lottery Optimizer - Estratégias Inteligentes",
+		Width:     1200,
+		Height:    800,
+		MinWidth:  1000,
+		MinHeight: 700,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

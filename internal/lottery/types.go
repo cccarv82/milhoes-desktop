@@ -15,11 +15,11 @@ type BrazilianDate time.Time
 func (bd *BrazilianDate) UnmarshalJSON(data []byte) error {
 	// Remove aspas da string JSON
 	s := strings.Trim(string(data), `"`)
-	
+
 	if s == "null" || s == "" {
 		return nil
 	}
-	
+
 	// Tenta diferentes formatos de data brasileira
 	formats := []string{
 		"02/01/2006",
@@ -29,14 +29,14 @@ func (bd *BrazilianDate) UnmarshalJSON(data []byte) error {
 		"02-01-2006",
 		"2006-01-02", // ISO como fallback
 	}
-	
+
 	for _, format := range formats {
 		if t, err := time.Parse(format, s); err == nil {
 			*bd = BrazilianDate(t)
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("não foi possível fazer parse da data: %s", s)
 }
 
@@ -73,7 +73,7 @@ func (sis *StringIntSlice) UnmarshalJSON(data []byte) error {
 		*sis = StringIntSlice(intSlice)
 		return nil
 	}
-	
+
 	// Converter strings para integers
 	var result []int
 	for _, s := range stringSlice {
@@ -83,14 +83,14 @@ func (sis *StringIntSlice) UnmarshalJSON(data []byte) error {
 		if s == "" {
 			s = "0"
 		}
-		
+
 		num, err := strconv.Atoi(s)
 		if err != nil {
 			return fmt.Errorf("não foi possível converter '%s' para número: %v", s, err)
 		}
 		result = append(result, num)
 	}
-	
+
 	*sis = StringIntSlice(result)
 	return nil
 }
@@ -115,13 +115,13 @@ const (
 
 // LotteryRules regras de cada tipo de loteria
 type LotteryRules struct {
-	Name           string
-	MinNumbers     int
-	MaxNumbers     int
-	NumberRange    int
-	BasePrice      float64
-	DrawDays       []time.Weekday
-	ResultNumbers  int
+	Name          string
+	MinNumbers    int
+	MaxNumbers    int
+	NumberRange   int
+	BasePrice     float64
+	DrawDays      []time.Weekday
+	ResultNumbers int
 }
 
 // GetRules retorna as regras para cada tipo de loteria
@@ -129,23 +129,23 @@ func GetRules(ltype LotteryType) LotteryRules {
 	switch ltype {
 	case MegaSena:
 		return LotteryRules{
-			Name:           "Mega Sena",
-			MinNumbers:     6,
-			MaxNumbers:     15,
-			NumberRange:    60,
-			BasePrice:      5.00,
-			DrawDays:       []time.Weekday{time.Wednesday, time.Saturday},
-			ResultNumbers:  6,
+			Name:          "Mega Sena",
+			MinNumbers:    6,
+			MaxNumbers:    15,
+			NumberRange:   60,
+			BasePrice:     5.00,
+			DrawDays:      []time.Weekday{time.Wednesday, time.Saturday},
+			ResultNumbers: 6,
 		}
 	case Lotofacil:
 		return LotteryRules{
-			Name:           "Lotofácil",
-			MinNumbers:     15,
-			MaxNumbers:     20,
-			NumberRange:    25,
-			BasePrice:      3.00,
-			DrawDays:       []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday},
-			ResultNumbers:  20,
+			Name:          "Lotofácil",
+			MinNumbers:    15,
+			MaxNumbers:    20,
+			NumberRange:   25,
+			BasePrice:     3.00,
+			DrawDays:      []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday},
+			ResultNumbers: 20,
 		}
 	default:
 		return LotteryRules{}
@@ -154,14 +154,14 @@ func GetRules(ltype LotteryType) LotteryRules {
 
 // Draw representa um sorteio individual
 type Draw struct {
-	Number         int             `json:"numero"`
-	Date           BrazilianDate   `json:"dataApuracao"`
-	Numbers        StringIntSlice  `json:"dezenasSorteadasOrdemSorteio"`
-	Winners        []Winner        `json:"listaRateioPremio"`
-	PrizeTotal     float64         `json:"valorArrecadado"`
-	NextDrawNumber int             `json:"numeroConcursoProximo"`
-	NextDrawDate   BrazilianDate   `json:"dataProximoConcurso"`
-	Accumulated    bool            `json:"acumulado"`
+	Number         int            `json:"numero"`
+	Date           BrazilianDate  `json:"dataApuracao"`
+	Numbers        StringIntSlice `json:"dezenasSorteadasOrdemSorteio"`
+	Winners        []Winner       `json:"listaRateioPremio"`
+	PrizeTotal     float64        `json:"valorArrecadado"`
+	NextDrawNumber int            `json:"numeroConcursoProximo"`
+	NextDrawDate   BrazilianDate  `json:"dataProximoConcurso"`
+	Accumulated    bool           `json:"acumulado"`
 }
 
 // Winner representa ganhadores por faixa de prêmio
@@ -193,25 +193,25 @@ type Strategy struct {
 
 // Stats estatísticas de análise
 type Stats struct {
-	TotalDraws       int               `json:"totalDraws"`
-	AnalyzedDraws    int               `json:"analyzedDraws"`
-	NumberFrequency  map[int]int       `json:"numberFrequency"`
-	SumDistribution  map[int]int       `json:"sumDistribution"`
-	RecentTrends     []int             `json:"recentTrends"`
-	HotNumbers       []int             `json:"hotNumbers"`
-	ColdNumbers      []int             `json:"coldNumbers"`
-	Patterns         map[string]string `json:"patterns"`
+	TotalDraws      int               `json:"totalDraws"`
+	AnalyzedDraws   int               `json:"analyzedDraws"`
+	NumberFrequency map[int]int       `json:"numberFrequency"`
+	SumDistribution map[int]int       `json:"sumDistribution"`
+	RecentTrends    []int             `json:"recentTrends"`
+	HotNumbers      []int             `json:"hotNumbers"`
+	ColdNumbers     []int             `json:"coldNumbers"`
+	Patterns        map[string]string `json:"patterns"`
 }
 
 // UserPreferences preferências do usuário
 type UserPreferences struct {
-	LotteryTypes   []LotteryType `json:"lotteryTypes"`
-	Budget         float64       `json:"budget"`
-	Strategy       string        `json:"strategy"` // conservative, balanced, aggressive
-	MaxGames       int           `json:"maxGames"`
-	AvoidPatterns  bool          `json:"avoidPatterns"`
+	LotteryTypes    []LotteryType `json:"lotteryTypes"`
+	Budget          float64       `json:"budget"`
+	Strategy        string        `json:"strategy"` // conservative, balanced, aggressive
+	MaxGames        int           `json:"maxGames"`
+	AvoidPatterns   bool          `json:"avoidPatterns"`
 	FavoriteNumbers []int         `json:"favoriteNumbers"`
-	ExcludeNumbers []int         `json:"excludeNumbers"`
+	ExcludeNumbers  []int         `json:"excludeNumbers"`
 }
 
 // AnalysisRequest requisição para análise da IA
@@ -232,19 +232,19 @@ type AnalysisResponse struct {
 // ValidateGame valida se um jogo está correto conforme as regras
 func ValidateGame(game Game) error {
 	rules := GetRules(game.Type)
-	
+
 	if len(game.Numbers) < rules.MinNumbers || len(game.Numbers) > rules.MaxNumbers {
-		return fmt.Errorf("número de dezenas inválido para %s: deve estar entre %d e %d", 
+		return fmt.Errorf("número de dezenas inválido para %s: deve estar entre %d e %d",
 			rules.Name, rules.MinNumbers, rules.MaxNumbers)
 	}
-	
+
 	for _, num := range game.Numbers {
 		if num < 1 || num > rules.NumberRange {
-			return fmt.Errorf("número %d inválido para %s: deve estar entre 1 e %d", 
+			return fmt.Errorf("número %d inválido para %s: deve estar entre 1 e %d",
 				num, rules.Name, rules.NumberRange)
 		}
 	}
-	
+
 	// Verificar se não há números repetidos
 	seen := make(map[int]bool)
 	for _, num := range game.Numbers {
@@ -253,18 +253,18 @@ func ValidateGame(game Game) error {
 		}
 		seen[num] = true
 	}
-	
+
 	return nil
 }
 
 // CalculateGameCost calcula o custo de um jogo baseado na quantidade de números
 func CalculateGameCost(ltype LotteryType, numCount int) float64 {
 	rules := GetRules(ltype)
-	
+
 	if numCount == rules.MinNumbers {
 		return rules.BasePrice
 	}
-	
+
 	// Cálculo combinatório para jogos com mais números
 	// Custo = BasePrice * C(numCount, MinNumbers)
 	combinations := calculateCombinations(numCount, rules.MinNumbers)
@@ -279,10 +279,10 @@ func calculateCombinations(n, r int) int {
 	if r == 0 || r == n {
 		return 1
 	}
-	
+
 	result := 1
 	for i := 0; i < r; i++ {
 		result = result * (n - i) / (i + 1)
 	}
 	return result
-} 
+}

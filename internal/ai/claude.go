@@ -93,9 +93,9 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 	fmt.Printf("🔍 [CLAUDE DEBUG] Model: %s\n", c.model)
 	fmt.Printf("🔍 [CLAUDE DEBUG] MaxTokens: %d\n", c.maxTokens)
 	fmt.Printf("🔍 [CLAUDE DEBUG] BaseURL: %s\n", c.baseURL)
-	
+
 	prompt := c.buildAnalysisPrompt(request)
-	
+
 	claudeReq := ClaudeRequest{
 		Model:     c.model,
 		MaxTokens: c.maxTokens,
@@ -106,30 +106,30 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 			},
 		},
 	}
-	
+
 	reqBody, err := json.Marshal(claudeReq)
 	if err != nil {
 		fmt.Printf("🔍 [CLAUDE DEBUG] Erro ao serializar: %v\n", err)
 		return nil, fmt.Errorf("erro ao serializar requisição: %w", err)
 	}
-	
+
 	fmt.Printf("🔍 [CLAUDE DEBUG] Request body preparado. Size: %d bytes\n", len(reqBody))
-	
+
 	// Implementar retry logic com exponential backoff
 	var resp *http.Response
 	maxRetries := 3
 	baseDelay := 2 * time.Second
-	
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(reqBody))
 		if err != nil {
 			return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 		}
-		
+
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("x-api-key", c.apiKey)
 		req.Header.Set("anthropic-version", "2023-06-01")
-		
+
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
 			if attempt < maxRetries-1 {
@@ -145,24 +145,24 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 		break
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("API retornou status %d", resp.StatusCode)
 	}
-	
+
 	var claudeResp ClaudeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&claudeResp); err != nil {
 		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
-	
+
 	if len(claudeResp.Content) == 0 {
 		return nil, fmt.Errorf("resposta vazia do Claude")
 	}
-	
+
 	// Extrair JSON limpo da resposta
 	rawResponse := claudeResp.Content[0].Text
 	jsonContent := extractJSON(rawResponse)
-	
+
 	// Enhanced debug logging
 	if config.IsVerbose() {
 		fmt.Printf("🤖 Resposta COMPLETA do Claude:\n%s\n", rawResponse)
@@ -171,13 +171,13 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 		fmt.Printf("🤖 Resposta do Claude: %s\n", rawResponse[:min(200, len(rawResponse))]+"...")
 		fmt.Printf("🔍 JSON extraído: %s\n", jsonContent[:min(200, len(jsonContent))]+"...")
 	}
-	
+
 	// Parsear a resposta JSON do Claude
 	var analysisResp lottery.AnalysisResponse
 	if err := json.Unmarshal([]byte(jsonContent), &analysisResp); err != nil {
 		fmt.Printf("❌ Erro ao fazer parse do JSON: %v\n", err)
 		fmt.Printf("📄 JSON que falhou: %s\n", jsonContent)
-		
+
 		// SEM FALLBACK! Retornar erro para o usuário tentar novamente
 		return nil, fmt.Errorf("erro no parsing da resposta do Claude - tente gerar novamente")
 	} else {
@@ -189,14 +189,14 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 			// VALIDAÇÃO DE DIVERSIFICAÇÃO CRÍTICA
 			if !validateDiversification(analysisResp.Strategy.Games) {
 				fmt.Printf("🔄 Estratégia falhou na validação de diversificação, tentando novamente...\n")
-				
+
 				// Retry até 5 vezes mais para conseguir diversificação correta
 				maxRetries := 5
 				bestStrategy := analysisResp // Manter a melhor estratégia gerada
-				
+
 				for retry := 0; retry < maxRetries; retry++ {
 					fmt.Printf("🔄 Tentativa %d/%d para diversificação correta...\n", retry+1, maxRetries)
-					
+
 					// Gerar nova estratégia
 					newPrompt := c.buildAnalysisPrompt(request)
 					newClaudeReq := ClaudeRequest{
@@ -209,35 +209,35 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 							},
 						},
 					}
-					
+
 					newReqBody, _ := json.Marshal(newClaudeReq)
 					newReq, _ := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(newReqBody))
 					newReq.Header.Set("Content-Type", "application/json")
 					newReq.Header.Set("x-api-key", c.apiKey)
 					newReq.Header.Set("anthropic-version", "2023-06-01")
-					
+
 					newResp, err := c.httpClient.Do(newReq)
 					if err != nil {
 						continue
 					}
 					defer newResp.Body.Close()
-					
+
 					if newResp.StatusCode != http.StatusOK {
 						continue
 					}
-					
+
 					var newClaudeResp ClaudeResponse
 					if err := json.NewDecoder(newResp.Body).Decode(&newClaudeResp); err != nil {
 						continue
 					}
-					
+
 					if len(newClaudeResp.Content) == 0 {
 						continue
 					}
-					
+
 					newJsonContent := extractJSON(newClaudeResp.Content[0].Text)
 					var newAnalysisResp lottery.AnalysisResponse
-					
+
 					if err := json.Unmarshal([]byte(newJsonContent), &newAnalysisResp); err == nil {
 						if validateDiversification(newAnalysisResp.Strategy.Games) {
 							fmt.Printf("✅ Diversificação correta conseguida na tentativa %d!\n", retry+1)
@@ -252,7 +252,7 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 						}
 					}
 				}
-				
+
 				// Se não conseguiu diversificação perfeita, usar a MELHOR estratégia do Claude
 				if !validateDiversification(analysisResp.Strategy.Games) {
 					fmt.Printf("💪 Usando MELHOR estratégia Claude (sem fallback!): R$ %.2f - Qualidade superior!\n", bestStrategy.Strategy.TotalCost)
@@ -264,13 +264,13 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 			}
 		}
 	}
-	
+
 	if config.IsVerbose() {
-		fmt.Printf("Tokens usados: %d input + %d output = %d total\n", 
-			claudeResp.Usage.InputTokens, claudeResp.Usage.OutputTokens, 
+		fmt.Printf("Tokens usados: %d input + %d output = %d total\n",
+			claudeResp.Usage.InputTokens, claudeResp.Usage.OutputTokens,
 			claudeResp.Usage.InputTokens+claudeResp.Usage.OutputTokens)
 	}
-	
+
 	return &analysisResp, nil
 }
 
@@ -279,14 +279,14 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 	budget := request.Preferences.Budget
 	var games []lottery.Game
 	totalCost := 0.0
-	
+
 	fmt.Printf("🔄 Gerando estratégia fallback para orçamento R$ %.2f\n", budget)
-	
+
 	// Generate simple games based on budget and preferences
 	for _, lotteryType := range request.Preferences.LotteryTypes {
 		if lotteryType == "megasena" && budget-totalCost >= 5 {
 			remainingBudget := budget - totalCost
-			
+
 			if remainingBudget >= 140 { // Can afford 8 numbers
 				games = append(games, lottery.Game{
 					Type:    "megasena",
@@ -294,7 +294,7 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 					Cost:    140,
 				})
 				totalCost += 140
-			} else if remainingBudget >= 35 { // Can afford 7 numbers  
+			} else if remainingBudget >= 35 { // Can afford 7 numbers
 				games = append(games, lottery.Game{
 					Type:    "megasena",
 					Numbers: []int{7, 15, 23, 35, 42, 48, 58}, // Simple fallback numbers
@@ -303,17 +303,17 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 				totalCost += 35
 			} else if remainingBudget >= 5 { // Simple 6 numbers
 				games = append(games, lottery.Game{
-					Type:    "megasena", 
+					Type:    "megasena",
 					Numbers: []int{7, 15, 23, 35, 42, 58}, // Simple fallback numbers
 					Cost:    5,
 				})
 				totalCost += 5
 			}
 		}
-		
+
 		if lotteryType == "lotofacil" && budget-totalCost >= 3 {
 			remainingBudget := budget - totalCost
-			
+
 			if remainingBudget >= 48 { // Can afford 16 numbers
 				games = append(games, lottery.Game{
 					Type:    "lotofacil",
@@ -331,21 +331,21 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 			}
 		}
 	}
-	
+
 	reasoning := fmt.Sprintf("Estratégia fallback gerada: %d jogos por R$ %.2f (%.1f%% do orçamento). "+
 		"Esta é uma estratégia básica gerada quando a análise avançada da IA falha.",
 		len(games), totalCost, (totalCost/budget)*100)
-	
+
 	return lottery.AnalysisResponse{
 		Strategy: lottery.Strategy{
-			Budget:     budget,
-			TotalCost:  totalCost,
-			Games:      games,
-			Reasoning:  reasoning,
-			CreatedAt:  time.Now(),
+			Budget:    budget,
+			TotalCost: totalCost,
+			Games:     games,
+			Reasoning: reasoning,
+			CreatedAt: time.Now(),
 			Statistics: lottery.Stats{
 				AnalyzedDraws: len(request.Draws),
-				HotNumbers:    []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, // Simple defaults
+				HotNumbers:    []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},          // Simple defaults
 				ColdNumbers:   []int{51, 52, 53, 54, 55, 56, 57, 58, 59, 60}, // Simple defaults
 			},
 		},
@@ -358,7 +358,7 @@ func extractJSON(text string) string {
 	// Procurar pelo início do JSON
 	start := -1
 	braceCount := 0
-	
+
 	for i, char := range text {
 		if char == '{' {
 			if start == -1 {
@@ -372,7 +372,7 @@ func extractJSON(text string) string {
 			}
 		}
 	}
-	
+
 	// Se não encontrou JSON válido, retorna o texto original
 	return text
 }
@@ -384,7 +384,7 @@ func extractReasoningFromText(text string) string {
 		start += len(`"reasoning": "`)
 		end := start
 		escapeCount := 0
-		
+
 		for i := start; i < len(text); i++ {
 			if text[i] == '\\' {
 				escapeCount++
@@ -396,7 +396,7 @@ func extractReasoningFromText(text string) string {
 			}
 			escapeCount = 0
 		}
-		
+
 		if end > start {
 			reasoning := text[start:end]
 			// Remover escapes desnecessários
@@ -405,7 +405,7 @@ func extractReasoningFromText(text string) string {
 			return reasoning
 		}
 	}
-	
+
 	// Fallback: retornar uma versão mais limpa do texto
 	cleaned := text
 	// Remover JSON se estiver misturado
@@ -414,16 +414,16 @@ func extractReasoningFromText(text string) string {
 			cleaned = cleaned[:jsonStart]
 		}
 	}
-	
+
 	// Limitar tamanho
 	if len(cleaned) > 500 {
 		cleaned = cleaned[:500] + "..."
 	}
-	
+
 	if strings.TrimSpace(cleaned) == "" {
 		return "Estratégia gerada com base em análise estatística de dados históricos."
 	}
-	
+
 	return strings.TrimSpace(cleaned)
 }
 
@@ -438,10 +438,10 @@ func min(a, b int) int {
 // buildAnalysisPrompt constrói o prompt para análise com DADOS ESTATÍSTICOS REAIS
 func (c *ClaudeClient) buildAnalysisPrompt(request lottery.AnalysisRequest) string {
 	budget := request.Preferences.Budget
-	
+
 	// ANÁLISE ESTATÍSTICA RIGOROSA DOS DADOS HISTÓRICOS REAIS
 	statisticalAnalysis := c.analyzeHistoricalData(request.Draws, request.Preferences.LotteryTypes)
-	
+
 	prompt := fmt.Sprintf(`Você é um MATEMÁTICO ESPECIALISTA em otimização de loterias. Use APENAS os dados estatísticos REAIS fornecidos abaixo.
 
 🎯 OBJETIVO: MAXIMIZAR matematicamente as chances de ganho para R$ %.2f
@@ -566,7 +566,7 @@ CRÍTICO:
   * Jogo Lotofácil 1: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16] 
   * Jogo Lotofácil 2: [1,2,3,4,17,18,19,20,21,22,23,24,25,14,15,16] (8 números diferentes)
   * Jogo Lotofácil 3: [1,2,9,10,17,18,19,20,5,6,23,24,25,13,14,15] (8+ números diferentes)
-- Use SOMENTE as frequências e padrões dos dados reais fornecidos. NÃO INVENTE números!`, 
+- Use SOMENTE as frequências e padrões dos dados reais fornecidos. NÃO INVENTE números!`,
 		budget, statisticalAnalysis, budget, len(request.Draws))
 
 	return prompt
@@ -592,31 +592,31 @@ func (c *ClaudeClient) TestConnection() error {
 			},
 		},
 	}
-	
+
 	reqBody, err := json.Marshal(testReq)
 	if err != nil {
 		return fmt.Errorf("erro ao serializar teste: %w", err)
 	}
-	
+
 	req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return fmt.Errorf("erro ao criar requisição teste: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", c.apiKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("erro na requisição teste: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Claude API retornou status %d", resp.StatusCode)
 	}
-	
+
 	return nil
 }
 
@@ -625,23 +625,23 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 	if len(draws) == 0 {
 		return "ERRO: Nenhum dado histórico disponível para análise."
 	}
-	
+
 	analysis := strings.Builder{}
 	analysis.WriteString(fmt.Sprintf("📊 ANÁLISE DE %d SORTEIOS REAIS:\n\n", len(draws)))
-	
+
 	// Separar dados por tipo de loteria
 	megaDraws := []lottery.Draw{}
 	lotoDraws := []lottery.Draw{}
-	
+
 	for _, draw := range draws {
 		numbers := draw.Numbers.ToIntSlice()
 		if len(numbers) == 6 { // Mega-Sena
 			megaDraws = append(megaDraws, draw)
-		} else if len(numbers) >= 15 { // Lotofácil  
+		} else if len(numbers) >= 15 { // Lotofácil
 			lotoDraws = append(lotoDraws, draw)
 		}
 	}
-	
+
 	// Analisar Mega-Sena
 	if len(megaDraws) > 0 {
 		analysis.WriteString("🎰 MEGA-SENA - FREQUÊNCIAS REAIS:\n")
@@ -650,7 +650,7 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 		megaSums := calculateSumDistribution(megaDraws)
 		megaPairs := calculatePairImparDistribution(megaDraws)
 		megaSumMin, megaSumMax := getMostCommonSumRange(megaSums)
-		
+
 		analysis.WriteString(fmt.Sprintf("• Sorteios analisados: %d\n", len(megaDraws)))
 		analysis.WriteString(fmt.Sprintf("• Números MAIS frequentes: %v\n", megaHot))
 		analysis.WriteString(fmt.Sprintf("• Números MENOS frequentes: %v\n", megaCold))
@@ -663,7 +663,7 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 		analysis.WriteString(fmt.Sprintf("  - 46-60: %v\n", getNumbersInRange(megaHot, 46, 60)))
 		analysis.WriteString("\n")
 	}
-	
+
 	// Analisar Lotofácil
 	if len(lotoDraws) > 0 {
 		analysis.WriteString("🍀 LOTOFÁCIL - FREQUÊNCIAS REAIS:\n")
@@ -672,7 +672,7 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 		lotoSums := calculateSumDistribution(lotoDraws)
 		lotoPairs := calculatePairImparDistribution(lotoDraws)
 		lotoSumMin, lotoSumMax := getMostCommonSumRange(lotoSums)
-		
+
 		analysis.WriteString(fmt.Sprintf("• Sorteios analisados: %d\n", len(lotoDraws)))
 		analysis.WriteString(fmt.Sprintf("• Números MAIS frequentes: %v\n", lotoHot))
 		analysis.WriteString(fmt.Sprintf("• Números MENOS frequentes: %v\n", lotoCold))
@@ -685,20 +685,20 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 		analysis.WriteString(fmt.Sprintf("  - Q4 (19-25): %v\n", getNumbersInRange(lotoHot, 19, 25)))
 		analysis.WriteString("\n")
 	}
-	
+
 	analysis.WriteString("⚡ OTIMIZAÇÃO MATEMÁTICA:\n")
 	analysis.WriteString("• Lotofácil 16 números = 8.008 combinações por R$48 = 166.8 comb/real\n")
 	analysis.WriteString("• Mega-Sena 8 números = 28 combinações por R$140 = 0.2 comb/real\n")
 	analysis.WriteString("• ROI Lotofácil é 834x superior!\n")
 	analysis.WriteString("• ESTRATÉGIA ÓTIMA: Priorizar Lotofácil 16+ números\n\n")
-	
+
 	return analysis.String()
 }
 
 // calculateNumberFrequency calcula frequência de cada número nos sorteios
 func calculateNumberFrequency(draws []lottery.Draw, maxNumber int) map[int]int {
 	frequency := make(map[int]int)
-	
+
 	for _, draw := range draws {
 		numbers := draw.Numbers.ToIntSlice()
 		for _, num := range numbers {
@@ -707,7 +707,7 @@ func calculateNumberFrequency(draws []lottery.Draw, maxNumber int) map[int]int {
 			}
 		}
 	}
-	
+
 	return frequency
 }
 
@@ -717,41 +717,41 @@ func getHotColdNumbers(frequency map[int]int, count int) ([]int, []int) {
 		number int
 		freq   int
 	}
-	
+
 	var numbers []numberFreq
 	for num, freq := range frequency {
 		numbers = append(numbers, numberFreq{num, freq})
 	}
-	
+
 	// Ordenar por frequência (decrescente)
 	sort.Slice(numbers, func(i, j int) bool {
 		return numbers[i].freq > numbers[j].freq
 	})
-	
+
 	var hot, cold []int
-	
+
 	// Números mais frequentes (hot)
 	for i := 0; i < count && i < len(numbers); i++ {
 		hot = append(hot, numbers[i].number)
 	}
-	
+
 	// Números menos frequentes (cold)
 	for i := len(numbers) - count; i < len(numbers) && i >= 0; i++ {
 		if i >= 0 {
 			cold = append(cold, numbers[i].number)
 		}
 	}
-	
+
 	sort.Ints(hot)
 	sort.Ints(cold)
-	
+
 	return hot, cold
 }
 
 // calculateSumDistribution calcula distribuição das somas dos sorteios
 func calculateSumDistribution(draws []lottery.Draw) map[int]int {
 	sums := make(map[int]int)
-	
+
 	for _, draw := range draws {
 		numbers := draw.Numbers.ToIntSlice()
 		sum := 0
@@ -760,7 +760,7 @@ func calculateSumDistribution(draws []lottery.Draw) map[int]int {
 		}
 		sums[sum]++
 	}
-	
+
 	return sums
 }
 
@@ -769,18 +769,18 @@ func getMostCommonSumRange(sums map[int]int) (int, int) {
 	if len(sums) == 0 {
 		return 0, 0
 	}
-	
+
 	// Encontrar soma mais frequente
 	maxFreq := 0
 	mostCommonSum := 0
-	
+
 	for sum, freq := range sums {
 		if freq > maxFreq {
 			maxFreq = freq
 			mostCommonSum = sum
 		}
 	}
-	
+
 	// Retornar faixa ±10
 	return mostCommonSum - 10, mostCommonSum + 10
 }
@@ -789,63 +789,63 @@ func getMostCommonSumRange(sums map[int]int) (int, int) {
 func calculatePairImparDistribution(draws []lottery.Draw) float64 {
 	totalNumbers := 0
 	pairNumbers := 0
-	
+
 	for _, draw := range draws {
 		numbers := draw.Numbers.ToIntSlice()
 		totalNumbers += len(numbers)
-		
+
 		for _, num := range numbers {
 			if num%2 == 0 {
 				pairNumbers++
 			}
 		}
 	}
-	
+
 	if totalNumbers == 0 {
 		return 0
 	}
-	
+
 	return (float64(pairNumbers) / float64(totalNumbers)) * 100
 }
 
 // getNumbersInRange retorna números de uma lista que estão em uma faixa
 func getNumbersInRange(numbers []int, min, max int) []int {
 	var result []int
-	
+
 	for _, num := range numbers {
 		if num >= min && num <= max {
 			result = append(result, num)
 		}
 	}
-	
+
 	return result
 }
 
 // validateDiversification verifica se cada par de jogos Lotofácil tem pelo menos 8 números diferentes
 func validateDiversification(games []lottery.Game) bool {
 	lotofacilGames := []lottery.Game{}
-	
+
 	// Filtrar apenas jogos Lotofácil
 	for _, game := range games {
 		if game.Type == "lotofacil" && len(game.Numbers) >= 15 {
 			lotofacilGames = append(lotofacilGames, game)
 		}
 	}
-	
+
 	// Se menos de 2 jogos Lotofácil, não precisa validar diversificação
 	if len(lotofacilGames) < 2 {
 		return true
 	}
-	
+
 	// Verificar cada par de jogos
 	for i := 0; i < len(lotofacilGames); i++ {
 		for j := i + 1; j < len(lotofacilGames); j++ {
 			commonNumbers := getCommonNumbers(lotofacilGames[i].Numbers, lotofacilGames[j].Numbers)
 			differentNumbers := len(lotofacilGames[i].Numbers) - commonNumbers
-			
-			fmt.Printf("🔍 Diversificação Jogo %d vs %d: %d números em comum, %d diferentes\n", 
+
+			fmt.Printf("🔍 Diversificação Jogo %d vs %d: %d números em comum, %d diferentes\n",
 				i+1, j+1, commonNumbers, differentNumbers)
-			
+
 			// Regra: cada par deve ter pelo menos 8 números DIFERENTES (máximo 8 em comum)
 			if commonNumbers > 8 {
 				fmt.Printf("❌ FALHA na diversificação: %d números em comum (máximo permitido: 8)\n", commonNumbers)
@@ -853,7 +853,7 @@ func validateDiversification(games []lottery.Game) bool {
 			}
 		}
 	}
-	
+
 	fmt.Printf("✅ Diversificação validada com sucesso!\n")
 	return true
 }
@@ -861,12 +861,12 @@ func validateDiversification(games []lottery.Game) bool {
 // getCommonNumbers conta quantos números são comuns entre dois jogos
 func getCommonNumbers(numbers1, numbers2 []int) int {
 	numberMap := make(map[int]bool)
-	
+
 	// Mapear números do primeiro jogo
 	for _, num := range numbers1 {
 		numberMap[num] = true
 	}
-	
+
 	// Contar números em comum
 	common := 0
 	for _, num := range numbers2 {
@@ -874,6 +874,6 @@ func getCommonNumbers(numbers1, numbers2 []int) int {
 			common++
 		}
 	}
-	
+
 	return common
-} 
+}

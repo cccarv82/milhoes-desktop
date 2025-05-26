@@ -57,7 +57,7 @@ func initConfig() {
 	} else {
 		// Primeiro: procurar no diretório atual (onde está o executável)
 		viper.AddConfigPath(".")
-		
+
 		// Segundo: procurar no diretório home (fallback)
 		home, err := os.UserHomeDir()
 		if err == nil {
@@ -79,4 +79,4 @@ func initConfig() {
 
 	// Inicializar configuração
 	config.Init()
-} 
+}

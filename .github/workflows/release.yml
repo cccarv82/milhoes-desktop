@@ -47,8 +47,13 @@ jobs:
     - name: 📋 List Build Output
       run: |
         echo "=== Build Directory ==="
-        ls -la build/
-        if (Test-Path "build/bin") { ls -la build/bin/ } else { echo "build/bin not found" }
+        Get-ChildItem -Path build/ -Force | Format-Table -AutoSize
+        if (Test-Path "build/bin") { 
+          echo "=== Build/bin Directory ==="
+          Get-ChildItem -Path build/bin/ -Force | Format-Table -AutoSize 
+        } else { 
+          echo "build/bin not found" 
+        }
       shell: pwsh
 
     - name: 📦 Compress Artifacts

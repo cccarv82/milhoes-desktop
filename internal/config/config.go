@@ -24,11 +24,11 @@ type ClaudeConfig struct {
 
 // AppConfig configurações da aplicação
 type AppConfig struct {
-	CacheEnabled   bool   `yaml:"cache_enabled"`
-	CacheDuration  int    `yaml:"cache_duration_hours"`
-	DefaultBudget  int    `yaml:"default_budget"`
-	LogLevel       string `yaml:"log_level"`
-	DataSourceURL  string `yaml:"data_source_url"`
+	CacheEnabled  bool   `yaml:"cache_enabled"`
+	CacheDuration int    `yaml:"cache_duration_hours"`
+	DefaultBudget int    `yaml:"default_budget"`
+	LogLevel      string `yaml:"log_level"`
+	DataSourceURL string `yaml:"data_source_url"`
 }
 
 var GlobalConfig *Config
@@ -41,7 +41,7 @@ func getConfigPath() string {
 		// Fallback para diretório atual
 		return "lottery-optimizer.yaml"
 	}
-	
+
 	exeDir := filepath.Dir(exePath)
 	return filepath.Join(exeDir, "lottery-optimizer.yaml")
 }
@@ -51,13 +51,13 @@ func Init() {
 	// Configurar Viper para ler do arquivo de configuração no diretório do executável
 	configPath := getConfigPath()
 	viper.SetConfigFile(configPath)
-	
+
 	// Tentar ler o arquivo de configuração
 	if err := viper.ReadInConfig(); err != nil {
 		// Se não conseguir ler, não é erro fatal - usar padrões
 		fmt.Printf("Aviso: Não foi possível ler arquivo de configuração (%s): %v\n", configPath, err)
 	}
-	
+
 	GlobalConfig = &Config{
 		Claude: ClaudeConfig{
 			APIKey:     getClaudeAPIKey(),
@@ -66,11 +66,11 @@ func Init() {
 			TimeoutSec: viper.GetInt("claude.timeout_sec"),
 		},
 		App: AppConfig{
-			CacheEnabled:   viper.GetBool("app.cache_enabled"),
-			CacheDuration:  viper.GetInt("app.cache_duration_hours"),
-			DefaultBudget:  viper.GetInt("app.default_budget"),
-			LogLevel:       viper.GetString("app.log_level"),
-			DataSourceURL:  viper.GetString("app.data_source_url"),
+			CacheEnabled:  viper.GetBool("app.cache_enabled"),
+			CacheDuration: viper.GetInt("app.cache_duration_hours"),
+			DefaultBudget: viper.GetInt("app.default_budget"),
+			LogLevel:      viper.GetString("app.log_level"),
+			DataSourceURL: viper.GetString("app.data_source_url"),
 		},
 	}
 
@@ -84,15 +84,15 @@ func getClaudeAPIKey() string {
 	if key := viper.GetString("api-key"); key != "" {
 		return key
 	}
-	
+
 	if key := os.Getenv("CLAUDE_API_KEY"); key != "" {
 		return key
 	}
-	
+
 	if key := viper.GetString("claude.api_key"); key != "" {
 		return key
 	}
-	
+
 	// Retornar string vazia - usuário deve fornecer sua própria chave
 	return ""
 }
@@ -102,31 +102,31 @@ func setDefaults() {
 	if GlobalConfig.Claude.Model == "" {
 		GlobalConfig.Claude.Model = "claude-3-5-sonnet-20241022"
 	}
-	
+
 	if GlobalConfig.Claude.MaxTokens == 0 {
 		GlobalConfig.Claude.MaxTokens = 4000
 	}
-	
+
 	if GlobalConfig.Claude.TimeoutSec == 0 {
 		GlobalConfig.Claude.TimeoutSec = 30
 	}
-	
+
 	if GlobalConfig.App.CacheDuration == 0 {
 		GlobalConfig.App.CacheDuration = 24 // 24 horas
 	}
-	
+
 	if GlobalConfig.App.DefaultBudget == 0 {
 		GlobalConfig.App.DefaultBudget = 50 // R$ 50
 	}
-	
+
 	if GlobalConfig.App.LogLevel == "" {
 		GlobalConfig.App.LogLevel = "info"
 	}
-	
+
 	if GlobalConfig.App.DataSourceURL == "" {
 		GlobalConfig.App.DataSourceURL = "https://servicebus2.caixa.gov.br/portaldeloterias/api"
 	}
-	
+
 	GlobalConfig.App.CacheEnabled = true
 }
 
@@ -147,11 +147,11 @@ Para usar as funcionalidades de IA, configure sua chave da Claude:
    
 ⚠️  SEM CHAVE: O app funcionará apenas com estratégias básicas (sem IA)`, getConfigPath())
 	}
-	
+
 	if GlobalConfig.App.DefaultBudget <= 0 {
 		return fmt.Errorf("orçamento padrão deve ser maior que zero")
 	}
-	
+
 	return nil
 }
 
@@ -173,4 +173,4 @@ func GetMaxTokens() int {
 // IsVerbose retorna se o modo verbose está ativo
 func IsVerbose() bool {
 	return viper.GetBool("verbose")
-} 
+}
