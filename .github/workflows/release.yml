@@ -221,21 +221,21 @@ jobs:
         echo "=== Contents after extraction ==="
         Get-ChildItem -Recurse ./extracted/
         echo ""
-        echo "=== Looking for milhoes.exe everywhere ==="
-        Get-ChildItem -Recurse -Name "*.exe" ./extracted/
-        echo ""
         echo "=== Creating build structure ==="
         New-Item -ItemType Directory -Path "build/bin" -Force
-        # Find and copy milhoes.exe wherever it is
-        $exeFile = Get-ChildItem -Recurse -Name "milhoes.exe" ./extracted/
-        if ($exeFile) {
-          $exePath = Join-Path ./extracted/ $exeFile
-          Copy-Item $exePath "build/bin/milhoes.exe" -Force
-          echo "✅ Copied milhoes.exe from $exePath to build/bin/"
+        
+        # Direct copy from extracted folder
+        if (Test-Path "./extracted/milhoes.exe") {
+          Copy-Item "./extracted/milhoes.exe" "build/bin/milhoes.exe" -Force
+          echo "✅ Copied milhoes.exe from extracted/ to build/bin/"
+          echo "File size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
         } else {
-          echo "❌ milhoes.exe not found anywhere in extracted files"
+          echo "❌ milhoes.exe not found in extracted folder"
+          echo "=== All files in extracted folder ==="
+          Get-ChildItem -Recurse ./extracted/ -Force
           exit 1
         }
+      shell: pwsh
 
     - name: 🛠️ Install Inno Setup
       run: |
