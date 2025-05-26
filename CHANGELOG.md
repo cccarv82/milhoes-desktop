@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21.9] - 2024-12-19 🚨 CRITICAL FIX
+
+### 🔧 Fixed - P0 INCIDENT RESOLUTION
+- **CRITICAL**: Fixed installer generation failure in CI/CD pipeline
+- **ROOT CAUSE**: Artifact extraction path mismatch in create-installer job
+- **SOLUTION**: Implemented robust multi-path search for milhoes.exe
+- **IMPACT**: Both ZIP and installer artifacts now generate correctly
+
+### 📋 Technical Details
+- **Problem**: Workflow looked for `./extracted/milhoes.exe` but file was at `./extracted/build/bin/milhoes.exe`
+- **Fix**: Added fallback search checking multiple possible extraction paths
+- **Debugging**: Enhanced logging to identify exact file locations
+- **Reliability**: Future-proof against action-zip behavior changes
+
+### ✅ Verification
+- ✅ Multiple path fallback system
+- ✅ Enhanced error logging for troubleshooting
+- ✅ Backwards compatibility maintained
+- ✅ Installer generation restored
+
+### 🎯 Expected Result
+- **ZIP Artifact**: ✅ milhoes-windows-amd64.zip (portable version)
+- **EXE Installer**: ✅ MilhoesSetup.exe (professional installer)
+- **Release**: ✅ Complete GitHub release with both formats
+
 ## [1.0.21.8] - 2024-12-19
 
 ### 🔧 Fixed

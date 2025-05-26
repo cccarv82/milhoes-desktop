@@ -230,14 +230,32 @@ jobs:
         echo "=== Creating build structure ==="
         New-Item -ItemType Directory -Path "build/bin" -Force
         
-        # Direct copy from extracted folder
-        if (Test-Path "./extracted/milhoes.exe") {
-          Copy-Item "./extracted/milhoes.exe" "build/bin/milhoes.exe" -Force
-          echo "✅ Copied milhoes.exe from extracted/ to build/bin/"
+        # CORREÇÃO DEFINITIVA: Busca robusta em múltiplos caminhos possíveis
+        echo "=== Searching for milhoes.exe in all possible locations ==="
+        $possiblePaths = @(
+          "./extracted/build/bin/milhoes.exe",    # Estrutura preservada pela action-zip
+          "./extracted/milhoes.exe",              # Arquivo no root (caso action-zip mude comportamento)
+          "./extracted/bin/milhoes.exe"           # Variação possível
+        )
+        
+        $sourceFile = $null
+        foreach ($path in $possiblePaths) {
+          if (Test-Path $path) {
+            $sourceFile = $path
+            echo "✅ FOUND: milhoes.exe at $path"
+            break
+          } else {
+            echo "❌ NOT FOUND: $path"
+          }
+        }
+        
+        if ($sourceFile) {
+          Copy-Item $sourceFile "build/bin/milhoes.exe" -Force
+          echo "✅ Successfully copied milhoes.exe from: $sourceFile"
           echo "File size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
         } else {
-          echo "❌ milhoes.exe not found in extracted folder"
-          echo "=== All files in extracted folder ==="
+          echo "❌ CRITICAL ERROR: milhoes.exe not found in any expected location!"
+          echo "=== Complete directory listing for debugging ==="
           Get-ChildItem -Recurse ./extracted/ -Force
           exit 1
         }
