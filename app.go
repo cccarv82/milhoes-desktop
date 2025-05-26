@@ -21,9 +21,6 @@ import (
 	"time"
 )
 
-// External version variable from main.go
-var version string
-
 var (
 	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
 	logFile *os.File
