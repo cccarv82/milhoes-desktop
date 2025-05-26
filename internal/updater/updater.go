@@ -280,4 +280,3 @@ func (u *Updater) ScheduleUpdateCheck(interval time.Duration, callback func(*Upd
 func (u *Updater) GetCurrentVersion() string {
 	return u.currentVersion
 }
- 
