@@ -21,8 +21,7 @@ import (
 	"time"
 )
 
-// version é a versão atual do aplicativo
-// Removido: versão agora definida em main.go
+const version = "v1.0.21.19"
 
 var (
 	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
@@ -1438,9 +1437,7 @@ func initFileLogging() error {
 	log.Printf("🧪 TESTE DE LOGGING - Se você está vendo isso, o sistema funciona!")
 	
 	// FORÇAR FLUSH do buffer
-	if f, ok := logFile.(*os.File); ok {
-		f.Sync()
-	}
+	logFile.Sync()
 
 	fmt.Printf("✅ Logs iniciais escritos e sincronizados\n")
 
@@ -1475,9 +1472,7 @@ func rotateLogFiles() {
 // flushLogs força a escrita dos logs para o arquivo
 func flushLogs() {
 	if logFile != nil {
-		if f, ok := logFile.(*os.File); ok {
-			f.Sync()
-		}
+		logFile.Sync()
 	}
 }
 
