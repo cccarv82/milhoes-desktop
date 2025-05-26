@@ -304,17 +304,41 @@ jobs:
         echo "=== Downloaded artifacts ==="
         find . -type f -name "*.exe" -o -name "*.zip" | head -20
 
+    - name: 📂 Checkout Public Repository
+      uses: actions/checkout@v4
+      with:
+        repository: cccarv82/milhoes-releases
+        token: ${{ secrets.RELEASES_TOKEN }}
+        path: public-repo
+
+    - name: 🏷️ Create Tag in Public Repository
+      run: |
+        cd public-repo
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        
+        # Extract tag name from the trigger
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        echo "Creating tag: $TAG_NAME"
+        
+        # Create and push tag
+        git tag $TAG_NAME
+        git push origin $TAG_NAME
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+
     - name: 🚀 Create GitHub Release (Public Repository)
       uses: softprops/action-gh-release@v1
       with:
         repository: cccarv82/milhoes-releases
+        tag_name: ${{ github.ref_name }}
         files: |
           milhoes-windows-amd64/milhoes-windows-amd64.zip
           milhoes-installer/MilhoesSetup.exe
         generate_release_notes: true
-        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+        prerelease: false
         body: |
-          ## 🎯 Milhões - Otimizador de Loterias ${{ github.ref_name }}
+          ## 🎯 Milhões - Otimizador de Loterias v${{ github.ref_name }}
           
           ### 📦 Downloads Disponíveis:
           - **`MilhoesSetup.exe`** - Instalador profissional Windows (recomendado)
@@ -332,8 +356,7 @@ jobs:
           4. Comece a otimizar suas loterias! 🎰
           
           ---
-          **📋 Versão:** ${{ github.ref_name }}  
+          **📋 Versão:** v${{ github.ref_name }}  
           **📅 Data:** $(date +%Y-%m-%d)  
           **🔗 Código-fonte:** [Repositório Principal](https://github.com/cccarv82/milhoes-desktop)
-      env:
-        GITHUB_TOKEN: ${{ secrets.RELEASES_TOKEN }} 
+        token: ${{ secrets.RELEASES_TOKEN }} 
