@@ -193,15 +193,13 @@ func (u *Updater) DownloadUpdate(ctx context.Context, updateInfo *UpdateInfo, pr
 			}
 
 			if err == io.EOF {
-				break
+				return nil
 			}
 			if err != nil {
 				return fmt.Errorf("erro durante download: %w", err)
 			}
 		}
 	}
-
-	return nil
 }
 
 // InstallUpdate instala a atualização baixada

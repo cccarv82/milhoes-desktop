@@ -56,6 +56,12 @@ jobs:
     - name: 🔍 Verify Dependencies
       run: go mod verify
       
+    - name: 📂 Create Frontend Dist (for embed)
+      run: |
+        mkdir -p frontend/dist
+        echo '{"app":"milhoes","build":"ci-placeholder"}' > frontend/dist/placeholder.json
+        echo "✅ Frontend dist directory created for embed"
+        
     - name: 🧹 Check Code Formatting
       run: |
         if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then

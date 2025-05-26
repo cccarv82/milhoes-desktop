@@ -96,9 +96,21 @@ jobs:
     - name: 📂 Extract Build Artifacts
       run: |
         echo "=== Extracting artifacts ==="
-        Expand-Archive -Path milhoes-windows-amd64.zip -DestinationPath ./build/ -Force
-        echo "=== Build contents after extraction ==="
-        Get-ChildItem -Recurse build/
+        Expand-Archive -Path milhoes-windows-amd64.zip -DestinationPath ./ -Force
+        echo "=== Contents after extraction ==="
+        Get-ChildItem -Recurse
+        echo "=== Ensuring correct structure ==="
+        if (Test-Path "bin/milhoes.exe") {
+          # If extracted to bin/, move to build/bin/
+          New-Item -ItemType Directory -Path "build/bin" -Force
+          Move-Item "bin/milhoes.exe" "build/bin/milhoes.exe"
+          echo "✅ Moved milhoes.exe to build/bin/"
+        } elseif (Test-Path "build/bin/milhoes.exe") {
+          echo "✅ milhoes.exe already in correct location"
+        } else {
+          echo "❌ milhoes.exe not found in expected locations"
+          Get-ChildItem -Recurse -Name "*.exe"
+        }
 
     - name: 🛠️ Install Inno Setup
       run: |
