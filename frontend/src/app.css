@@ -1047,7 +1047,7 @@ body {
 
 .modal-close {
   background: none;
-  border: none;
+    border: none;
   font-size: var(--font-size-2xl);
   color: var(--text-secondary);
   cursor: pointer;

@@ -222,9 +222,9 @@ function renderConfigurationRequired() {
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
-    `;
+      </div>
+    </div>
+`;
 }
 
 // ===============================

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21.2] - 2025-05-26
+
+### 🔧 Corrigido
+- **Windows Installer**: Corrigido caminho de saída do instalador (`installer\Output` ao invés de `build\installer`)
+- **CI/CD Pipeline**: Pipeline agora gera corretamente tanto o arquivo ZIP portátil quanto o instalador MSI
+- **Release Process**: Processo de release completamente funcional com ambos os formatos de distribuição
+
+### 📋 Detalhes Técnicos
+- OutputDir corrigido no `setup.iss` para alinhar com workflow GitHub Actions
+- Instalador Windows (`MilhoesSetup.exe`) agora é gerado e incluído nos releases
+- Ambos os formatos disponíveis: portátil (ZIP) e instalador profissional (EXE)
+
 ## [1.0.21.1] - 2025-05-26
 
 ### 🔧 Corrigido
