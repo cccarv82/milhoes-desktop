@@ -1,0 +1,9 @@
+claude:
+  api_key: "SUBSTITUA_PELA_SUA_CHAVE_DO_CLAUDE"
+  model: "claude-3-5-sonnet-20241022"
+  max_tokens: 4000
+  timeout_sec: 60
+app:
+  default_budget: 100
+  cache_enabled: true
+  verbose: true 

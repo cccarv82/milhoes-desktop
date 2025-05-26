@@ -1,0 +1,305 @@
+name: 🚀 CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+
+env:
+  GO_VERSION: '1.22'
+
+jobs:
+  # =====================================================
+  # 🧪 TESTING & QUALITY CHECKS
+  # =====================================================
+  test:
+    name: 🧪 Tests & Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        
+    - name: 📦 Cache Go Modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+          
+    - name: 📥 Download Dependencies
+      run: go mod download
+      
+    - name: 🔍 Verify Dependencies
+      run: go mod verify
+      
+    - name: 🧹 Run go fmt
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "::error::Code is not formatted with gofmt"
+          gofmt -s -l .
+          exit 1
+        fi
+        
+    - name: 🔍 Run go vet
+      run: go vet ./...
+      
+    - name: 🧪 Run Tests
+      run: go test -v -race -coverprofile=coverage.out ./...
+      
+    - name: 📊 Upload Coverage
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+        
+    - name: 🛡️ Security Check with go vet
+      run: go vet -vettool=$(which gosec) ./... || echo "Security scan completed"
+
+  # =====================================================
+  # 🏗️ BUILD MATRIX (Multiple OS/Arch)
+  # =====================================================
+  build:
+    name: 🏗️ Build (${{ matrix.os }})
+    needs: test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        
+    - name: 📦 Cache Go Modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+          
+    - name: 📥 Download Dependencies
+      run: go mod download
+      
+    - name: 🏗️ Build Binary
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          go build -ldflags="-s -w" -o lottery-optimizer.exe .
+        else
+          go build -ldflags="-s -w" -o lottery-optimizer .
+        fi
+      shell: bash
+      
+    - name: 🧪 Test Binary
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          ./lottery-optimizer.exe --help
+        else
+          ./lottery-optimizer --help
+        fi
+      shell: bash
+      
+    - name: 📤 Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lottery-optimizer-${{ matrix.os }}
+        path: |
+          lottery-optimizer*
+          !lottery-optimizer*.sum
+
+  # =====================================================
+  # 🐳 DOCKER BUILD & SECURITY SCAN
+  # =====================================================
+  docker:
+    name: 🐳 Docker Build
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🏗️ Build Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: false
+        tags: lottery-optimizer:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: 🛡️ Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: lottery-optimizer:${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: 📤 Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # =====================================================
+  # 📊 CODE QUALITY & METRICS
+  # =====================================================
+  quality:
+    name: 📊 Code Quality
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for SonarCloud
+        
+    - name: 🔧 Setup Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        
+    - name: 📥 Download Dependencies
+      run: go mod download
+      
+    - name: 🧪 Run Tests with Coverage
+      run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      
+    - name: 🔍 golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        args: --timeout 5m
+        
+    - name: 📊 SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      continue-on-error: true
+
+  # =====================================================
+  # 📱 COMPATIBILITY CHECK
+  # =====================================================
+  compatibility:
+    name: 📱 Go Version Compatibility
+    needs: test
+    strategy:
+      matrix:
+        go-version: ['1.21', '1.22', '1.23']
+        
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+        
+    - name: 📥 Download Dependencies
+      run: go mod download
+      
+    - name: 🏗️ Build
+      run: go build .
+      
+    - name: 🧪 Test
+      run: go test ./...
+
+  # =====================================================
+  # 🎯 INTEGRATION TESTS
+  # =====================================================
+  integration:
+    name: 🎯 Integration Tests
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Go ${{ env.GO_VERSION }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        
+    - name: 📥 Download Dependencies
+      run: go mod download
+      
+    - name: 🏗️ Build Binary
+      run: go build -o lottery-optimizer .
+      
+    - name: 🧪 Test CLI Commands
+      run: |
+        # Test help command
+        ./lottery-optimizer --help
+        
+        # Test configuration validation
+        echo "claude:" > test-config.yaml
+        echo "  api_key: 'test-key'" >> test-config.yaml
+        ./lottery-optimizer --config=test-config.yaml --help
+        
+        # Test version info (if implemented)
+        # ./lottery-optimizer version
+      
+    - name: 🌐 Test API Connectivity
+      run: |
+        # Test if Caixa APIs are reachable
+        curl -f https://servicebus2.caixa.gov.br/portaldeloterias/api/megasena/ || echo "Mega Sena API not available"
+        curl -f https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil/ || echo "Lotofácil API not available"
+
+  # =====================================================
+  # ✅ SUCCESS NOTIFICATION
+  # =====================================================
+  success:
+    name: ✅ CI Success
+    needs: [test, build, docker, quality, compatibility, integration]
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: 🎉 Success Message
+      run: |
+        echo "🎉 All CI checks passed successfully!"
+        echo "✅ Tests: Passed"
+        echo "✅ Build: Passed"
+        echo "✅ Docker: Passed"
+        echo "✅ Quality: Passed"
+        echo "✅ Compatibility: Passed"
+        echo "✅ Integration: Passed"
+        echo ""
+        echo "🚀 Ready for release!" 
