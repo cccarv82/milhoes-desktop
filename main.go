@@ -1,7 +1,7 @@
 package main
 
 import (
-	"embed"
+	// "embed"
 	"lottery-optimizer-gui/internal/config"
 
 	"github.com/wailsapp/wails/v2"
@@ -10,8 +10,9 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
+// Temporariamente comentado até configurarmos o frontend
 //go:embed all:frontend/dist
-var assets embed.FS
+// var assets embed.FS
 
 func main() {
 	// Inicializar configuração
@@ -28,7 +29,7 @@ func main() {
 		MinWidth:  1000,
 		MinHeight: 700,
 		AssetServer: &assetserver.Options{
-			Assets: assets,
+			Assets: nil, // Temporariamente nil até configurar frontend
 		},
 		BackgroundColour: &options.RGBA{R: 15, G: 23, B: 42, A: 1}, // Azul escuro elegante
 		OnStartup:        app.startup,

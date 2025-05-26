@@ -39,10 +39,19 @@ jobs:
     - name: 📦 Install Wails
       run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
 
-    - name: 🏗️ Build Wails App
+    - name: 📋 Create build directories
+      run: |
+        New-Item -ItemType Directory -Force -Path "build/bin"
+        echo "Directory created successfully"
+      shell: pwsh
+
+    - name: 🏗️ Build Application
       run: |
         echo "Building with version: ${{ github.ref_name }}"
-        wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
+        # Temporariamente usando Go build até configurar frontend completo
+        go build -ldflags "-X main.version=${{ github.ref_name }}" -o build/bin/milhoes.exe .
+        echo "Build completed successfully"
+      shell: pwsh
 
     - name: 📋 List Build Output
       run: |
