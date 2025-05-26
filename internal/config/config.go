@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // Config estrutura de configuração da aplicação
@@ -157,7 +158,27 @@ Para usar as funcionalidades de IA, configure sua chave da Claude:
 
 // GetClaudeAPIKey retorna a chave da API do Claude
 func GetClaudeAPIKey() string {
-	return GlobalConfig.Claude.APIKey
+	// CORREÇÃO: Sempre tentar ler do arquivo primeiro para pegar configuração mais recente
+	configPath := getConfigPath()
+	if content, err := os.ReadFile(configPath); err == nil {
+		// Parse rápido do YAML só para pegar a chave
+		var configYAML struct {
+			Claude struct {
+				APIKey string `yaml:"api_key"`
+			} `yaml:"claude"`
+		}
+		
+		if err := yaml.Unmarshal(content, &configYAML); err == nil && configYAML.Claude.APIKey != "" {
+			return configYAML.Claude.APIKey
+		}
+	}
+	
+	// Fallback para GlobalConfig se arquivo não disponível
+	if GlobalConfig != nil {
+		return GlobalConfig.Claude.APIKey
+	}
+	
+	return ""
 }
 
 // GetClaudeModel retorna o modelo do Claude a ser usado

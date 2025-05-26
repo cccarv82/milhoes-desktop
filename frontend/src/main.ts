@@ -341,15 +341,15 @@ function renderConfigurationScreen() {
                     <div class="form-section">
                         <h3>
                             <span>🔗</span>
-                            Teste de Conexão
+                            Teste de Conexões
                         </h3>
                         <p style="color: var(--text-secondary); margin-bottom: var(--spacing-4);">
-                            Teste as conexões com as APIs antes de salvar.
+                            Verifique se as APIs estão funcionando corretamente.
                         </p>
                         
-                        <div style="display: flex; gap: var(--spacing-4); margin-bottom: var(--spacing-6); flex-wrap: wrap;">
+                        <div style="display: flex; justify-content: center; margin-bottom: var(--spacing-6);">
                             <button type="button" class="btn-secondary" onclick="testConnections()">
-                                <span class="btn-icon">🔄</span>
+                                <span class="btn-icon">🔗</span>
                                 Testar Conexões
                             </button>
                         </div>
@@ -357,7 +357,7 @@ function renderConfigurationScreen() {
                         <div id="connectionStatus"></div>
                     </div>
 
-                    <!-- Auto-Update -->
+                    <!-- Atualizações Automáticas -->
                     <div class="form-section">
                         <h3>
                             <span>🔄</span>
@@ -367,19 +367,11 @@ function renderConfigurationScreen() {
                             ${appInfo ? `Versão atual: <strong>v${appInfo.version}</strong> | Auto-update: <strong>${appInfo.autoUpdateEnabled ? 'Ativado' : 'Desativado'}</strong>` : 'Carregando informações...'}
                         </p>
                         
-                        <div style="display: flex; gap: var(--spacing-4); margin-bottom: var(--spacing-6); flex-wrap: wrap;">
+                        <div style="display: flex; justify-content: center; margin-bottom: var(--spacing-6);">
                             <button type="button" class="btn-secondary" onclick="checkForUpdatesManually()">
                                 <span class="btn-icon">🔍</span>
                                 Verificar Atualizações
                             </button>
-                        </div>
-                        
-                        <div class="info-box" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--border-radius); padding: var(--spacing-4); color: var(--text-secondary);">
-                            <strong>ℹ️ Como funciona:</strong><br>
-                            • O app verifica atualizações automaticamente a cada 6 horas<br>
-                            • Verificação inicial ocorre 30 segundos após iniciar o app<br>
-                            • Quando uma nova versão é detectada, o download é automático<br>
-                            • Logs detalhados aparecem no console do sistema
                         </div>
                     </div>
 

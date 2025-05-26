@@ -304,9 +304,10 @@ jobs:
         echo "=== Downloaded artifacts ==="
         find . -type f -name "*.exe" -o -name "*.zip" | head -20
 
-    - name: 🚀 Create GitHub Release
+    - name: 🚀 Create GitHub Release (Public Repository)
       uses: softprops/action-gh-release@v1
       with:
+        repository: cccarv82/milhoes-releases
         files: |
           milhoes-windows-amd64/milhoes-windows-amd64.zip
           milhoes-installer/MilhoesSetup.exe
@@ -329,5 +330,10 @@ jobs:
           2. Configure no app: Menu → Configurações
           3. Teste a conexão
           4. Comece a otimizar suas loterias! 🎰
+          
+          ---
+          **📋 Versão:** ${{ github.ref_name }}  
+          **📅 Data:** $(date +%Y-%m-%d)  
+          **🔗 Código-fonte:** [Repositório Principal](https://github.com/cccarv82/milhoes-desktop)
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.RELEASES_TOKEN }} 

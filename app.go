@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	githubRepo = "cccarv82/milhoes-desktop" // Repositório correto
+	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
 )
 
 // App struct - Bridge entre Frontend e Backend
@@ -408,13 +408,53 @@ func (a *App) Greet(name string) string {
 
 // GetCurrentConfig retorna a configuração atual
 func (a *App) GetCurrentConfig() ConfigData {
-	return ConfigData{
-		ClaudeAPIKey: config.GetClaudeAPIKey(),
-		ClaudeModel:  config.GetClaudeModel(),
-		TimeoutSec:   config.GlobalConfig.Claude.TimeoutSec,
-		MaxTokens:    config.GetMaxTokens(),
-		Verbose:      config.IsVerbose(),
+	// CORREÇÃO: Sempre ler direto do arquivo YAML para garantir dados atualizados
+	exePath, err := os.Executable()
+	var configPath string
+	if err != nil {
+		configPath = "lottery-optimizer.yaml"
+	} else {
+		exeDir := filepath.Dir(exePath)
+		configPath = filepath.Join(exeDir, "lottery-optimizer.yaml")
 	}
+
+	// Ler arquivo de configuração diretamente
+	var configData ConfigData
+	if content, err := os.ReadFile(configPath); err == nil {
+		// Parse do YAML
+		var configYAML struct {
+			Claude struct {
+				APIKey     string `yaml:"api_key"`
+				Model      string `yaml:"model"`
+				MaxTokens  int    `yaml:"max_tokens"`
+				TimeoutSec int    `yaml:"timeout_sec"`
+			} `yaml:"claude"`
+			App struct {
+				Verbose bool `yaml:"verbose"`
+			} `yaml:"app"`
+		}
+		
+		if err := yaml.Unmarshal(content, &configYAML); err == nil {
+			configData.ClaudeAPIKey = configYAML.Claude.APIKey
+			configData.ClaudeModel = configYAML.Claude.Model
+			configData.MaxTokens = configYAML.Claude.MaxTokens
+			configData.TimeoutSec = configYAML.Claude.TimeoutSec
+			configData.Verbose = configYAML.App.Verbose
+		}
+	}
+
+	// Aplicar valores padrão se vazios
+	if configData.ClaudeModel == "" {
+		configData.ClaudeModel = "claude-3-5-sonnet-20241022"
+	}
+	if configData.TimeoutSec == 0 {
+		configData.TimeoutSec = 60
+	}
+	if configData.MaxTokens == 0 {
+		configData.MaxTokens = 8000
+	}
+
+	return configData
 }
 
 // SaveConfig salva a configuração

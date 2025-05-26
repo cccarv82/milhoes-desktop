@@ -247,6 +247,8 @@ export namespace updater {
 	    releaseNotes: string;
 	    size: number;
 	    publishedAt: string;
+	    message: string;
+	    releaseUrl: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UpdateInfo(source);
@@ -260,6 +262,8 @@ export namespace updater {
 	        this.releaseNotes = source["releaseNotes"];
 	        this.size = source["size"];
 	        this.publishedAt = source["publishedAt"];
+	        this.message = source["message"];
+	        this.releaseUrl = source["releaseUrl"];
 	    }
 	}
 

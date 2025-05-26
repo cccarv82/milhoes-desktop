@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,6 +25,8 @@ type UpdateInfo struct {
 	ReleaseNotes string `json:"releaseNotes"`
 	Size         int64  `json:"size"`
 	PublishedAt  string `json:"publishedAt"`
+	Message      string `json:"message"`
+	ReleaseURL   string `json:"releaseUrl"`
 }
 
 // GitHubRelease estrutura da resposta da API do GitHub
@@ -38,6 +41,7 @@ type GitHubRelease struct {
 		DownloadURL string `json:"browser_download_url"`
 		Size        int64  `json:"size"`
 	} `json:"assets"`
+	HTMLURL string `json:"html_url"`
 }
 
 // Updater gerenciador de atualizações
@@ -60,72 +64,142 @@ func NewUpdater(currentVersion, githubRepo string) *Updater {
 
 // CheckForUpdates verifica se há atualizações disponíveis
 func (u *Updater) CheckForUpdates(ctx context.Context) (*UpdateInfo, error) {
-	// Buscar última release
-	releaseURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.githubRepo)
+	log.Printf("🔄 Iniciando verificação de atualizações...")
+	log.Printf("📂 Repositório: %s", u.githubRepo)
+	log.Printf("📱 Versão atual: %s", u.currentVersion)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", releaseURL, nil)
+	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.githubRepo)
+	log.Printf("🌐 URL da API: %s", url)
+
+	// Criar requisição com timeout
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
+		log.Printf("❌ Erro ao criar requisição: %v", err)
 		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
 
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	// Adicionar headers
+	req.Header.Set("User-Agent", fmt.Sprintf("Milhoes-Desktop/%s", u.currentVersion))
+	req.Header.Set("Accept", "application/vnd.github+json")
 
+	// Fazer requisição
+	log.Printf("📡 Enviando requisição para GitHub API...")
 	resp, err := u.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao buscar releases: %w", err)
+		// Verificar se é erro de timeout
+		if ctx.Err() == context.DeadlineExceeded {
+			log.Printf("⏰ Timeout na requisição")
+			return nil, fmt.Errorf("timeout na verificação de atualizações")
+		}
+		log.Printf("❌ Erro na requisição HTTP: %v", err)
+		return nil, fmt.Errorf("erro na conexão com GitHub: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	log.Printf("📊 Status da resposta: %d", resp.StatusCode)
+
+	// Ler corpo da resposta
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("❌ Erro ao ler resposta: %v", err)
+		return nil, fmt.Errorf("erro ao ler resposta: %w", err)
+	}
+
+	// Tratar diferentes códigos de status
+	switch resp.StatusCode {
+	case 200:
+		log.Printf("✅ Resposta recebida com sucesso")
+		// Continuar com processamento normal
+	case 404:
+		log.Printf("🔍 Repositório retornou 404")
+		// Verificar se é repositório sem releases ou repositório privado
+		if strings.Contains(u.githubRepo, "milhoes-releases") {
+			log.Printf("📦 Repositório de releases ainda não possui releases publicadas")
+			return &UpdateInfo{
+				Available: false,
+				Message:   "Repositório de releases configurado, mas ainda não possui releases. A verificação funcionará após a primeira release ser publicada.",
+			}, nil
+		} else {
+			log.Printf("🔒 Repositório privado ou não encontrado")
+			return &UpdateInfo{
+				Available: false,
+				Message:   "Auto-updates não disponível para repositórios privados. Verifique manualmente em: https://github.com/" + u.githubRepo + "/releases",
+			}, nil
+		}
+	case 403:
+		log.Printf("🚫 Rate limit do GitHub (403)")
+		return nil, fmt.Errorf("rate limit do GitHub atingido. Tente novamente em alguns minutos")
+	default:
+		log.Printf("❌ Status inesperado: %d", resp.StatusCode)
+		log.Printf("📄 Corpo da resposta: %s", string(body))
 		return nil, fmt.Errorf("GitHub API retornou status %d", resp.StatusCode)
 	}
 
+	// Parse da resposta JSON
 	var release GitHubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
+	if err := json.Unmarshal(body, &release); err != nil {
+		log.Printf("❌ Erro ao fazer parse do JSON: %v", err)
+		log.Printf("📄 JSON recebido: %s", string(body))
+		return nil, fmt.Errorf("erro ao processar resposta do GitHub: %w", err)
 	}
 
-	// Ignorar prereleases por padrão
-	if release.Prerelease {
-		return &UpdateInfo{Available: false}, nil
-	}
+	log.Printf("🏷️  Última versão disponível: %s", release.TagName)
+	log.Printf("📅 Data de publicação: %s", release.PublishedAt)
 
 	// Comparar versões
-	latestVersion := strings.TrimPrefix(release.TagName, "v")
-	currentVer, err := semver.NewVersion(u.currentVersion)
+	currentVer := strings.TrimPrefix(u.currentVersion, "v")
+	latestVer := strings.TrimPrefix(release.TagName, "v")
+
+	log.Printf("🔄 Comparando versões: atual='%s' vs disponível='%s'", currentVer, latestVer)
+
+	// Verificar se há atualização disponível
+	isNewer, err := u.isVersionNewer(currentVer, latestVer)
 	if err != nil {
-		return nil, fmt.Errorf("versão atual inválida: %w", err)
+		log.Printf("⚠️  Erro ao comparar versões: %v", err)
+		// Em caso de erro na comparação, assumir que não há atualização
+		isNewer = false
 	}
 
-	latestVer, err := semver.NewVersion(latestVersion)
-	if err != nil {
-		return nil, fmt.Errorf("versão da release inválida: %w", err)
+	if !isNewer {
+		log.Printf("✅ Aplicativo está atualizado")
+		return &UpdateInfo{
+			Available:   false,
+			Version:     latestVer,
+			DownloadURL: "",
+			Message:     "Você já está usando a versão mais recente",
+		}, nil
 	}
 
-	updateInfo := &UpdateInfo{
-		Available:    latestVer.GreaterThan(currentVer),
-		Version:      latestVersion,
-		ReleaseNotes: release.Body,
-		PublishedAt:  release.PublishedAt,
-	}
-
-	if updateInfo.Available {
-		// Encontrar asset apropriado para a plataforma
-		assetName := u.getAssetName()
-		for _, asset := range release.Assets {
-			if strings.Contains(asset.Name, assetName) {
-				updateInfo.DownloadURL = asset.DownloadURL
-				updateInfo.Size = asset.Size
-				break
-			}
-		}
-
-		if updateInfo.DownloadURL == "" {
-			return nil, fmt.Errorf("asset não encontrado para plataforma %s", runtime.GOOS)
+	// Buscar asset para download
+	var downloadURL string
+	for _, asset := range release.Assets {
+		if strings.Contains(asset.Name, "Setup.exe") || strings.Contains(asset.Name, "windows") {
+			downloadURL = asset.DownloadURL
+			log.Printf("📦 Asset encontrado: %s", asset.Name)
+			break
 		}
 	}
 
-	return updateInfo, nil
+	if downloadURL == "" {
+		log.Printf("⚠️  Nenhum asset compatível encontrado")
+		return &UpdateInfo{
+			Available:   true,
+			Version:     latestVer,
+			DownloadURL: "",
+			Message:     "Nova versão disponível, mas sem instalador. Baixe manualmente em: " + release.HTMLURL,
+		}, nil
+	}
+
+	log.Printf("🎉 Nova versão disponível: %s -> %s", currentVer, latestVer)
+	log.Printf("📥 URL de download: %s", downloadURL)
+
+	return &UpdateInfo{
+		Available:   true,
+		Version:     latestVer,
+		DownloadURL: downloadURL,
+		ReleaseURL:  release.HTMLURL,
+		Message:     fmt.Sprintf("Nova versão %s disponível!", latestVer),
+	}, nil
 }
 
 // getAssetName retorna o nome do asset baseado na plataforma
@@ -279,4 +353,19 @@ func (u *Updater) ScheduleUpdateCheck(interval time.Duration, callback func(*Upd
 // GetCurrentVersion retorna versão atual
 func (u *Updater) GetCurrentVersion() string {
 	return u.currentVersion
+}
+
+// isVersionNewer compara duas versões
+func (u *Updater) isVersionNewer(currentVer, latestVer string) (bool, error) {
+	currentSemver, err := semver.NewVersion(currentVer)
+	if err != nil {
+		return false, fmt.Errorf("versão atual inválida: %w", err)
+	}
+
+	latestSemver, err := semver.NewVersion(latestVer)
+	if err != nil {
+		return false, fmt.Errorf("versão da release inválida: %w", err)
+	}
+
+	return latestSemver.GreaterThan(currentSemver), nil
 }
