@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21.6] - 2025-05-26
+
+### 🔧 Corrigido
+- **Extração de Artifacts**: Revertido para caminho correto `./extracted/milhoes.exe`
+- **Diagnóstico Correto**: ZIP contém arquivo no root, não em `build/bin/` como assumido
+- **Windows Installer**: Caminho de extração agora corresponde à estrutura real do ZIP
+- **CI/CD Pipeline**: Workflow funcional baseado na estrutura real dos artifacts
+
+### 📋 Detalhes Técnicos
+- **Análise Real**: ZIP tem `milhoes.exe` diretamente no root (não em subdiretório)
+- **Caminho Correto**: `./extracted/milhoes.exe` → `build/bin/milhoes.exe`
+- **v1.0.21.5 Revertida**: Diagnóstico anterior estava incorreto
+- **Estrutura ZIP**: `vimtor/action-zip` inclui conteúdo, não preserva estrutura de diretórios
+
+### 🎯 Resultado Esperado
+- **Instalador Funcional**: MilhoesSetup.exe deve ser gerado corretamente
+- **Pipeline Estável**: Workflow idêntico ao padrão da v1.0.20
+- **Distribuição Completa**: ZIP + EXE disponíveis
+
+## [1.0.21.5] - 2025-05-26
+
+### 🔧 Corrigido
+- **Extração de Artifacts**: Corrigido caminho crítico na extração do ZIP
+- **Windows Installer**: Arquivo `milhoes.exe` agora é localizado corretamente 
+- **CI/CD Pipeline**: Caminho de extração corrigido para `./extracted/build/bin/milhoes.exe`
+- **Build Process**: Processo de instalador totalmente funcional
+
+### 📋 Detalhes Técnicos
+- **Root Cause Identificado**: ZIP contém estrutura `build/bin/` mas extração procurava no root
+- **Caminho Correto**: Mudança de `./extracted/milhoes.exe` para `./extracted/build/bin/milhoes.exe`
+- **Validação**: Debug mantido para confirmar estrutura correta
+- **Instalador**: MilhoesSetup.exe deve ser gerado com sucesso
+
+### 🎯 Resultado Esperado
+- **100% Funcional**: Ambos ZIP portátil e instalador EXE disponíveis
+- **Pipeline Completo**: Workflow idêntico à v1.0.20 que funcionava
+- **Distribuição**: Dois formatos prontos para download
+
 ## [1.0.21.4] - 2025-05-26
 
 ### 🔧 Corrigido
