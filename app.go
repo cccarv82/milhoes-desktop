@@ -43,9 +43,16 @@ type App struct {
 // NewApp creates a new App application struct
 func NewApp() *App {
 	// Inicializar logging em arquivo PRIMEIRO
+	fmt.Println("🚀 Iniciando Lottery Optimizer...")
+	fmt.Printf("🚀 Versão: %s\n", version)
+	
 	if err := initFileLogging(); err != nil {
-		log.Printf("⚠️ Erro ao inicializar logging em arquivo: %v", err)
-		// Continuar sem logging em arquivo
+		fmt.Printf("⚠️ Erro ao inicializar logging em arquivo: %v\n", err)
+		fmt.Println("⚠️ Continuando sem logging em arquivo - apenas console")
+	} else {
+		fmt.Println("✅ Sistema de logging em arquivo inicializado com sucesso!")
+		// Teste adicional após inicialização
+		log.Printf("🧪 TESTE PÓS-INICIALIZAÇÃO - NewApp iniciado com logging funcional")
 	}
 
 	dataClient := data.NewClient()
@@ -504,97 +511,117 @@ func (a *App) Greet(name string) string {
 // ===============================
 
 // GetCurrentConfig retorna a configuração atual
-func (a *App) GetCurrentConfig() ConfigData {
-	log.Printf("🔄 GetCurrentConfig iniciado - TIMESTAMP: %s", time.Now().Format("2006-01-02 15:04:05.000"))
+func (a *App) GetCurrentConfig() map[string]interface{} {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000000")
+	log.Printf("📖 [%s] GetCurrentConfig INICIADO", timestamp)
 	
-	// CORREÇÃO: Usar nova função de resolução de caminho
 	configPath, err := getConfigPath()
 	if err != nil {
-		log.Printf("❌ Erro ao determinar caminho da configuração: %v", err)
-		// Retornar configuração padrão em caso de erro
-		return ConfigData{
-			ClaudeAPIKey: "",
-			ClaudeModel:  "claude-3-5-sonnet-20241022",
-			TimeoutSec:   60,
-			MaxTokens:    8000,
-			Verbose:      false,
+		log.Printf("❌ [%s] GetCurrentConfig: Erro ao determinar caminho: %v", timestamp, err)
+		flushLogs()
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Erro ao determinar caminho da configuração: " + err.Error(),
 		}
 	}
 	
-	log.Printf("📁 GetCurrentConfig vai ler de: %s", configPath)
-
+	log.Printf("📁 [%s] GetCurrentConfig: Tentando ler arquivo: %s", timestamp, configPath)
+	
 	// Verificar se arquivo existe
-	if stat, err := os.Stat(configPath); err != nil {
-		log.Printf("❌ Arquivo de configuração não encontrado: %v", err)
-	} else {
-		log.Printf("✅ Arquivo encontrado - Tamanho: %d bytes, Modificado: %s", stat.Size(), stat.ModTime().Format("2006-01-02 15:04:05"))
-	}
-
-	// Ler arquivo de configuração diretamente
-	var configData ConfigData
-	if content, err := os.ReadFile(configPath); err != nil {
-		log.Printf("❌ Erro ao ler arquivo: %v", err)
-	} else {
-		log.Printf("✅ Arquivo lido com sucesso - %d bytes", len(content))
-		log.Printf("📝 Conteúdo do arquivo:\n%s", string(content))
-		
-		// Parse do YAML
-		var configYAML struct {
-			Claude struct {
-				APIKey     string `yaml:"api_key"`
-				Model      string `yaml:"model"`
-				MaxTokens  int    `yaml:"max_tokens"`
-				TimeoutSec int    `yaml:"timeout_sec"`
-			} `yaml:"claude"`
-			App struct {
-				Verbose bool `yaml:"verbose"`
-			} `yaml:"app"`
-		}
-		
-		if err := yaml.Unmarshal(content, &configYAML); err != nil {
-			log.Printf("❌ Erro ao fazer parse do YAML: %v", err)
-		} else {
-			log.Printf("✅ YAML parseado com sucesso")
-			log.Printf("🔑 APIKey encontrada com %d caracteres", len(configYAML.Claude.APIKey))
-			log.Printf("🎯 Model: %s", configYAML.Claude.Model)
-			log.Printf("🔢 MaxTokens: %d", configYAML.Claude.MaxTokens)
-			log.Printf("⏰ TimeoutSec: %d", configYAML.Claude.TimeoutSec)
-			
-			configData.ClaudeAPIKey = configYAML.Claude.APIKey
-			configData.ClaudeModel = configYAML.Claude.Model
-			configData.MaxTokens = configYAML.Claude.MaxTokens
-			configData.TimeoutSec = configYAML.Claude.TimeoutSec
-			configData.Verbose = configYAML.App.Verbose
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		log.Printf("⚠️ [%s] GetCurrentConfig: Arquivo não existe, retornando configuração padrão", timestamp)
+		flushLogs()
+		return map[string]interface{}{
+			"exists":        false,
+			"claudeApiKey":  "",
+			"claudeModel":   "claude-3-sonnet-20240229",
+			"maxTokens":     4096,
+			"timeoutSec":    60,
+			"verbose":       false,
 		}
 	}
-
-	// Aplicar valores padrão se vazios
-	if configData.ClaudeModel == "" {
-		configData.ClaudeModel = "claude-3-5-sonnet-20241022"
-		log.Printf("📝 Aplicado modelo padrão: %s", configData.ClaudeModel)
-	}
-	if configData.TimeoutSec == 0 {
-		configData.TimeoutSec = 60
-		log.Printf("📝 Aplicado timeout padrão: %d", configData.TimeoutSec)
-	}
-	if configData.MaxTokens == 0 {
-		configData.MaxTokens = 8000
-		log.Printf("📝 Aplicado MaxTokens padrão: %d", configData.MaxTokens)
-	}
-
-	log.Printf("✅ GetCurrentConfig finalizado - APIKey final: %d caracteres", len(configData.ClaudeAPIKey))
 	
-	return configData
+	log.Printf("✅ [%s] GetCurrentConfig: Arquivo existe, lendo conteúdo...", timestamp)
+	
+	// Ler arquivo
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		log.Printf("❌ [%s] GetCurrentConfig: Erro ao ler arquivo: %v", timestamp, err)
+		flushLogs()
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Erro ao ler arquivo de configuração: " + err.Error(),
+		}
+	}
+	
+	log.Printf("📝 [%s] GetCurrentConfig: Arquivo lido (%d bytes):\n%s", timestamp, len(data), string(data))
+	
+	// Parse YAML
+	var configStruct struct {
+		App struct {
+			Verbose bool `yaml:"verbose"`
+		} `yaml:"app"`
+		Claude struct {
+			APIKey     string `yaml:"api_key"`
+			Model      string `yaml:"model"`
+			MaxTokens  int    `yaml:"max_tokens"`
+			TimeoutSec int    `yaml:"timeout_sec"`
+		} `yaml:"claude"`
+	}
+	
+	if err := yaml.Unmarshal(data, &configStruct); err != nil {
+		log.Printf("❌ [%s] GetCurrentConfig: Erro ao fazer parse do YAML: %v", timestamp, err)
+		flushLogs()
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Erro ao fazer parse da configuração: " + err.Error(),
+		}
+	}
+	
+	log.Printf("✅ [%s] GetCurrentConfig: Parse realizado - APIKey length=%d, Model=%s", 
+		timestamp, len(configStruct.Claude.APIKey), configStruct.Claude.Model)
+	
+	// Atualizar configuração global se a chave estiver definida
+	if configStruct.Claude.APIKey != "" {
+		config.GlobalConfig.Claude.APIKey = configStruct.Claude.APIKey
+		config.GlobalConfig.Claude.Model = configStruct.Claude.Model
+		config.GlobalConfig.Claude.MaxTokens = configStruct.Claude.MaxTokens
+		config.GlobalConfig.Claude.TimeoutSec = configStruct.Claude.TimeoutSec
+		log.Printf("✅ [%s] GetCurrentConfig: GlobalConfig atualizado", timestamp)
+	}
+	
+	result := map[string]interface{}{
+		"exists":       true,
+		"claudeApiKey": configStruct.Claude.APIKey,
+		"claudeModel":  configStruct.Claude.Model,
+		"maxTokens":    configStruct.Claude.MaxTokens,
+		"timeoutSec":   configStruct.Claude.TimeoutSec,
+		"verbose":      configStruct.App.Verbose,
+		"debug": map[string]interface{}{
+			"configPath": configPath,
+			"fileSize":   len(data),
+			"apiKeyLen":  len(configStruct.Claude.APIKey),
+		},
+	}
+	
+	log.Printf("✅ [%s] GetCurrentConfig: Retornando configuração - APIKey presente: %t", 
+		timestamp, configStruct.Claude.APIKey != "")
+	
+	flushLogs()
+	
+	return result
 }
 
 // SaveConfig salva a configuração
 func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
-	log.Printf("🔧 SaveConfig iniciado - TIMESTAMP: %s - Dados recebidos: APIKey length=%d, Model=%s", 
-		time.Now().Format("2006-01-02 15:04:05.000"), len(configData.ClaudeAPIKey), configData.ClaudeModel)
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000000")
+	log.Printf("🔧 [%s] SaveConfig INICIADO - Dados recebidos: APIKey length=%d, Model=%s", 
+		timestamp, len(configData.ClaudeAPIKey), configData.ClaudeModel)
 	
 	// Validar dados
 	if configData.ClaudeAPIKey == "" {
-		log.Printf("❌ Erro: Chave da API do Claude é obrigatória")
+		log.Printf("❌ [%s] Erro: Chave da API do Claude é obrigatória", timestamp)
+		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Chave da API do Claude é obrigatória",
@@ -602,7 +629,8 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	}
 
 	if configData.TimeoutSec < 10 || configData.TimeoutSec > 300 {
-		log.Printf("❌ Erro: Timeout inválido: %d", configData.TimeoutSec)
+		log.Printf("❌ [%s] Erro: Timeout inválido: %d", timestamp, configData.TimeoutSec)
+		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Timeout deve estar entre 10 e 300 segundos",
@@ -628,66 +656,70 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	configStruct.Claude.MaxTokens = configData.MaxTokens
 	configStruct.Claude.TimeoutSec = configData.TimeoutSec
 
-	log.Printf("📦 Estrutura de configuração criada - APIKey length=%d", len(configStruct.Claude.APIKey))
+	log.Printf("📦 [%s] Estrutura de configuração criada - APIKey length=%d", timestamp, len(configStruct.Claude.APIKey))
 
-	// CORREÇÃO: Usar nova função de resolução de caminho
 	configPath, err := getConfigPath()
 	if err != nil {
-		log.Printf("❌ Erro ao determinar caminho da configuração: %v", err)
+		log.Printf("❌ [%s] Erro ao determinar caminho da configuração: %v", timestamp, err)
+		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao determinar caminho da configuração: " + err.Error(),
 		}
 	}
 	
-	log.Printf("📁 Caminho da configuração: %s", configPath)
+	log.Printf("📁 [%s] Caminho da configuração: %s", timestamp, configPath)
 	configDir := filepath.Dir(configPath)
-	log.Printf("📁 Diretório da configuração: %s", configDir)
-
-	// Verificar se diretório é writável (já testado em getConfigPath, mas verificar novamente)
+	log.Printf("📁 [%s] Diretório da configuração: %s", timestamp, configDir)
+	
+	// Verificar se diretório é writável
 	testPath := filepath.Join(configDir, "write_test_temp.txt")
 	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
-		log.Printf("❌ Diretório não é writável: %v", err)
+		log.Printf("❌ [%s] Diretório não é writável: %v", timestamp, err)
+		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Diretório não é writável: " + err.Error(),
 		}
 	}
 	os.Remove(testPath)
-	log.Printf("✅ Diretório é writável")
-
+	log.Printf("✅ [%s] Diretório é writável", timestamp)
+	
 	// Serializar para YAML
 	yamlData, err := yaml.Marshal(configStruct)
 	if err != nil {
-		log.Printf("❌ Erro ao serializar configuração: %v", err)
+		log.Printf("❌ [%s] Erro ao serializar configuração: %v", timestamp, err)
+		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao serializar configuração: " + err.Error(),
 		}
 	}
-
-	log.Printf("📝 YAML gerado (%d bytes):\n%s", len(yamlData), string(yamlData))
-
+	
+	log.Printf("📝 [%s] YAML gerado (%d bytes):\n%s", timestamp, len(yamlData), string(yamlData))
+	
 	// Salvar arquivo
 	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
-		log.Printf("❌ Erro ao salvar arquivo: %v", err)
+		log.Printf("❌ [%s] Erro ao salvar arquivo: %v", timestamp, err)
+		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao salvar arquivo: " + err.Error(),
 		}
 	}
-
-	log.Printf("✅ Arquivo salvo com sucesso")
-
+	
+	log.Printf("✅ [%s] Arquivo salvo com sucesso", timestamp)
+	
 	// Verificar se arquivo foi realmente salvo lendo de volta
 	if savedContent, err := os.ReadFile(configPath); err != nil {
-		log.Printf("❌ Erro ao verificar arquivo salvo: %v", err)
+		log.Printf("❌ [%s] Erro ao verificar arquivo salvo: %v", timestamp, err)
+		flushLogs()
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao verificar arquivo salvo: " + err.Error(),
 		}
 	} else {
-		log.Printf("✅ Verificação: arquivo contém %d bytes", len(savedContent))
+		log.Printf("✅ [%s] Verificação: arquivo contém %d bytes", timestamp, len(savedContent))
 		
 		// Parse de volta para verificar
 		var verifyStruct struct {
@@ -697,9 +729,9 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 		}
 		
 		if err := yaml.Unmarshal(savedContent, &verifyStruct); err != nil {
-			log.Printf("❌ Erro ao verificar YAML salvo: %v", err)
+			log.Printf("❌ [%s] Erro ao verificar YAML salvo: %v", timestamp, err)
 		} else {
-			log.Printf("✅ Verificação: chave salva tem %d caracteres", len(verifyStruct.Claude.APIKey))
+			log.Printf("✅ [%s] Verificação: chave salva tem %d caracteres", timestamp, len(verifyStruct.Claude.APIKey))
 		}
 	}
 
@@ -709,13 +741,16 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	config.GlobalConfig.Claude.MaxTokens = configData.MaxTokens
 	config.GlobalConfig.Claude.TimeoutSec = configData.TimeoutSec
 
-	log.Printf("✅ GlobalConfig atualizado")
+	log.Printf("✅ [%s] GlobalConfig atualizado", timestamp)
 
 	// Recriar clientes com nova configuração
 	a.aiClient = ai.NewClaudeClient()
 	a.dataClient = data.NewClient()
 
-	log.Printf("✅ Clientes recriados")
+	log.Printf("✅ [%s] Clientes recriados", timestamp)
+	
+	// Flush final para garantir que tudo foi escrito
+	flushLogs()
 
 	return map[string]interface{}{
 		"success": true,
@@ -1355,36 +1390,59 @@ func initFileLogging() error {
 	exePath, err := os.Executable()
 	if err != nil {
 		logDir = "logs"
+		fmt.Printf("⚠️ Erro ao obter executável, usando diretório atual: %v\n", err)
 	} else {
 		logDir = filepath.Join(filepath.Dir(exePath), "logs")
+		fmt.Printf("📁 Diretório do executável: %s\n", filepath.Dir(exePath))
 	}
+
+	fmt.Printf("📁 Diretório de logs determinado: %s\n", logDir)
 
 	// Criar diretório de logs
 	if err := os.MkdirAll(logDir, 0755); err != nil {
+		fmt.Printf("❌ Erro ao criar diretório de logs: %v\n", err)
 		return fmt.Errorf("erro ao criar diretório de logs: %v", err)
 	}
+
+	fmt.Printf("✅ Diretório de logs criado/existe: %s\n", logDir)
 
 	// Nome do arquivo de log com data
 	logFileName := fmt.Sprintf("lottery-optimizer-%s.log", time.Now().Format("2006-01-02"))
 	logFilePath := filepath.Join(logDir, logFileName)
 
+	fmt.Printf("📝 Tentando abrir arquivo de log: %s\n", logFilePath)
+
 	// Abrir arquivo de log
 	logFile, err = os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
+		fmt.Printf("❌ Erro ao abrir arquivo de log: %v\n", err)
 		return fmt.Errorf("erro ao abrir arquivo de log: %v", err)
 	}
+
+	fmt.Printf("✅ Arquivo de log aberto com sucesso\n")
 
 	// Configurar logger para escrever tanto no console quanto no arquivo
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(multiWriter)
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
+	// TESTE IMEDIATO - escrever logs para verificar
+	fmt.Printf("🧪 Testando log no console...\n")
+	
 	// Log inicial
 	log.Printf("🚀 =================================")
 	log.Printf("🚀 LOTTERY OPTIMIZER v%s INICIADO", version)
 	log.Printf("🚀 =================================")
 	log.Printf("📁 Diretório de logs: %s", logDir)
 	log.Printf("📝 Arquivo de log: %s", logFilePath)
+	log.Printf("🧪 TESTE DE LOGGING - Se você está vendo isso, o sistema funciona!")
+	
+	// FORÇAR FLUSH do buffer
+	if f, ok := logFile.(*os.File); ok {
+		f.Sync()
+	}
+
+	fmt.Printf("✅ Logs iniciais escritos e sincronizados\n")
 
 	// Rotação de logs (manter últimos 7 dias)
 	go rotateLogFiles()
@@ -1414,12 +1472,22 @@ func rotateLogFiles() {
 	}
 }
 
+// flushLogs força a escrita dos logs para o arquivo
+func flushLogs() {
+	if logFile != nil {
+		if f, ok := logFile.(*os.File); ok {
+			f.Sync()
+		}
+	}
+}
+
 // closeFileLogging fecha o arquivo de log
 func closeFileLogging() {
 	if logFile != nil {
 		log.Printf("🚀 =================================")
 		log.Printf("🚀 LOTTERY OPTIMIZER FINALIZADO")
 		log.Printf("🚀 =================================")
+		flushLogs() // Garantir que tudo foi escrito
 		logFile.Close()
 	}
 }
