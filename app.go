@@ -21,7 +21,8 @@ import (
 	"time"
 )
 
-const version = "v1.0.21.19"
+// External version variable from main.go
+var version string
 
 var (
 	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
