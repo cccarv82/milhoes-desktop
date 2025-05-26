@@ -10,9 +10,9 @@ export function CheckForUpdates():Promise<updater.UpdateInfo>;
 
 export function CheckGameResult(arg1:string):Promise<Record<string, any>>;
 
-export function DebugClaudeConfig():Promise<Record<string, any>>;
-
 export function DebugConfig():Promise<Record<string, any>>;
+
+export function DebugConfigPath():Promise<Record<string, any>>;
 
 export function DebugSavedGamesDB():Promise<Record<string, any>>;
 

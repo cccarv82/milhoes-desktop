@@ -10,7 +10,7 @@ import {
     GetDefaultConfig, 
     GetStatistics, 
     TestConnectionsWithConfig, 
-    DebugClaudeConfig,
+    DebugConfigPath,
     SaveGame,
     GetSavedGames,
     CheckGameResult,
@@ -1972,26 +1972,27 @@ async function debugClaudeConfig() {
     console.log('🔍 [DEBUG] Testando configuração do Claude...');
     
     try {
-        const debugInfo = await DebugClaudeConfig();
-        console.log('🔍 [DEBUG] Informações do Claude:', debugInfo);
+        const debugInfo = await DebugConfigPath();
+        console.log('🔍 [DEBUG] Informações do caminho de configuração:', debugInfo);
         
         // Mostrar info detalhada no console
         console.table(debugInfo);
         
         // Mostrar alerta com informações principais
         const summary = `
-🔍 DEBUG CLAUDE CONFIG:
-• Has API Key: ${debugInfo.hasApiKey}
-• API Key Length: ${debugInfo.apiKeyLength}
-• API Key Preview: ${debugInfo.apiKeyPreview}
-• API Key Valid Format: ${debugInfo.apiKeyLooksValid}
-• Connection Test: ${debugInfo.connectionTest}
+🔍 DEBUG CONFIG PATH:
+• Executable Path: ${debugInfo.executablePath}
+• Executable Dir: ${debugInfo.executableDir}
 • Config Path: ${debugInfo.configPath}
 • Config Exists: ${debugInfo.configExists}
-• Claude Model: ${debugInfo.claudeModel}
-• Max Tokens: ${debugInfo.maxTokens}
-• Timeout: ${debugInfo.timeout}
-• Verbose: ${debugInfo.verbose}
+• Config Size: ${debugInfo.configSize || 'N/A'} bytes
+• Can Write: ${debugInfo.canWrite}
+• Config Length: ${debugInfo.configLength || 'N/A'}
+${debugInfo.configError ? `• Config Error: ${debugInfo.configError}` : ''}
+${debugInfo.readError ? `• Read Error: ${debugInfo.readError}` : ''}
+${debugInfo.writePermissionError ? `• Write Error: ${debugInfo.writePermissionError}` : ''}
+${debugInfo.dirListError ? `• Dir List Error: ${debugInfo.dirListError}` : ''}
+${debugInfo.executableError ? `• Executable Error: ${debugInfo.executableError}` : ''}
 `;
         
         alert(summary);
@@ -1999,8 +2000,8 @@ async function debugClaudeConfig() {
         return debugInfo;
         
     } catch (error) {
-        console.error('❌ [DEBUG] Erro ao testar Claude:', error);
-        alert('❌ Erro ao testar configuração do Claude: ' + error);
+        console.error('❌ [DEBUG] Erro ao testar configuração:', error);
+        alert('❌ Erro ao testar configuração: ' + error);
         return null;
     }
 }

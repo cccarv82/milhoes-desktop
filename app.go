@@ -20,9 +20,7 @@ import (
 )
 
 // version é a versão atual do aplicativo
-const (
-	version = "1.0.21.10"
-)
+// Removido: versão agora definida em main.go
 
 var (
 	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
@@ -408,19 +406,36 @@ func (a *App) Greet(name string) string {
 
 // GetCurrentConfig retorna a configuração atual
 func (a *App) GetCurrentConfig() ConfigData {
+	log.Printf("🔄 GetCurrentConfig iniciado")
+	
 	// CORREÇÃO: Sempre ler direto do arquivo YAML para garantir dados atualizados
 	exePath, err := os.Executable()
 	var configPath string
 	if err != nil {
+		log.Printf("⚠️ Erro ao obter caminho do executável: %v, usando fallback", err)
 		configPath = "lottery-optimizer.yaml"
 	} else {
 		exeDir := filepath.Dir(exePath)
 		configPath = filepath.Join(exeDir, "lottery-optimizer.yaml")
 	}
+	
+	log.Printf("📁 Tentando ler configuração de: %s", configPath)
+
+	// Verificar se arquivo existe
+	if stat, err := os.Stat(configPath); err != nil {
+		log.Printf("❌ Arquivo de configuração não encontrado: %v", err)
+	} else {
+		log.Printf("✅ Arquivo encontrado - Tamanho: %d bytes, Modificado: %s", stat.Size(), stat.ModTime().Format("2006-01-02 15:04:05"))
+	}
 
 	// Ler arquivo de configuração diretamente
 	var configData ConfigData
-	if content, err := os.ReadFile(configPath); err == nil {
+	if content, err := os.ReadFile(configPath); err != nil {
+		log.Printf("❌ Erro ao ler arquivo: %v", err)
+	} else {
+		log.Printf("✅ Arquivo lido com sucesso - %d bytes", len(content))
+		log.Printf("📝 Conteúdo do arquivo:\n%s", string(content))
+		
 		// Parse do YAML
 		var configYAML struct {
 			Claude struct {
@@ -434,7 +449,15 @@ func (a *App) GetCurrentConfig() ConfigData {
 			} `yaml:"app"`
 		}
 		
-		if err := yaml.Unmarshal(content, &configYAML); err == nil {
+		if err := yaml.Unmarshal(content, &configYAML); err != nil {
+			log.Printf("❌ Erro ao fazer parse do YAML: %v", err)
+		} else {
+			log.Printf("✅ YAML parseado com sucesso")
+			log.Printf("🔑 APIKey encontrada com %d caracteres", len(configYAML.Claude.APIKey))
+			log.Printf("🎯 Model: %s", configYAML.Claude.Model)
+			log.Printf("🔢 MaxTokens: %d", configYAML.Claude.MaxTokens)
+			log.Printf("⏰ TimeoutSec: %d", configYAML.Claude.TimeoutSec)
+			
 			configData.ClaudeAPIKey = configYAML.Claude.APIKey
 			configData.ClaudeModel = configYAML.Claude.Model
 			configData.MaxTokens = configYAML.Claude.MaxTokens
@@ -446,21 +469,29 @@ func (a *App) GetCurrentConfig() ConfigData {
 	// Aplicar valores padrão se vazios
 	if configData.ClaudeModel == "" {
 		configData.ClaudeModel = "claude-3-5-sonnet-20241022"
+		log.Printf("📝 Aplicado modelo padrão: %s", configData.ClaudeModel)
 	}
 	if configData.TimeoutSec == 0 {
 		configData.TimeoutSec = 60
+		log.Printf("📝 Aplicado timeout padrão: %d", configData.TimeoutSec)
 	}
 	if configData.MaxTokens == 0 {
 		configData.MaxTokens = 8000
+		log.Printf("📝 Aplicado MaxTokens padrão: %d", configData.MaxTokens)
 	}
 
+	log.Printf("✅ GetCurrentConfig finalizado - APIKey final: %d caracteres", len(configData.ClaudeAPIKey))
+	
 	return configData
 }
 
 // SaveConfig salva a configuração
 func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
+	log.Printf("🔧 SaveConfig iniciado - Dados recebidos: APIKey length=%d, Model=%s", len(configData.ClaudeAPIKey), configData.ClaudeModel)
+	
 	// Validar dados
 	if configData.ClaudeAPIKey == "" {
+		log.Printf("❌ Erro: Chave da API do Claude é obrigatória")
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Chave da API do Claude é obrigatória",
@@ -468,6 +499,7 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	}
 
 	if configData.TimeoutSec < 10 || configData.TimeoutSec > 300 {
+		log.Printf("❌ Erro: Timeout inválido: %d", configData.TimeoutSec)
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Timeout deve estar entre 10 e 300 segundos",
@@ -493,9 +525,12 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	configStruct.Claude.MaxTokens = configData.MaxTokens
 	configStruct.Claude.TimeoutSec = configData.TimeoutSec
 
+	log.Printf("📦 Estrutura de configuração criada - APIKey length=%d", len(configStruct.Claude.APIKey))
+
 	// Determinar local do arquivo de configuração (mesmo diretório do executável)
 	exePath, err := os.Executable()
 	if err != nil {
+		log.Printf("❌ Erro ao determinar diretório do executável: %v", err)
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao determinar diretório do executável: " + err.Error(),
@@ -504,21 +539,66 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 
 	exeDir := filepath.Dir(exePath)
 	configPath := filepath.Join(exeDir, "lottery-optimizer.yaml")
+	
+	log.Printf("📁 Caminho da configuração: %s", configPath)
+	log.Printf("📁 Diretório do executável: %s", exeDir)
+
+	// Verificar se diretório é writável
+	testPath := filepath.Join(exeDir, "write_test_temp.txt")
+	if err := os.WriteFile(testPath, []byte("test"), 0644); err != nil {
+		log.Printf("❌ Diretório não é writável: %v", err)
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Diretório não é writável: " + err.Error(),
+		}
+	}
+	os.Remove(testPath)
+	log.Printf("✅ Diretório é writável")
 
 	// Serializar para YAML
 	yamlData, err := yaml.Marshal(configStruct)
 	if err != nil {
+		log.Printf("❌ Erro ao serializar configuração: %v", err)
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao serializar configuração: " + err.Error(),
 		}
 	}
 
+	log.Printf("📝 YAML gerado (%d bytes):\n%s", len(yamlData), string(yamlData))
+
 	// Salvar arquivo
 	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
+		log.Printf("❌ Erro ao salvar arquivo: %v", err)
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Erro ao salvar arquivo: " + err.Error(),
+		}
+	}
+
+	log.Printf("✅ Arquivo salvo com sucesso")
+
+	// Verificar se arquivo foi realmente salvo lendo de volta
+	if savedContent, err := os.ReadFile(configPath); err != nil {
+		log.Printf("❌ Erro ao verificar arquivo salvo: %v", err)
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Erro ao verificar arquivo salvo: " + err.Error(),
+		}
+	} else {
+		log.Printf("✅ Verificação: arquivo contém %d bytes", len(savedContent))
+		
+		// Parse de volta para verificar
+		var verifyStruct struct {
+			Claude struct {
+				APIKey string `yaml:"api_key"`
+			} `yaml:"claude"`
+		}
+		
+		if err := yaml.Unmarshal(savedContent, &verifyStruct); err != nil {
+			log.Printf("❌ Erro ao verificar YAML salvo: %v", err)
+		} else {
+			log.Printf("✅ Verificação: chave salva tem %d caracteres", len(verifyStruct.Claude.APIKey))
 		}
 	}
 
@@ -528,13 +608,22 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	config.GlobalConfig.Claude.MaxTokens = configData.MaxTokens
 	config.GlobalConfig.Claude.TimeoutSec = configData.TimeoutSec
 
+	log.Printf("✅ GlobalConfig atualizado")
+
 	// Recriar clientes com nova configuração
 	a.aiClient = ai.NewClaudeClient()
 	a.dataClient = data.NewClient()
 
+	log.Printf("✅ Clientes recriados")
+
 	return map[string]interface{}{
 		"success": true,
 		"message": "Configuração salva com sucesso em: " + configPath,
+		"debug": map[string]interface{}{
+			"configPath": configPath,
+			"yamlSize":   len(yamlData),
+			"apiKeyLen":  len(configData.ClaudeAPIKey),
+		},
 	}
 }
 
@@ -598,66 +687,68 @@ func (a *App) DebugConfig() map[string]interface{} {
 	}
 }
 
-// DebugClaudeConfig função para debug detalhado da configuração do Claude
-func (a *App) DebugClaudeConfig() map[string]interface{} {
+// DebugConfigPath função para debug detalhado de caminhos e arquivos
+func (a *App) DebugConfigPath() map[string]interface{} {
 	result := map[string]interface{}{}
 
-	// Informações básicas da configuração
-	apiKey := config.GetClaudeAPIKey()
-	result["hasApiKey"] = apiKey != ""
-	result["apiKeyLength"] = len(apiKey)
-
-	if apiKey != "" {
-		// Mostrar primeiros e últimos caracteres para verificar se é válida
-		if len(apiKey) > 10 {
-			result["apiKeyPreview"] = apiKey[:8] + "..." + apiKey[len(apiKey)-4:]
-		} else {
-			result["apiKeyPreview"] = apiKey
-		}
-
-		// Verificar se parece com uma chave válida da Anthropic
-		result["apiKeyLooksValid"] = strings.HasPrefix(apiKey, "sk-ant-")
+	// Caminho do executável
+	exePath, err := os.Executable()
+	if err != nil {
+		result["executableError"] = err.Error()
+		result["executablePath"] = "ERRO"
 	} else {
-		result["apiKeyPreview"] = "VAZIA"
-		result["apiKeyLooksValid"] = false
+		result["executablePath"] = exePath
+		result["executableDir"] = filepath.Dir(exePath)
 	}
 
-	result["claudeModel"] = config.GetClaudeModel()
-	result["maxTokens"] = config.GetMaxTokens()
-	result["timeout"] = config.GlobalConfig.Claude.TimeoutSec
-	result["verbose"] = config.IsVerbose()
-
-	// Testar conexão se tiver chave
-	if apiKey != "" {
-		result["connectionTest"] = "testing..."
-
-		// Criar cliente de teste
-		testClient := ai.NewClaudeClientWithConfig(apiKey, config.GetClaudeModel(), config.GetMaxTokens(), config.GlobalConfig.Claude.TimeoutSec)
-
-		if err := testClient.TestConnection(); err != nil {
-			result["connectionTest"] = "FALHOU"
-			result["connectionError"] = err.Error()
-		} else {
-			result["connectionTest"] = "SUCESSO"
-		}
+	// Caminho da configuração
+	var configPath string
+	if err != nil {
+		configPath = "lottery-optimizer.yaml"
 	} else {
-		result["connectionTest"] = "SEM_CHAVE"
+		configPath = filepath.Join(filepath.Dir(exePath), "lottery-optimizer.yaml")
 	}
-
-	// Informações do arquivo de configuração
-	exePath, _ := os.Executable()
-	exeDir := filepath.Dir(exePath)
-	configPath := filepath.Join(exeDir, "lottery-optimizer.yaml")
-
 	result["configPath"] = configPath
-	result["configExists"] = false
 
-	if _, err := os.Stat(configPath); err == nil {
+	// Verificar se arquivo existe
+	if stat, err := os.Stat(configPath); err != nil {
+		result["configExists"] = false
+		result["configError"] = err.Error()
+	} else {
 		result["configExists"] = true
+		result["configSize"] = stat.Size()
+		result["configModTime"] = stat.ModTime().Format("2006-01-02 15:04:05")
+		result["configMode"] = stat.Mode().String()
+	}
 
-		// Ler conteúdo do arquivo para debug
-		if content, err := os.ReadFile(configPath); err == nil {
-			result["configContent"] = string(content)
+	// Tentar ler conteúdo
+	if content, err := os.ReadFile(configPath); err != nil {
+		result["readError"] = err.Error()
+	} else {
+		result["configContent"] = string(content)
+		result["configLength"] = len(content)
+	}
+
+	// Testar permissões de escrita
+	if err := os.WriteFile(configPath+"_test", []byte("test"), 0644); err != nil {
+		result["writePermissionError"] = err.Error()
+		result["canWrite"] = false
+	} else {
+		result["canWrite"] = true
+		os.Remove(configPath + "_test") // Limpar arquivo de teste
+	}
+
+	// Informações do diretório
+	if err == nil {
+		dir := filepath.Dir(configPath)
+		if files, err := os.ReadDir(dir); err != nil {
+			result["dirListError"] = err.Error()
+		} else {
+			fileList := []string{}
+			for _, file := range files {
+				fileList = append(fileList, file.Name())
+			}
+			result["dirFiles"] = fileList
 		}
 	}
 
@@ -950,7 +1041,7 @@ func (a *App) DebugSavedGamesDB() map[string]interface{} {
 func (a *App) GetAppInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"success":           true,
-		"version":           "1.0.21.10",
+		"version":           version,
 		"platform":          "windows",
 		"repository":        "cccarv82/milhoes-desktop",
 		"buildDate":         time.Now().Format("2006-01-02"),

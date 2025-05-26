@@ -14,12 +14,12 @@ export function CheckGameResult(arg1) {
   return window['go']['main']['App']['CheckGameResult'](arg1);
 }
 
-export function DebugClaudeConfig() {
-  return window['go']['main']['App']['DebugClaudeConfig']();
-}
-
 export function DebugConfig() {
   return window['go']['main']['App']['DebugConfig']();
+}
+
+export function DebugConfigPath() {
+  return window['go']['main']['App']['DebugConfigPath']();
 }
 
 export function DebugSavedGamesDB() {
