@@ -7,10 +7,17 @@ import (
 	"lottery-optimizer-gui/internal/data"
 	"lottery-optimizer-gui/internal/lottery"
 	"lottery-optimizer-gui/internal/config"
+	"lottery-optimizer-gui/internal/updater"
 	"os"
 	"path/filepath"
 	"gopkg.in/yaml.v3"
 	"strings"
+	"time"
+)
+
+var (
+	version = "1.0.0" // Será injetado durante build
+	githubRepo = "yourusername/milhoes" // Substitua pelo seu repo
 )
 
 // App struct - Bridge entre Frontend e Backend
@@ -18,6 +25,7 @@ type App struct {
 	ctx        context.Context
 	dataClient *data.Client
 	aiClient   *ai.ClaudeClient
+	updater    *updater.Updater
 }
 
 // NewApp creates a new App application struct
@@ -25,6 +33,7 @@ func NewApp() *App {
 	return &App{
 		dataClient: data.NewClient(),
 		aiClient:   ai.NewClaudeClient(),
+		updater:    updater.NewUpdater(version, githubRepo),
 	}
 }
 
@@ -526,4 +535,35 @@ func (a *App) DebugClaudeConfig() map[string]interface{} {
 	}
 	
 	return result
+}
+
+// CheckForUpdates verifica se há atualizações disponíveis
+func (a *App) CheckForUpdates() (*updater.UpdateInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	return a.updater.CheckForUpdates(ctx)
+}
+
+// DownloadUpdate baixa uma atualização
+func (a *App) DownloadUpdate(updateInfo *updater.UpdateInfo) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	
+	// Progress callback pode ser implementado para mostrar progresso no frontend
+	return a.updater.DownloadUpdate(ctx, updateInfo, func(downloaded, total int64) {
+		// Implementar callback de progresso se necessário
+		fmt.Printf("Download: %d/%d bytes (%.2f%%)\n", 
+			downloaded, total, float64(downloaded)/float64(total)*100)
+	})
+}
+
+// InstallUpdate instala a atualização baixada
+func (a *App) InstallUpdate(updateInfo *updater.UpdateInfo) error {
+	return a.updater.InstallUpdate(updateInfo)
+}
+
+// GetCurrentVersion retorna a versão atual do app
+func (a *App) GetCurrentVersion() string {
+	return a.updater.GetCurrentVersion()
 }

@@ -1,0 +1,35 @@
+# Configuração do Milhões - Otimizador de Loterias
+# Copie este arquivo para lottery-optimizer.yaml e configure suas preferências
+
+app:
+  # Habilitar logs verbosos (útil para debug)
+  verbose: false
+  
+  # Verificar atualizações automaticamente
+  auto_update_check: true
+  
+  # Intervalo de verificação em horas (padrão: 24h)
+  update_check_interval: 24
+
+# Configurações da API do Claude
+claude:
+  # Sua chave da API do Claude (OBRIGATÓRIO)
+  # Obtenha em: https://console.anthropic.com/
+  api_key: "sua-chave-aqui"
+  
+  # Modelo a usar (recomendado: claude-3-5-sonnet-20241022)
+  model: "claude-3-5-sonnet-20241022"
+  
+  # Máximo de tokens por requisição
+  max_tokens: 4000
+  
+  # Timeout em segundos
+  timeout_sec: 60
+
+# Configurações de cache
+cache:
+  # Tempo de cache dos dados da CAIXA em minutos
+  caixa_cache_minutes: 60
+  
+  # Limpar cache automaticamente
+  auto_cleanup: true 

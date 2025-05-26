@@ -3,6 +3,7 @@ module lottery-optimizer-gui
 go 1.23
 
 require (
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/fatih/color v1.18.0
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/manifoldco/promptui v0.9.0
