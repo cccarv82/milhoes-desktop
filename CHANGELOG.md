@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.21.1] - 2025-05-26
+
+### 🔧 Corrigido
+- **CI/CD Pipeline**: Corrigido problema de formatação Go que impedia builds automáticos
+- **Setup Installer**: Removido referência ao arquivo `appicon.ico` inexistente
+- **Repository URL**: Corrigido `githubRepo` para `cccarv82/milhoes-desktop`
+- **Formatação Código**: Aplicado `gofmt -s -w` em todos os arquivos Go
+- **Versionamento**: Sincronizado versões em todos os arquivos de configuração
+
+### 📋 Detalhes Técnicos
+- Formatação automática de código Go para compliance com CI
+- Configuração do instalador ajustada para remover dependências inexistentes
+- Pipeline de release otimizado para builds automáticos
+
+## [1.0.21] - 2025-05-26
 
 ### 🚀 Features
 - Initial project setup with modern Go architecture
@@ -38,8 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker image optimization
 - Automated releases with GoReleaser
 - Comprehensive documentation
-
-## [1.0.21] - 2025-05-26
 
 ### ✨ Adicionado
 - **Sistema de Auto-Update Completo**: Verificação automática de atualizações a cada 6 horas
