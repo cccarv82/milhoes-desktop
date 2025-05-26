@@ -70,23 +70,22 @@ jobs:
         echo ""
         echo "Building with version: ${{ github.ref_name }}"
         echo "=== Starting Wails Build ==="
+        echo "Command: wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags `"-X main.version=${{ github.ref_name }}`""
+        echo ""
         
-        # Capture Wails build output
-        try {
-          $ErrorActionPreference = "Continue"
-          wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}" 2>&1 | Tee-Object -Variable buildOutput
-          echo "=== Wails Build Output ==="
-          echo $buildOutput
-          echo "=== Build Exit Code: $LASTEXITCODE ==="
-        } catch {
-          echo "❌ Exception during Wails build: $_"
-          throw
-        }
+        # Run Wails build with direct output
+        wails build -platform ${{ matrix.build.os }}/${{ matrix.build.arch }} -ldflags "-X main.version=${{ github.ref_name }}"
+        $wailsExitCode = $LASTEXITCODE
         
-        # Check if build was successful
-        if ($LASTEXITCODE -ne 0) {
-          echo "❌ Wails build failed with exit code: $LASTEXITCODE"
-          exit $LASTEXITCODE
+        echo ""
+        echo "=== Wails Build Exit Code: $wailsExitCode ==="
+        
+        # Always show what happened regardless of exit code
+        if ($wailsExitCode -ne 0) {
+          echo "❌ Wails build failed with exit code: $wailsExitCode"
+          echo "=== Let's see what files exist after failed build ==="
+          Get-ChildItem -Recurse -Name "*.exe" -ErrorAction SilentlyContinue
+          exit $wailsExitCode
         } else {
           echo "✅ Wails build completed with exit code 0"
         }
