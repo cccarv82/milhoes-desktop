@@ -230,13 +230,13 @@ jobs:
         echo "=== Creating build structure ==="
         New-Item -ItemType Directory -Path "build/bin" -Force
         
-        # Direct copy from extracted folder
-        if (Test-Path "./extracted/milhoes.exe") {
-          Copy-Item "./extracted/milhoes.exe" "build/bin/milhoes.exe" -Force
-          echo "✅ Copied milhoes.exe from extracted/ to build/bin/"
+        # Correct path - the zip contains build/bin/ structure internally
+        if (Test-Path "./extracted/build/bin/milhoes.exe") {
+          Copy-Item "./extracted/build/bin/milhoes.exe" "build/bin/milhoes.exe" -Force
+          echo "✅ Copied milhoes.exe from extracted/build/bin/ to build/bin/"
           echo "File size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes"
         } else {
-          echo "❌ milhoes.exe not found in extracted folder"
+          echo "❌ milhoes.exe not found in extracted/build/bin/ folder"
           echo "=== All files in extracted folder ==="
           Get-ChildItem -Recurse ./extracted/ -Force
           exit 1
@@ -262,77 +262,8 @@ jobs:
 
     - name: 🏗️ Create Installer
       run: |
-        echo "=== Creating installer with detailed debug ==="
-        echo "Current directory: $(Get-Location)"
-        echo "=== Pre-installer file check ==="
-        echo "Installer script exists:"
-        if (Test-Path "installer/setup.iss") { 
-          echo "✅ installer/setup.iss found"
-          echo "=== Setup.iss content preview ==="
-          Get-Content "installer/setup.iss" | Select-Object -First 20
-        } else { 
-          echo "❌ installer/setup.iss NOT found"
-          exit 1
-        }
-        
-        echo "=== Output directory preparation ==="
-        if (!(Test-Path "installer/Output")) { 
-          New-Item -ItemType Directory -Path "installer/Output" -Force
-          echo "✅ Created installer/Output directory"
-        } else {
-          echo "✅ installer/Output directory already exists"
-        }
-        
-        echo "=== Essential files check ==="
-        $requiredFile = "build/bin/milhoes.exe"
-        if (Test-Path $requiredFile) {
-          $fileInfo = Get-Item $requiredFile
-          echo "✅ Required file found: $requiredFile"
-          echo "   Size: $($fileInfo.Length) bytes"
-          echo "   Modified: $($fileInfo.LastWriteTime)"
-        } else {
-          echo "❌ CRITICAL: Required file missing: $requiredFile"
-          echo "=== Directory structure ==="
-          Get-ChildItem -Recurse | Where-Object { $_.Name -like "*.exe" } | ForEach-Object { echo "EXE found: $($_.FullName)" }
-          exit 1
-        }
-        
-        echo "=== Running Inno Setup Compiler ==="
-        try {
-          & iscc installer/setup.iss
-          $exitCode = $LASTEXITCODE
-          echo "Inno Setup exit code: $exitCode"
-          
-          if ($exitCode -eq 0) {
-            echo "✅ Inno Setup completed successfully"
-          } else {
-            echo "❌ Inno Setup failed with exit code: $exitCode"
-            exit $exitCode
-          }
-        } catch {
-          echo "❌ Exception running Inno Setup: $($_.Exception.Message)"
-          exit 1
-        }
-        
-        echo "=== Post-compilation verification ==="
-        $installerPath = "installer/Output/MilhoesSetup.exe"
-        if (Test-Path $installerPath) {
-          $installerInfo = Get-Item $installerPath
-          echo "✅ Installer created successfully!"
-          echo "   Path: $installerPath"
-          echo "   Size: $($installerInfo.Length) bytes"
-          echo "   Created: $($installerInfo.CreationTime)"
-        } else {
-          echo "❌ FAILED: Installer not found at $installerPath"
-          echo "=== Checking installer/Output directory ==="
-          if (Test-Path "installer/Output") {
-            Get-ChildItem "installer/Output" -Force
-          } else {
-            echo "❌ installer/Output directory not found"
-          }
-          exit 1
-        }
-      shell: pwsh
+        echo "=== Creating installer ==="
+        iscc installer/setup.iss
 
     - name: 📤 Upload Installer
       uses: actions/upload-artifact@v4
