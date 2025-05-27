@@ -101,7 +101,7 @@ func getClaudeAPIKey() string {
 // setDefaults define valores padrão para configurações
 func setDefaults() {
 	if GlobalConfig.Claude.Model == "" {
-		GlobalConfig.Claude.Model = "claude-sonnet-4-20250514"
+		GlobalConfig.Claude.Model = "claude-opus-4-20250514"
 	}
 
 	if GlobalConfig.Claude.MaxTokens == 0 {

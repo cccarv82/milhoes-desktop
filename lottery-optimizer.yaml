@@ -1,6 +1,6 @@
 claude:
   api_key: "SUBSTITUA_PELA_SUA_CHAVE_DO_CLAUDE"
-  model: "claude-sonnet-4-20250514"
+  model: "claude-opus-4-20250514"
   max_tokens: 4000
   timeout_sec: 60
 app:
