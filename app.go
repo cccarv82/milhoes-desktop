@@ -172,14 +172,6 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// PRIMEIRO: Verificar e aplicar atualizações pendentes da execução anterior
-	customLogger.Printf("🔍 Verificando atualizações pendentes da execução anterior...")
-	if err := a.updater.CheckAndApplyPendingUpdate(); err != nil {
-		customLogger.Printf("⚠️ Erro ao aplicar atualização pendente: %v", err)
-	} else {
-		customLogger.Printf("✅ Verificação de atualizações pendentes concluída")
-	}
-
 	// Inicializar verificação automática de atualizações
 	a.ScheduleUpdateCheck()
 
