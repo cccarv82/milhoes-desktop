@@ -179,11 +179,26 @@ func (a *App) startup(ctx context.Context) {
 
 	customLogger.Printf("✅ Context salvo com sucesso")
 
-	// TEMPORARIAMENTE REMOVIDO: Verificação automática de atualizações
-	// a.ScheduleUpdateCheck()
+	// Verificação automática de atualizações restaurada
+	a.ScheduleUpdateCheck()
 
-	// TEMPORARIAMENTE REMOVIDO: Verificação de atualizações na inicialização
-	// Isso pode estar causando problemas de interface
+	// Verificação de atualizações na inicialização (em background)
+	go func() {
+		customLogger.Printf("🔍 Verificando atualizações na inicialização...")
+		updateInfo, err := a.CheckForUpdates()
+		if err != nil {
+			customLogger.Printf("⚠️ Erro na verificação inicial de atualizações: %v", err)
+		} else if updateInfo != nil && updateInfo.Available {
+			customLogger.Printf("🚀 NOVA VERSÃO DISPONÍVEL: %s -> %s", version, updateInfo.Version)
+			customLogger.Printf("📦 Download: %s", updateInfo.DownloadURL)
+			// Salvar informações da atualização para o frontend
+			a.pendingUpdate = updateInfo
+			a.setUpdateStatus("available", fmt.Sprintf("Nova versão %s disponível", updateInfo.Version))
+		} else {
+			customLogger.Printf("✅ Aplicativo está atualizado")
+			a.setUpdateStatus("up_to_date", "Aplicativo está atualizado")
+		}
+	}()
 
 	customLogger.Printf("🚀 =================================")
 	customLogger.Printf("🚀 APP STARTUP CONCLUÍDO")

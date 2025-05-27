@@ -15,7 +15,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "v1.1.3"
+	version = "v1.1.4"
 )
 
 func main() {
@@ -34,6 +34,12 @@ func main() {
 
 	// Create application with options
 	fmt.Println("🚀 Iniciando Wails com interface gráfica...")
+	fmt.Println("🔧 Configurações da janela:")
+	fmt.Println("   - Tamanho: 1200x800")
+	fmt.Println("   - Mínimo: 1000x700")
+	fmt.Println("   - StartHidden: false")
+	fmt.Println("   - Debug: true")
+
 	err := wails.Run(&options.App{
 		Title:     "🎰 Lottery Optimizer - Estratégias Inteligentes",
 		Width:     1200,
@@ -48,33 +54,31 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
-		// Configurações específicas para Windows - FORÇAR VISIBILIDADE
+		// Configurações específicas para Windows - SIMPLIFICADAS
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 			DisableWindowIcon:    false,
 			DisablePinchZoom:     false,
-			WebviewUserDataPath:  "",
-			WebviewBrowserPath:   "",
 			Theme:                windows.SystemDefault,
-			CustomTheme:          nil,
-			ResizeDebounceMS:     0,
-			OnSuspend:            nil,
-			OnResume:             nil,
 		},
 		// FORÇAR APARECIMENTO DA JANELA
 		HideWindowOnClose: false,
 		AlwaysOnTop:       false,
 		Fullscreen:        false,
 		StartHidden:       false, // GARANTIR que não inicia hidden
-		// Configurações de desenvolvimento - ATIVAR DEBUG
+		// Configurações de desenvolvimento - ATIVAR DEBUG COMPLETO
 		Debug: options.Debug{
-			OpenInspectorOnStartup: false,
+			OpenInspectorOnStartup: true, // Ativar para debug
 		},
 	})
 
 	if err != nil {
 		fmt.Printf("❌ ERRO CRÍTICO ao iniciar Wails: %v\n", err)
+		fmt.Println("💡 Possíveis causas:")
+		fmt.Println("   - WebView2 não instalado ou desatualizado")
+		fmt.Println("   - Problemas com assets do frontend")
+		fmt.Println("   - Conflitos de antivírus")
 		fmt.Println("🔧 Pressione Enter para sair...")
 		fmt.Scanln()
 	} else {
