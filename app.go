@@ -549,6 +549,12 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000000")
 	customLogger.Printf("📖 [%s] GetCurrentConfig INICIADO", timestamp)
 	
+	// DEBUG: Verificar estado atual da GlobalConfig
+	customLogger.Printf("🔍 [%s] DEBUG GlobalConfig - APIKey length: %d", timestamp, len(config.GlobalConfig.Claude.APIKey))
+	customLogger.Printf("🔍 [%s] DEBUG GlobalConfig - Model: %s", timestamp, config.GlobalConfig.Claude.Model)
+	customLogger.Printf("🔍 [%s] DEBUG GlobalConfig - MaxTokens: %d", timestamp, config.GlobalConfig.Claude.MaxTokens)
+	customLogger.Printf("🔍 [%s] DEBUG GetClaudeAPIKey() length: %d", timestamp, len(config.GetClaudeAPIKey()))
+	
 	// PRIORIDADE 1: Usar configuração já carregada na memória (config.GlobalConfig)
 	if config.GetClaudeAPIKey() != "" {
 		customLogger.Printf("✅ [%s] GetCurrentConfig: Usando configuração da MEMÓRIA (GlobalConfig)", timestamp)
@@ -569,6 +575,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		
 		customLogger.Printf("✅ [%s] GetCurrentConfig: Retornando da MEMÓRIA - APIKey length=%d", 
 			timestamp, len(config.GetClaudeAPIKey()))
+		customLogger.Printf("🔍 [%s] RETORNO COMPLETO: %+v", timestamp, result)
 		flushLogs()
 		return result
 	}

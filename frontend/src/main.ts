@@ -18,7 +18,8 @@ import {
     DeleteSavedGame,
     DebugSavedGamesDB,
     GetAppInfo,
-    CheckForUpdates
+    CheckForUpdates,
+    GetCurrentConfig
 } from '../wailsjs/go/main/App';
 
 import { models } from '../wailsjs/go/models';
@@ -140,6 +141,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Carregar informações do app
     await loadAppInfo();
     
+    // Carregar configuração atual
+    await loadCurrentConfig();
+    
     // Adicionar botão de debug
     addDebugButton();
     
@@ -168,6 +172,31 @@ async function loadAppInfo() {
             buildDate: new Date().toISOString().split('T')[0],
             autoUpdateEnabled: false
         };
+    }
+}
+
+// Carregar configuração atual do backend
+async function loadCurrentConfig() {
+    try {
+        console.log('🔧 Carregando configuração atual do backend...');
+        const config = await GetCurrentConfig();
+        
+        if (config.exists) {
+            currentConfig = {
+                claudeApiKey: config.claudeApiKey || '',
+                claudeModel: config.claudeModel || 'claude-3-5-sonnet-20241022',
+                timeoutSec: config.timeoutSec || 60,
+                maxTokens: config.maxTokens || 8000,
+                verbose: config.verbose || false
+            };
+            console.log(`✅ Configuração carregada: APIKey present=${currentConfig.claudeApiKey !== ''}, Model=${currentConfig.claudeModel}`);
+        } else {
+            console.log('⚠️ Nenhuma configuração encontrada, usando padrão');
+            currentConfig = await GetDefaultConfig();
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar configuração:', error);
+        currentConfig = await GetDefaultConfig();
     }
 }
 
@@ -232,6 +261,13 @@ function renderConfigurationRequired() {
 // ===============================
 
 function renderConfigurationScreen() {
+    // Carregar configuração atual antes de renderizar
+    loadCurrentConfig().then(() => {
+        renderConfigurationForm();
+    });
+}
+
+function renderConfigurationForm() {
     const app = document.getElementById('app')!;
     app.innerHTML = `
         <div class="container">
