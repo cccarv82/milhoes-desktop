@@ -590,7 +590,11 @@ CRÍTICO:
   * Jogo Lotofácil 1: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16] 
   * Jogo Lotofácil 2: [1,2,3,4,17,18,19,20,21,22,23,24,25,14,15,16] (8 números diferentes)
   * Jogo Lotofácil 3: [1,2,9,10,17,18,19,20,5,6,23,24,25,13,14,15] (8+ números diferentes)
-- Use SOMENTE as frequências e padrões dos dados reais fornecidos. NÃO INVENTE números!`,
+- Use SOMENTE as frequências e padrões dos dados reais fornecidos. NÃO INVENTE números!
+
+- Diversifique: múltiplos jogos pequenos > 1 jogo caro
+
+IMPORTANTE: Use SEMPRE os preços exatos listados acima para calcular custos!`,
 		budget, statisticalAnalysis, budget, len(request.Draws))
 
 	return prompt
