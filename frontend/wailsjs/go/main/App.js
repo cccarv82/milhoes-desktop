@@ -34,6 +34,10 @@ export function DeleteSavedGame(arg1) {
   return window['go']['main']['App']['DeleteSavedGame'](arg1);
 }
 
+export function DismissUpdateNotification() {
+  return window['go']['main']['App']['DismissUpdateNotification']();
+}
+
 export function DownloadUpdate(arg1) {
   return window['go']['main']['App']['DownloadUpdate'](arg1);
 }
@@ -86,6 +90,10 @@ export function GetTodayLogContent() {
   return window['go']['main']['App']['GetTodayLogContent']();
 }
 
+export function GetUpdateStatus() {
+  return window['go']['main']['App']['GetUpdateStatus']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
@@ -96,6 +104,10 @@ export function InstallUpdate(arg1) {
 
 export function OpenLogDirectory() {
   return window['go']['main']['App']['OpenLogDirectory']();
+}
+
+export function RestartForUpdate() {
+  return window['go']['main']['App']['RestartForUpdate']();
 }
 
 export function SaveConfig(arg1) {

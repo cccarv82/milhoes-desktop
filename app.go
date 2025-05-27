@@ -69,6 +69,15 @@ type App struct {
 	updater       *updater.Updater
 	savedGamesDB  *database.SavedGamesDB
 	resultChecker *services.ResultChecker
+	updateStatus  *UpdateStatus           // Status de atualização para o frontend
+	pendingUpdate *updater.UpdateInfo     // Informações da atualização pendente
+}
+
+// UpdateStatus representa o status atual da atualização
+type UpdateStatus struct {
+	Status  string `json:"status"`  // "none", "checking", "downloading", "ready_to_restart", "download_failed", "install_failed"
+	Message string `json:"message"` // Mensagem detalhada para o usuário
+	Version string `json:"version"` // Nova versão disponível
 }
 
 // NewApp creates a new App application struct
@@ -153,6 +162,8 @@ func NewApp() *App {
 		updater:       updater.NewUpdater(version, githubRepo),
 		savedGamesDB:  savedGamesDB,
 		resultChecker: resultChecker,
+		updateStatus:  &UpdateStatus{},
+		pendingUpdate: nil,
 	}
 }
 
@@ -178,29 +189,36 @@ func (a *App) startup(ctx context.Context) {
 			customLogger.Printf("🎉 Nova versão disponível: %s -> %s", version, updateInfo.Version)
 			customLogger.Printf("📥 URL de download: %s", updateInfo.DownloadURL)
 			
-			// AUTO-UPDATE: Baixar e instalar automaticamente
-			customLogger.Printf("🚀 Iniciando download automático da atualização...")
+			// AUTO-UPDATE AMIGÁVEL: Baixar em background sem interromper o usuário
+			customLogger.Printf("🚀 Iniciando download silencioso da atualização em background...")
 			
-			// Download da atualização
+			// Download da atualização em background
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 			defer cancel()
 			
 			err = a.updater.DownloadUpdate(ctx, updateInfo, func(downloaded, total int64) {
 				percentage := float64(downloaded) / float64(total) * 100
-				customLogger.Printf("📊 Download: %.1f%% (%d/%d bytes)", percentage, downloaded, total)
+				customLogger.Printf("📊 Download silencioso: %.1f%% (%d/%d bytes)", percentage, downloaded, total)
 			})
 			
 			if err != nil {
 				customLogger.Printf("❌ Erro no download automático: %v", err)
+				// Notificar usuário sobre falha no download (implementar notificação no frontend)
+				a.setUpdateStatus("download_failed", fmt.Sprintf("Erro no download: %v", err))
 			} else {
-				customLogger.Printf("✅ Download concluído! Iniciando instalação...")
+				customLogger.Printf("✅ Download concluído! Preparando instalação...")
 				
-				// Instalar automaticamente
+				// Instalar em background (preparar arquivos, mas não forçar reinício)
 				err = a.updater.InstallUpdate(updateInfo)
 				if err != nil {
-					customLogger.Printf("❌ Erro na instalação automática: %v", err)
+					customLogger.Printf("❌ Erro na preparação da instalação: %v", err)
+					a.setUpdateStatus("install_failed", fmt.Sprintf("Erro na instalação: %v", err))
 				} else {
-					customLogger.Printf("🎉 Atualização automática iniciada! Aplicação será reiniciada...")
+					customLogger.Printf("🎉 Atualização baixada e preparada! Aguardando escolha do usuário...")
+					// Armazenar informações da atualização para uso posterior
+					a.pendingUpdate = updateInfo
+					// Notificar usuário que atualização está pronta
+					a.setUpdateStatus("ready_to_restart", fmt.Sprintf("Atualização para v%s pronta! Clique para reiniciar.", updateInfo.Version))
 				}
 			}
 		} else {
@@ -1649,5 +1667,68 @@ func loadExistingConfig() {
 			len(configStruct.Claude.APIKey), configStruct.Claude.Model, configStruct.Claude.MaxTokens)
 	} else {
 		customLogger.Printf("⚠️ Arquivo de configuração existe mas não contém chave Claude API")
+	}
+}
+
+// setUpdateStatus atualiza o status da atualização
+func (a *App) setUpdateStatus(status, message string) {
+	a.updateStatus.Status = status
+	a.updateStatus.Message = message
+	if a.pendingUpdate != nil {
+		a.updateStatus.Version = a.pendingUpdate.Version
+	}
+}
+
+// GetUpdateStatus retorna o status atual da atualização
+func (a *App) GetUpdateStatus() *UpdateStatus {
+	return a.updateStatus
+}
+
+// RestartForUpdate reinicia o aplicativo para aplicar a atualização
+func (a *App) RestartForUpdate() map[string]interface{} {
+	if a.updateStatus.Status != "ready_to_restart" || a.pendingUpdate == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Nenhuma atualização pronta para aplicação",
+		}
+	}
+
+	customLogger.Printf("🔄 Usuário escolheu reiniciar para aplicar atualização...")
+	customLogger.Printf("👋 Executando instalação final e encerrando aplicação...")
+
+	// Executar instalação real antes de fechar
+	if err := a.updater.ExecuteInstall(a.pendingUpdate); err != nil {
+		customLogger.Printf("❌ Erro na instalação final: %v", err)
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro na instalação: %v", err),
+		}
+	}
+
+	customLogger.Printf("✅ Instalação iniciada com sucesso!")
+
+	// Fechar logging
+	defer closeFileLogging()
+
+	// Agendar saída da aplicação após pequeno delay
+	go func() {
+		time.Sleep(1 * time.Second)
+		os.Exit(0)
+	}()
+
+	return map[string]interface{}{
+		"success": true,
+		"message": "Instalação iniciada, aplicação será reiniciada...",
+	}
+}
+
+// DismissUpdateNotification remove/ignora a notificação de atualização temporariamente
+func (a *App) DismissUpdateNotification() map[string]interface{} {
+	customLogger.Printf("⏰ Usuário escolheu adiar a atualização")
+	a.setUpdateStatus("dismissed", "Atualização adiada pelo usuário")
+
+	return map[string]interface{}{
+		"success": true,
+		"message": "Notificação de atualização foi adiada",
 	}
 }

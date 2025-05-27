@@ -293,7 +293,7 @@ func (u *Updater) DownloadUpdate(ctx context.Context, updateInfo *UpdateInfo, pr
 	}
 }
 
-// InstallUpdate instala a atualização baixada
+// InstallUpdate instala a atualização baixada (preparação, não forçar fechamento)
 func (u *Updater) InstallUpdate(updateInfo *UpdateInfo) error {
 	tempDir := os.TempDir()
 	fileName := filepath.Base(updateInfo.DownloadURL)
@@ -306,7 +306,7 @@ func (u *Updater) InstallUpdate(updateInfo *UpdateInfo) error {
 
 	switch runtime.GOOS {
 	case "windows":
-		return u.installWindows(installerPath)
+		return u.prepareWindowsInstall(installerPath)
 	case "darwin":
 		return u.installMacOS(installerPath)
 	case "linux":
@@ -314,6 +314,51 @@ func (u *Updater) InstallUpdate(updateInfo *UpdateInfo) error {
 	default:
 		return fmt.Errorf("plataforma não suportada: %s", runtime.GOOS)
 	}
+}
+
+// prepareWindowsInstall prepara a instalação no Windows (sem forçar fechamento)
+func (u *Updater) prepareWindowsInstall(installerPath string) error {
+	log.Printf("🔧 Preparando atualização no Windows: %s", installerPath)
+	
+	// Verificar se é ZIP ou EXE
+	if strings.HasSuffix(strings.ToLower(installerPath), ".zip") {
+		log.Printf("📦 Arquivo ZIP detectado, preparando extração...")
+		return u.prepareZipInstall(installerPath)
+	} else if strings.HasSuffix(strings.ToLower(installerPath), ".exe") {
+		log.Printf("🚀 Executável detectado, instalador pronto para execução...")
+		return u.prepareExeInstall(installerPath)
+	} else {
+		return fmt.Errorf("formato de arquivo não suportado: %s", installerPath)
+	}
+}
+
+// prepareZipInstall prepara extração ZIP (sem executar ainda)
+func (u *Updater) prepareZipInstall(zipPath string) error {
+	log.Printf("📦 Preparando extração de arquivo ZIP: %s", zipPath)
+	
+	// Verificar se ZIP é válido
+	reader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("erro ao verificar ZIP: %w", err)
+	}
+	reader.Close()
+	
+	log.Printf("✅ Arquivo ZIP válido e pronto para extração quando usuário reiniciar")
+	return nil
+}
+
+// prepareExeInstall prepara executável (verificação apenas)
+func (u *Updater) prepareExeInstall(exePath string) error {
+	log.Printf("🚀 Verificando instalador executável: %s", exePath)
+	
+	// Verificar se arquivo é executável válido
+	if stat, err := os.Stat(exePath); err != nil {
+		return fmt.Errorf("erro ao verificar executável: %w", err)
+	} else {
+		log.Printf("✅ Instalador executável válido (%d bytes) e pronto para execução quando usuário reiniciar", stat.Size())
+	}
+	
+	return nil
 }
 
 // installWindows instala no Windows usando o instalador
@@ -529,4 +574,27 @@ func (u *Updater) isVersionNewer(currentVer, latestVer string) (bool, error) {
 		latestSemver.String(), currentSemver.String(), result)
 	
 	return result, nil
+}
+
+// ExecuteInstall executa a instalação real (chamado quando usuário escolhe reiniciar)
+func (u *Updater) ExecuteInstall(updateInfo *UpdateInfo) error {
+	tempDir := os.TempDir()
+	fileName := filepath.Base(updateInfo.DownloadURL)
+	installerPath := filepath.Join(tempDir, fileName)
+
+	// Verificar se arquivo ainda existe
+	if _, err := os.Stat(installerPath); os.IsNotExist(err) {
+		return fmt.Errorf("arquivo de instalação não encontrado: %s", installerPath)
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		return u.installWindows(installerPath)
+	case "darwin":
+		return u.installMacOS(installerPath)
+	case "linux":
+		return u.installLinux(installerPath)
+	default:
+		return fmt.Errorf("plataforma não suportada: %s", runtime.GOOS)
+	}
 }
