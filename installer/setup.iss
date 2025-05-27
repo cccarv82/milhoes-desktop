@@ -2,8 +2,8 @@
 ; Informações básicas do app
 AppId={{B8E8F8A0-1234-5678-9ABC-DEF012345678}
 AppName=Milhões - Lottery Optimizer
-AppVersion=1.1.4
-AppVerName=Milhões - Lottery Optimizer 1.1.4
+AppVersion=1.1.5
+AppVerName=Milhões - Lottery Optimizer 1.1.5
 AppPublisher=Lottery Optimizer Team
 AppPublisherURL=https://github.com/cccarv82/milhoes-desktop
 AppSupportURL=https://github.com/cccarv82/milhoes-desktop/issues
@@ -30,12 +30,12 @@ ArchitecturesInstallIn64BitMode=x64
 ; WizardSmallImageFile=installer-icon.bmp
 
 ; Configurações de versionamento
-VersionInfoVersion=1.1.4.0
+VersionInfoVersion=1.1.5.0
 VersionInfoCompany=Lottery Optimizer Team
 VersionInfoDescription=Milhões - Lottery Optimizer
 VersionInfoCopyright=Copyright (C) 2025 Lottery Optimizer Team
 VersionInfoProductName=Milhões - Lottery Optimizer
-VersionInfoProductVersion=1.1.4
+VersionInfoProductVersion=1.1.5
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
@@ -68,8 +68,8 @@ Root: HKLM; Subkey: "Software\Classes\MilhoesFile\shell\open\command"; ValueType
 
 ; Chaves para auto-update (sistema)
 Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.1.4"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "LauncherVersion"; ValueData: "v1.0.0"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "Version"; ValueData: "1.1.5"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Milhoes"; ValueType: string; ValueName: "LauncherVersion"; ValueData: "v1.1.0"; Flags: uninsdeletekey
 
 ; Adicionar ao PATH do sistema (opcional) - usar LAUNCHER
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath('{app}'); Tasks: addtopath
@@ -154,7 +154,7 @@ var
   CurrentVersion: String;
 begin
   Result := True;
-  CurrentVersion := '1.1.4';
+  CurrentVersion := '1.1.5';
   
   if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'Software\Milhoes', 'Version', InstalledVersion) then
   begin
