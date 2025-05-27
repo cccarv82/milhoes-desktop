@@ -1214,7 +1214,7 @@ function renderStrategyResult(response: StrategyResponse) {
                                     <span class="game-cost">R$ ${game.cost.toFixed(2)}</span>
                                 </div>
                                 <div class="game-numbers">
-                                    ${game.numbers.map((num: number) => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                                    ${game.numbers.slice().sort((a, b) => a - b).map((num: number) => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
                                 </div>
                                 <div class="game-actions" style="margin-top: var(--spacing-3); text-align: center;">
                                     <button class="btn-save-game" onclick="showSaveGameModal('${game.type}', [${game.numbers.join(',')}])" style="background: var(--accent-success); color: white; border: none; padding: var(--spacing-2) var(--spacing-4); border-radius: var(--border-radius); font-size: var(--font-size-sm); cursor: pointer; display: inline-flex; align-items: center; gap: var(--spacing-1);">
@@ -1505,7 +1505,7 @@ function printStrategy() {
                             <span class="game-cost">R$ ${game.cost.toFixed(2)}</span>
                         </div>
                         <div class="game-numbers">
-                            ${game.numbers.map((num: number) => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                            ${game.numbers.slice().sort((a, b) => a - b).map((num: number) => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
                         </div>
                     </div>
                 `).join('')}
@@ -1591,7 +1591,7 @@ function showSaveGameModal(lotteryType: string, numbers: number[]) {
                         <div class="form-section">
                             <h4>${lotteryType === 'megasena' ? 'Mega-Sena' : 'Lotofácil'}</h4>
                             <div class="game-numbers">
-                                ${numbers.map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                                ${numbers.slice().sort((a, b) => a - b).map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
                             </div>
                         </div>
                         
@@ -1814,7 +1814,7 @@ function renderSavedGamesList(savedGames: SavedGame[]): string {
                 </div>
                 
                 <div class="saved-game-numbers">
-                    ${game.numbers.map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                    ${game.numbers.slice().sort((a, b) => a - b).map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
                 </div>
                 
                 ${game.result ? renderGameResult(game.result) : ''}
@@ -1858,14 +1858,14 @@ function renderGameResult(result: GameResult): string {
                     <div class="drawn-numbers">
                         <span class="label">Sorteados:</span>
                         <div class="numbers">
-                            ${result.drawn_numbers.map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
+                            ${result.drawn_numbers.slice().sort((a, b) => a - b).map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
                         </div>
                     </div>
                     
                     <div class="matched-numbers">
                         <span class="label">Seus acertos (${result.hit_count}):</span>
                         <div class="numbers">
-                            ${result.matches.map(num => `<span class="number match">${num.toString().padStart(2, '0')}</span>`).join('')}
+                            ${result.matches.slice().sort((a, b) => a - b).map(num => `<span class="number match">${num.toString().padStart(2, '0')}</span>`).join('')}
                         </div>
                     </div>
                 </div>
