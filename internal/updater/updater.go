@@ -150,14 +150,22 @@ func (u *Updater) CheckForUpdates(ctx context.Context) (*UpdateInfo, error) {
 	currentVer := strings.TrimPrefix(u.currentVersion, "v")
 	latestVer := strings.TrimPrefix(release.TagName, "v")
 
-	log.Printf("🔄 Comparando versões: atual='%s' vs disponível='%s'", currentVer, latestVer)
+	log.Printf("🔄 Comparando versões:")
+	log.Printf("   📱 Versão atual original: '%s'", u.currentVersion)
+	log.Printf("   🏷️ Tag do GitHub original: '%s'", release.TagName)
+	log.Printf("   📱 Versão atual limpa: '%s'", currentVer)
+	log.Printf("   🏷️ Versão GitHub limpa: '%s'", latestVer)
 
 	// Verificar se há atualização disponível
 	isNewer, err := u.isVersionNewer(currentVer, latestVer)
 	if err != nil {
 		log.Printf("⚠️  Erro ao comparar versões: %v", err)
-		// Em caso de erro na comparação, assumir que não há atualização
-		isNewer = false
+		log.Printf("   🔧 Tentando comparação simples de strings...")
+		// Fallback: comparação simples
+		isNewer = latestVer > currentVer
+		log.Printf("   📊 Resultado da comparação simples: %t ('%s' > '%s')", isNewer, latestVer, currentVer)
+	} else {
+		log.Printf("✅ Comparação semver bem-sucedida: isNewer = %t", isNewer)
 	}
 
 	if !isNewer {
@@ -357,15 +365,25 @@ func (u *Updater) GetCurrentVersion() string {
 
 // isVersionNewer compara duas versões
 func (u *Updater) isVersionNewer(currentVer, latestVer string) (bool, error) {
+	log.Printf("🔬 isVersionNewer: Comparando '%s' vs '%s'", currentVer, latestVer)
+	
 	currentSemver, err := semver.NewVersion(currentVer)
 	if err != nil {
+		log.Printf("❌ Erro ao parsear versão atual '%s': %v", currentVer, err)
 		return false, fmt.Errorf("versão atual inválida: %w", err)
 	}
+	log.Printf("✅ Versão atual parseada: %s", currentSemver.String())
 
 	latestSemver, err := semver.NewVersion(latestVer)
 	if err != nil {
+		log.Printf("❌ Erro ao parsear versão do GitHub '%s': %v", latestVer, err)
 		return false, fmt.Errorf("versão da release inválida: %w", err)
 	}
+	log.Printf("✅ Versão do GitHub parseada: %s", latestSemver.String())
 
-	return latestSemver.GreaterThan(currentSemver), nil
+	result := latestSemver.GreaterThan(currentSemver)
+	log.Printf("🔍 Resultado da comparação semver: %s.GreaterThan(%s) = %t", 
+		latestSemver.String(), currentSemver.String(), result)
+	
+	return result, nil
 }

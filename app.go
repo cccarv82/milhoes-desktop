@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	githubRepo = "cccarv82/milhoes-desktop" // Repositório onde as releases são publicadas
+	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
 	logFile *os.File
 	logDir  string
 	customLogger *CustomLogger
