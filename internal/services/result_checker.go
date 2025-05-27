@@ -184,8 +184,15 @@ func (rc *ResultChecker) calculateLotofacilPrize(hitCount int, draw *lottery.Dra
 	// Buscar prêmios nos ganhadores
 	prizeMap := make(map[int]float64)
 
+	// LOG DEBUG: Mostrar todas as descriptions da API
+	log.Printf("🔍 DEBUG - Descriptions da API para concurso %d:", draw.Number)
+	for _, winner := range draw.Winners {
+		log.Printf("  - Description: '%s', Winners: %d, Prize: R$ %.2f", winner.Description, winner.Winners, winner.Prize)
+	}
+
 	for _, winner := range draw.Winners {
 		switch winner.Description {
+		// Formato "X acertos"
 		case "15 acertos":
 			prizeMap[15] = winner.Prize
 		case "14 acertos":
@@ -196,13 +203,39 @@ func (rc *ResultChecker) calculateLotofacilPrize(hitCount int, draw *lottery.Dra
 			prizeMap[12] = winner.Prize
 		case "11 acertos":
 			prizeMap[11] = winner.Prize
+		// Formato "X pontos" (usado pela API da CAIXA)
+		case "15 pontos":
+			prizeMap[15] = winner.Prize
+		case "14 pontos":
+			prizeMap[14] = winner.Prize
+		case "13 pontos":
+			prizeMap[13] = winner.Prize
+		case "12 pontos":
+			prizeMap[12] = winner.Prize
+		case "11 pontos":
+			prizeMap[11] = winner.Prize
+		// Formato com faixas
+		case "Faixa 1 (15 pontos)":
+			prizeMap[15] = winner.Prize
+		case "Faixa 2 (14 pontos)":
+			prizeMap[14] = winner.Prize
+		case "Faixa 3 (13 pontos)":
+			prizeMap[13] = winner.Prize
+		case "Faixa 4 (12 pontos)":
+			prizeMap[12] = winner.Prize
+		case "Faixa 5 (11 pontos)":
+			prizeMap[11] = winner.Prize
+		default:
+			log.Printf("⚠️ Description não mapeada: '%s'", winner.Description)
 		}
 	}
 
 	if prize, exists := prizeMap[hitCount]; exists && hitCount >= 11 {
+		log.Printf("✅ Prêmio encontrado para %d acertos: R$ %.2f", hitCount, prize)
 		return fmt.Sprintf("%d acertos", hitCount), prize, true
 	}
 
+	log.Printf("❌ Nenhum prêmio encontrado para %d acertos", hitCount)
 	return fmt.Sprintf("%d acertos", hitCount), 0, false
 }
 
