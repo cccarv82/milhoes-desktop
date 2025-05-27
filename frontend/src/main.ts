@@ -596,7 +596,7 @@ function renderWelcome() {
                     <div class="feature-card">
                         <span class="feature-icon">🧠</span>
                         <h3>IA Avançada</h3>
-                        <p>Claude 3.5 Sonnet analisa milhares de sorteios históricos para identificar padrões e tendências únicas.</p>
+                        <p>Claude Opus 4 oferece poder matemático superior para análise estatística complexa e otimização inteligente de estratégias.</p>
                     </div>
                     
                     <div class="feature-card">
