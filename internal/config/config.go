@@ -167,17 +167,17 @@ func GetClaudeAPIKey() string {
 				APIKey string `yaml:"api_key"`
 			} `yaml:"claude"`
 		}
-		
+
 		if err := yaml.Unmarshal(content, &configYAML); err == nil && configYAML.Claude.APIKey != "" {
 			return configYAML.Claude.APIKey
 		}
 	}
-	
+
 	// Fallback para GlobalConfig se arquivo não disponível
 	if GlobalConfig != nil {
 		return GlobalConfig.Claude.APIKey
 	}
-	
+
 	return ""
 }
 
@@ -195,4 +195,3 @@ func GetMaxTokens() int {
 func IsVerbose() bool {
 	return viper.GetBool("verbose")
 }
- 
