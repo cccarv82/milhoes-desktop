@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	githubRepo = "cccarv82/milhoes-releases" // Repositório público para releases
+	githubRepo = "cccarv82/milhoes-desktop" // Repositório onde as releases são publicadas
 	logFile *os.File
 	logDir  string
 	customLogger *CustomLogger
@@ -168,13 +168,21 @@ func (a *App) startup(ctx context.Context) {
 	go func() {
 		time.Sleep(30 * time.Second)
 		customLogger.Printf("🔄 Verificando atualizações na inicialização...")
+		customLogger.Printf("📦 Repositório configurado: %s", githubRepo)
+		customLogger.Printf("📱 Versão atual detectada: %s", version)
+		
 		updateInfo, err := a.CheckForUpdates()
 		if err != nil {
 			customLogger.Printf("❌ Erro ao verificar atualizações: %v", err)
 		} else if updateInfo != nil && updateInfo.Available {
 			customLogger.Printf("🎉 Nova versão disponível: %s -> %s", version, updateInfo.Version)
+			customLogger.Printf("📥 URL de download: %s", updateInfo.DownloadURL)
 		} else {
 			customLogger.Printf("✅ App atualizado - versão mais recente já instalada")
+			if updateInfo != nil {
+				customLogger.Printf("🔍 Versão disponível no GitHub: %s", updateInfo.Version)
+				customLogger.Printf("🔍 Comparação: atual=%s vs github=%s", version, updateInfo.Version)
+			}
 		}
 	}()
 }
