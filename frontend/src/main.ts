@@ -8,7 +8,6 @@ import {
     SaveConfig, 
     ValidateConfig, 
     GetDefaultConfig, 
-    GetStatistics, 
     TestConnectionsWithConfig, 
     SaveGame,
     GetSavedGames,
