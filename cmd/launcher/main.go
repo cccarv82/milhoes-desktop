@@ -8,8 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"syscall"
 	"time"
 )
 
@@ -143,30 +141,16 @@ func (l *Launcher) startMainApp() error {
 	fmt.Printf("🚀 Iniciando %s...\n", appName)
 	logs.LogLauncher("🚀 Iniciando %s...", appName)
 
-	var cmd *exec.Cmd
+	// Método simples e compatível para todos os sistemas
+	cmd := exec.Command(l.appPath)
+	cmd.Dir = l.appDir
 
-	if runtime.GOOS == "windows" {
-		// Método específico para Windows
-		cmd = exec.Command(l.appPath)
-		cmd.Dir = l.appDir
+	// Desconectar completamente do launcher
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.Stdin = nil
 
-		// Configurar para criar processo completamente independente
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
-		}
-
-		// Desconectar completamente do launcher
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-		cmd.Stdin = nil
-
-		logs.LogLauncher("🔧 Configurações Windows: processo independente, sem redirecionamento")
-	} else {
-		// Método genérico para outros sistemas
-		cmd = exec.Command(l.appPath)
-		cmd.Dir = l.appDir
-		logs.LogLauncher("🔧 Configurações genéricas para OS: %s", runtime.GOOS)
-	}
+	logs.LogLauncher("🔧 Configurações: processo independente, sem redirecionamento")
 
 	// Iniciar processo
 	if err := cmd.Start(); err != nil {
@@ -182,11 +166,8 @@ func (l *Launcher) startMainApp() error {
 
 	// Verificar se o processo ainda está rodando
 	if cmd.Process != nil {
-		// Tentar verificar se processo está ativo (Windows específico)
-		if runtime.GOOS == "windows" {
-			// Liberar referência ao processo para deixá-lo independente
-			cmd.Process.Release()
-		}
+		// Liberar referência ao processo para deixá-lo independente
+		cmd.Process.Release()
 		fmt.Printf("✅ Aplicativo está executando independentemente\n")
 		logs.LogLauncher("✅ Aplicativo executando independentemente, launcher pode ser fechado")
 	}
