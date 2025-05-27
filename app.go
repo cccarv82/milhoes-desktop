@@ -86,6 +86,9 @@ func NewApp() *App {
 		customLogger.Printf("🧪 TESTE PÓS-INICIALIZAÇÃO - NewApp iniciado com logging funcional")
 	}
 
+	// CARREGAR CONFIGURAÇÃO EXISTENTE NA INICIALIZAÇÃO
+	loadExistingConfig()
+
 	dataClient := data.NewClient()
 
 	// Inicializar banco de dados de jogos salvos
@@ -618,7 +621,11 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		config.GlobalConfig.Claude.Model = configStruct.Claude.Model
 		config.GlobalConfig.Claude.MaxTokens = configStruct.Claude.MaxTokens
 		config.GlobalConfig.Claude.TimeoutSec = configStruct.Claude.TimeoutSec
-		customLogger.Printf("✅ [%s] GetCurrentConfig: GlobalConfig atualizado", timestamp)
+		
+		customLogger.Printf("✅ CONFIGURAÇÃO CARREGADA: APIKey length=%d, Model=%s, MaxTokens=%d", 
+			len(configStruct.Claude.APIKey), configStruct.Claude.Model, configStruct.Claude.MaxTokens)
+	} else {
+		customLogger.Printf("⚠️ Arquivo de configuração existe mas não contém chave Claude API")
 	}
 	
 	result := map[string]interface{}{
@@ -1510,5 +1517,66 @@ func flushLogs() {
 func closeFileLogging() {
 	if customLogger != nil {
 		customLogger.Close()
+	}
+}
+
+// loadExistingConfig carrega configuração existente na inicialização
+func loadExistingConfig() {
+	customLogger.Printf("🔧 CARREGANDO CONFIGURAÇÃO EXISTENTE NA INICIALIZAÇÃO...")
+	
+	configPath, err := getConfigPath()
+	if err != nil {
+		customLogger.Printf("⚠️ Erro ao determinar caminho da configuração: %v", err)
+		return
+	}
+	
+	customLogger.Printf("📁 Verificando configuração em: %s", configPath)
+	
+	// Verificar se arquivo existe
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		customLogger.Printf("📝 Arquivo de configuração não existe - primeira execução")
+		return
+	}
+	
+	customLogger.Printf("✅ Arquivo de configuração encontrado, carregando...")
+	
+	// Ler arquivo
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		customLogger.Printf("❌ Erro ao ler arquivo de configuração: %v", err)
+		return
+	}
+	
+	customLogger.Printf("📖 Arquivo lido (%d bytes)", len(data))
+	
+	// Parse YAML
+	var configStruct struct {
+		App struct {
+			Verbose bool `yaml:"verbose"`
+		} `yaml:"app"`
+		Claude struct {
+			APIKey     string `yaml:"api_key"`
+			Model      string `yaml:"model"`
+			MaxTokens  int    `yaml:"max_tokens"`
+			TimeoutSec int    `yaml:"timeout_sec"`
+		} `yaml:"claude"`
+	}
+	
+	if err := yaml.Unmarshal(data, &configStruct); err != nil {
+		customLogger.Printf("❌ Erro ao fazer parse do YAML: %v", err)
+		return
+	}
+	
+	// Atualizar configuração global se a chave estiver definida
+	if configStruct.Claude.APIKey != "" {
+		config.GlobalConfig.Claude.APIKey = configStruct.Claude.APIKey
+		config.GlobalConfig.Claude.Model = configStruct.Claude.Model
+		config.GlobalConfig.Claude.MaxTokens = configStruct.Claude.MaxTokens
+		config.GlobalConfig.Claude.TimeoutSec = configStruct.Claude.TimeoutSec
+		
+		customLogger.Printf("✅ CONFIGURAÇÃO CARREGADA: APIKey length=%d, Model=%s, MaxTokens=%d", 
+			len(configStruct.Claude.APIKey), configStruct.Claude.Model, configStruct.Claude.MaxTokens)
+	} else {
+		customLogger.Printf("⚠️ Arquivo de configuração existe mas não contém chave Claude API")
 	}
 }
