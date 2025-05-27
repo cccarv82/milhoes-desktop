@@ -222,8 +222,10 @@ func (a *App) startup(ctx context.Context) {
 					a.setUpdateStatus("install_failed", fmt.Sprintf("Erro na instalação: %v", err))
 				} else {
 					customLogger.Printf("🎉 Instalação silenciosa concluída! Próxima execução usará v%s", updateInfo.Version)
+					customLogger.Printf("📋 INSTRUÇÕES: Você pode continuar usando o app normalmente.")
+					customLogger.Printf("📋 Na próxima vez que abrir, automaticamente estará na nova versão!")
 					// Notificar usuário sobre atualização disponível na próxima execução
-					a.setUpdateStatus("installed_silently", fmt.Sprintf("Atualização v%s foi baixada e instalada! Próxima vez que abrir o app será na nova versão.", updateInfo.Version))
+					a.setUpdateStatus("installed_silently", fmt.Sprintf("✅ Atualização v%s instalada silenciosamente! Próxima execução será na nova versão. Nenhuma ação necessária.", updateInfo.Version))
 				}
 			}
 		} else {
@@ -1561,6 +1563,7 @@ func initCustomLogging() error {
 	// Log inicial
 	customLogger.Printf("🚀 =================================")
 	customLogger.Printf("🚀 LOTTERY OPTIMIZER %s INICIADO", version)
+	customLogger.Printf("🚀 Sistema de Atualização Silenciosa ATIVO")
 	customLogger.Printf("🚀 =================================")
 	customLogger.Printf("📁 Diretório de logs: %s", logDir)
 	customLogger.Printf("📝 Arquivo de log: %s", logFilePath)
