@@ -152,7 +152,6 @@ func (l *Launcher) startMainApp() error {
 
 		// Configurar para criar processo completamente independente
 		cmd.SysProcAttr = &syscall.SysProcAttr{
-			HideWindow:    false,
 			CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 		}
 
