@@ -14,7 +14,7 @@ import (
 const (
 	appExecutable   = "milhoes.exe"
 	appName         = "Lottery Optimizer"
-	launcherVersion = "v1.1.1"
+	launcherVersion = "v1.1.6"
 )
 
 type Launcher struct {
