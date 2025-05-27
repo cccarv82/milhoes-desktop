@@ -212,6 +212,11 @@ jobs:
     - name: 📥 Checkout Code
       uses: actions/checkout@v4
 
+    - name: 🛠️ Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
     - name: 📥 Download Build Artifacts
       uses: actions/download-artifact@v4
       with:
@@ -261,6 +266,38 @@ jobs:
         }
       shell: pwsh
 
+    - name: 🚀 Build Launcher
+      run: |
+        echo "=== Building launcher.exe ==="
+        echo "Go version:"
+        go version
+        echo ""
+        echo "Current directory:"
+        Get-Location
+        echo ""
+        echo "Building launcher..."
+        cd cmd/launcher
+        go build -o "../../cmd/launcher/launcher.exe" -ldflags "-s -w" .
+        cd ../..
+        echo ""
+        echo "=== Verifying launcher build ==="
+        if (Test-Path "cmd/launcher/launcher.exe") {
+          echo "✅ launcher.exe built successfully"
+          $launcherSize = (Get-Item "cmd/launcher/launcher.exe").Length
+          echo "Launcher size: $launcherSize bytes"
+          
+          # Test if launcher runs without errors
+          echo "=== Testing launcher (quick validation) ==="
+          $testOutput = & "cmd/launcher/launcher.exe" --help 2>&1
+          echo "Launcher test output: $testOutput"
+        } else {
+          echo "❌ launcher.exe build failed!"
+          echo "=== Checking for build errors ==="
+          Get-ChildItem -Recurse cmd/launcher/
+          exit 1
+        }
+      shell: pwsh
+
     - name: 🛠️ Install Inno Setup
       run: |
         echo "=== Installing Inno Setup ==="
@@ -274,9 +311,29 @@ jobs:
         echo "Directory contents:"
         Get-ChildItem -Recurse
         echo "=== Checking required files ==="
-        if (Test-Path "build/bin/milhoes.exe") { echo "✅ milhoes.exe found" } else { echo "❌ milhoes.exe NOT found" }
+        if (Test-Path "build/bin/milhoes.exe") { 
+          echo "✅ milhoes.exe found (size: $((Get-Item 'build/bin/milhoes.exe').Length) bytes)" 
+        } else { 
+          echo "❌ milhoes.exe NOT found" 
+        }
+        if (Test-Path "cmd/launcher/launcher.exe") { 
+          echo "✅ launcher.exe found (size: $((Get-Item 'cmd/launcher/launcher.exe').Length) bytes)" 
+        } else { 
+          echo "❌ launcher.exe NOT found" 
+        }
         if (Test-Path "README.md") { echo "✅ README.md found" } else { echo "❌ README.md NOT found" }
         if (Test-Path "LICENSE") { echo "✅ LICENSE found" } else { echo "❌ LICENSE NOT found" }
+        if (Test-Path "installer/setup.iss") { echo "✅ setup.iss found" } else { echo "❌ setup.iss NOT found" }
+        echo ""
+        echo "=== Final verification: installer dependencies ==="
+        echo "Installer script expects these paths:"
+        echo "- ..\build\bin\milhoes.exe (main app)"
+        echo "- ..\cmd\launcher\launcher.exe (launcher)"
+        echo ""
+        $installerScript = Get-Content "installer/setup.iss" | Select-String "Source:"
+        echo "Installer Source entries:"
+        $installerScript
+      shell: pwsh
 
     - name: 🏗️ Create Installer
       run: |

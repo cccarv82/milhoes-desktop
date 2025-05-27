@@ -845,3 +845,4 @@ func (u *Updater) CheckAndApplyPendingUpdate() error {
 	// Sem atualizações pendentes
 	return nil
 }
+ 

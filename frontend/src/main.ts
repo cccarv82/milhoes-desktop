@@ -467,9 +467,9 @@ async function testConnections() {
                         <p>${status.claudeAPI ? 'Conectado' : 'Erro'}</p>
                         ${status.claudeError ? `<small style="color: var(--accent-error);">${status.claudeError}</small>` : ''}
                     </div>
-                </div>
-            </div>
-        `;
+      </div>
+    </div>
+`;
     } catch (error) {
         statusDiv.innerHTML = `<div class="error-message">Erro ao testar conexões: ${error}</div>`;
     }
