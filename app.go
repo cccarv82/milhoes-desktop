@@ -177,6 +177,32 @@ func (a *App) startup(ctx context.Context) {
 		} else if updateInfo != nil && updateInfo.Available {
 			customLogger.Printf("🎉 Nova versão disponível: %s -> %s", version, updateInfo.Version)
 			customLogger.Printf("📥 URL de download: %s", updateInfo.DownloadURL)
+			
+			// AUTO-UPDATE: Baixar e instalar automaticamente
+			customLogger.Printf("🚀 Iniciando download automático da atualização...")
+			
+			// Download da atualização
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			defer cancel()
+			
+			err = a.updater.DownloadUpdate(ctx, updateInfo, func(downloaded, total int64) {
+				percentage := float64(downloaded) / float64(total) * 100
+				customLogger.Printf("📊 Download: %.1f%% (%d/%d bytes)", percentage, downloaded, total)
+			})
+			
+			if err != nil {
+				customLogger.Printf("❌ Erro no download automático: %v", err)
+			} else {
+				customLogger.Printf("✅ Download concluído! Iniciando instalação...")
+				
+				// Instalar automaticamente
+				err = a.updater.InstallUpdate(updateInfo)
+				if err != nil {
+					customLogger.Printf("❌ Erro na instalação automática: %v", err)
+				} else {
+					customLogger.Printf("🎉 Atualização automática iniciada! Aplicação será reiniciada...")
+				}
+			}
 		} else {
 			customLogger.Printf("✅ App atualizado - versão mais recente já instalada")
 			if updateInfo != nil {
