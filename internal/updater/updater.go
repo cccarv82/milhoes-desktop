@@ -598,3 +598,250 @@ func (u *Updater) ExecuteInstall(updateInfo *UpdateInfo) error {
 		return fmt.Errorf("plataforma não suportada: %s", runtime.GOOS)
 	}
 }
+
+// InstallSilently instala a atualização de forma silenciosa em background
+func (u *Updater) InstallSilently(updateInfo *UpdateInfo) error {
+	tempDir := os.TempDir()
+	fileName := filepath.Base(updateInfo.DownloadURL)
+	installerPath := filepath.Join(tempDir, fileName)
+
+	// Verificar se arquivo existe
+	if _, err := os.Stat(installerPath); os.IsNotExist(err) {
+		return fmt.Errorf("arquivo de instalação não encontrado: %s", installerPath)
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		return u.installWindowsSilently(installerPath)
+	case "darwin":
+		return u.installMacOSSilently(installerPath)
+	case "linux":
+		return u.installLinuxSilently(installerPath)
+	default:
+		return fmt.Errorf("plataforma não suportada: %s", runtime.GOOS)
+	}
+}
+
+// installWindowsSilently instala no Windows de forma silenciosa
+func (u *Updater) installWindowsSilently(installerPath string) error {
+	log.Printf("🔧 Instalação silenciosa no Windows: %s", installerPath)
+	
+	// Verificar se é ZIP ou EXE
+	if strings.HasSuffix(strings.ToLower(installerPath), ".zip") {
+		log.Printf("📦 Arquivo ZIP detectado, extraindo silenciosamente...")
+		return u.installFromZipSilently(installerPath)
+	} else if strings.HasSuffix(strings.ToLower(installerPath), ".exe") {
+		log.Printf("🚀 Executável detectado, preparando instalação silenciosa...")
+		return u.installFromExeSilently(installerPath)
+	} else {
+		return fmt.Errorf("formato de arquivo não suportado: %s", installerPath)
+	}
+}
+
+// installFromZipSilently extrai ZIP e prepara substituição do executável para próxima execução
+func (u *Updater) installFromZipSilently(zipPath string) error {
+	log.Printf("📦 Extração silenciosa de arquivo ZIP: %s", zipPath)
+	
+	// Abrir arquivo ZIP
+	reader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("erro ao abrir ZIP: %w", err)
+	}
+	defer reader.Close()
+
+	// Obter caminho do executável atual
+	currentExe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("erro ao obter caminho do executável: %w", err)
+	}
+	
+	currentDir := filepath.Dir(currentExe)
+	updateDir := filepath.Join(currentDir, ".update")
+	
+	// Criar diretório de atualização
+	os.RemoveAll(updateDir)
+	if err := os.MkdirAll(updateDir, 0755); err != nil {
+		return fmt.Errorf("erro ao criar diretório de atualização: %w", err)
+	}
+	
+	// Extrair arquivos
+	for _, file := range reader.File {
+		log.Printf("📄 Extraindo silenciosamente: %s", file.Name)
+		
+		rc, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("erro ao abrir arquivo no ZIP: %w", err)
+		}
+		
+		destPath := filepath.Join(updateDir, file.Name)
+		
+		// Criar diretórios se necessário
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			rc.Close()
+			return fmt.Errorf("erro ao criar diretório: %w", err)
+		}
+		
+		// Extrair arquivo
+		destFile, err := os.Create(destPath)
+		if err != nil {
+			rc.Close()
+			return fmt.Errorf("erro ao criar arquivo: %w", err)
+		}
+		
+		_, err = io.Copy(destFile, rc)
+		destFile.Close()
+		rc.Close()
+		
+		if err != nil {
+			return fmt.Errorf("erro ao extrair arquivo: %w", err)
+		}
+	}
+	
+	// Encontrar novo executável
+	newExePath := filepath.Join(updateDir, "milhoes.exe")
+	if _, err := os.Stat(newExePath); os.IsNotExist(err) {
+		return fmt.Errorf("executável não encontrado no ZIP: %s", newExePath)
+	}
+	
+	log.Printf("✅ Extração silenciosa concluída. Criando script de atualização...")
+	
+	// Criar script de atualização que será executado na próxima inicialização
+	scriptPath := filepath.Join(currentDir, "apply_update.bat")
+	scriptContent := fmt.Sprintf(`@echo off
+REM Script de atualização silenciosa - executado na próxima inicialização
+echo Aplicando atualização silenciosa...
+
+REM Fazer backup da versão atual
+if exist "%s" (
+    echo Fazendo backup da versão atual...
+    move "%s" "%s.bak" 2>nul
+)
+
+REM Copiar nova versão
+if exist "%s" (
+    echo Instalando nova versão...
+    copy "%s" "%s" >nul 2>&1
+    if errorlevel 1 (
+        echo Erro na atualização, restaurando backup...
+        if exist "%s.bak" (
+            move "%s.bak" "%s" 2>nul
+        )
+        echo Falha na atualização silenciosa
+        goto cleanup
+    ) else (
+        echo Atualização silenciosa concluída com sucesso!
+        REM Limpar backup
+        if exist "%s.bak" (
+            del "%s.bak" 2>nul
+        )
+    )
+) else (
+    echo Arquivo de atualização não encontrado!
+    if exist "%s.bak" (
+        move "%s.bak" "%s" 2>nul
+    )
+)
+
+:cleanup
+echo Limpando arquivos temporários...
+if exist "%s" (
+    rmdir /s /q "%s" 2>nul
+)
+echo Removendo script de atualização...
+del "%%~f0" 2>nul
+`, currentExe, currentExe, currentExe, newExePath, newExePath, currentExe, currentExe, currentExe, currentExe, currentExe, currentExe, currentExe, currentExe, currentExe, updateDir, updateDir)
+
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+		return fmt.Errorf("erro ao criar script de atualização: %w", err)
+	}
+	
+	log.Printf("✅ Instalação silenciosa preparada. Atualização será aplicada na próxima execução do app.")
+	return nil
+}
+
+// installFromExeSilently prepara instalador EXE para execução silenciosa
+func (u *Updater) installFromExeSilently(exePath string) error {
+	log.Printf("🚀 Preparando instalação silenciosa via EXE: %s", exePath)
+	
+	// Obter caminho do executável atual
+	currentExe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("erro ao obter caminho do executável: %w", err)
+	}
+	
+	currentDir := filepath.Dir(currentExe)
+	
+	// Criar script que será executado na próxima inicialização
+	scriptPath := filepath.Join(currentDir, "apply_update.bat")
+	scriptContent := fmt.Sprintf(`@echo off
+REM Script de instalação silenciosa - executado na próxima inicialização
+echo Executando instalação silenciosa...
+
+REM Executar instalador silencioso
+"%s" /SILENT /SUPPRESSMSGBOXES /NORESTART >nul 2>&1
+
+if errorlevel 1 (
+    echo Erro na instalação silenciosa
+) else (
+    echo Instalação silenciosa concluída com sucesso!
+)
+
+echo Removendo script de atualização...
+del "%%~f0" 2>nul
+`, exePath)
+
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+		return fmt.Errorf("erro ao criar script de atualização: %w", err)
+	}
+	
+	log.Printf("✅ Instalação silenciosa preparada. Atualização será aplicada na próxima execução do app.")
+	return nil
+}
+
+// installMacOSSilently instala no macOS de forma silenciosa
+func (u *Updater) installMacOSSilently(installerPath string) error {
+	// Implementar instalação silenciosa para macOS
+	return fmt.Errorf("instalação silenciosa macOS não implementada ainda")
+}
+
+// installLinuxSilently instala no Linux de forma silenciosa
+func (u *Updater) installLinuxSilently(installerPath string) error {
+	// Implementar instalação silenciosa para Linux
+	return fmt.Errorf("instalação silenciosa Linux não implementada ainda")
+}
+
+// CheckAndApplyPendingUpdate verifica e aplica atualizações pendentes (chamado na inicialização)
+func (u *Updater) CheckAndApplyPendingUpdate() error {
+	// Obter caminho do executável atual
+	currentExe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	
+	currentDir := filepath.Dir(currentExe)
+	scriptPath := filepath.Join(currentDir, "apply_update.bat")
+	
+	// Verificar se existe script de atualização pendente
+	if _, err := os.Stat(scriptPath); err == nil {
+		log.Printf("🔄 Script de atualização pendente encontrado, aplicando...")
+		
+		// Executar script de atualização
+		cmd := exec.Command("cmd", "/C", scriptPath)
+		cmd.Dir = currentDir
+		
+		// Executar e aguardar conclusão
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("❌ Erro ao executar script de atualização: %v", err)
+			log.Printf("📄 Output: %s", string(output))
+			return fmt.Errorf("erro ao aplicar atualização pendente: %w", err)
+		}
+		
+		log.Printf("✅ Atualização pendente aplicada com sucesso!")
+		log.Printf("📄 Output: %s", string(output))
+		return nil
+	}
+	
+	// Sem atualizações pendentes
+	return nil
+}
