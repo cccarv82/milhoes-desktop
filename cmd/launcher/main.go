@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"lottery-optimizer-gui/internal/logs"
+	"lottery-optimizer-gui/internal/updater"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,12 +16,14 @@ import (
 const (
 	appExecutable   = "milhoes.exe"
 	appName         = "Lottery Optimizer"
-	launcherVersion = "v1.1.6"
+	launcherVersion = "v1.1.8"
+	githubRepo      = "cccarv82/milhoes-releases" // Repositório de releases públicas
 )
 
 type Launcher struct {
 	appDir  string
 	appPath string
+	updater *updater.Updater
 }
 
 func NewLauncher() (*Launcher, error) {
@@ -31,9 +35,13 @@ func NewLauncher() (*Launcher, error) {
 	appDir := filepath.Dir(launcherPath)
 	appPath := filepath.Join(appDir, appExecutable)
 
+	// Inicializar updater com versão do app principal (não do launcher)
+	updaterInstance := updater.NewUpdater(launcherVersion, githubRepo)
+
 	return &Launcher{
 		appDir:  appDir,
 		appPath: appPath,
+		updater: updaterInstance,
 	}, nil
 }
 
@@ -41,6 +49,75 @@ func (l *Launcher) checkMainApp() error {
 	if _, err := os.Stat(l.appPath); os.IsNotExist(err) {
 		return fmt.Errorf("app principal não encontrado: %s", l.appPath)
 	}
+	return nil
+}
+
+func (l *Launcher) checkForUpdates() error {
+	fmt.Printf("🔍 Verificando atualizações online...\n")
+	logs.LogLauncher("🔍 Verificando atualizações online...")
+
+	// Timeout de 10 segundos para não travar o launcher
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	updateInfo, err := l.updater.CheckForUpdates(ctx)
+	if err != nil {
+		logs.LogError(logs.CategoryLauncher, "⚠️ Erro ao verificar atualizações: %v", err)
+		fmt.Printf("⚠️ Não foi possível verificar atualizações (continuando...)\n")
+		return nil // Não é erro crítico, continuar execução
+	}
+
+	if updateInfo == nil {
+		logs.LogLauncher("✅ Nenhuma informação de atualização retornada")
+		return nil
+	}
+
+	if !updateInfo.Available {
+		fmt.Printf("✅ App está atualizado (v%s)\n", updateInfo.Version)
+		logs.LogLauncher("✅ App está atualizado (v%s)", updateInfo.Version)
+		return nil
+	}
+
+	// Nova versão disponível!
+	fmt.Printf("🚀 Nova versão disponível: v%s\n", updateInfo.Version)
+	fmt.Printf("📥 Baixando atualização...\n")
+	logs.LogLauncher("🚀 Nova versão disponível: v%s", updateInfo.Version)
+	logs.LogLauncher("📥 Iniciando download da atualização...")
+
+	// Download com timeout maior
+	downloadCtx, downloadCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer downloadCancel()
+
+	progressCallback := func(downloaded, total int64) {
+		if total > 0 {
+			percent := float64(downloaded) / float64(total) * 100
+			if int(percent)%20 == 0 { // Log a cada 20%
+				logs.LogLauncher("📥 Download: %.1f%% (%d/%d bytes)", percent, downloaded, total)
+			}
+		}
+	}
+
+	err = l.updater.DownloadUpdate(downloadCtx, updateInfo, progressCallback)
+	if err != nil {
+		logs.LogError(logs.CategoryLauncher, "❌ Erro no download: %v", err)
+		fmt.Printf("❌ Erro no download (continuando com versão atual...)\n")
+		return nil // Não é erro crítico
+	}
+
+	fmt.Printf("✅ Download concluído, preparando instalação...\n")
+	logs.LogLauncher("✅ Download concluído")
+
+	// Preparar instalação
+	err = l.updater.InstallUpdate(updateInfo)
+	if err != nil {
+		logs.LogError(logs.CategoryLauncher, "❌ Erro ao preparar instalação: %v", err)
+		fmt.Printf("❌ Erro ao preparar instalação (continuando...)\n")
+		return nil // Não é erro crítico
+	}
+
+	fmt.Printf("🎉 Atualização preparada! Será aplicada no próximo reinício.\n")
+	logs.LogLauncher("🎉 Atualização v%s preparada para próximo reinício", updateInfo.Version)
+
 	return nil
 }
 
@@ -147,13 +224,21 @@ func (l *Launcher) run() error {
 	fmt.Printf("✅ Aplicativo principal encontrado\n\n")
 	logs.LogLauncher("✅ Aplicativo principal encontrado: %s", l.appPath)
 
-	// Etapa 2: Aplicar atualizações pendentes
-	fmt.Printf("🔄 [2/3] Verificando atualizações pendentes...\n")
-	logs.LogLauncher("🔄 [2/3] Verificando atualizações pendentes...")
+	// Etapa 2: Verificar e aplicar atualizações
+	fmt.Printf("🔄 [2/3] Verificando atualizações...\n")
+	logs.LogLauncher("🔄 [2/3] Verificando atualizações...")
+
+	// 2.1: Aplicar atualizações pendentes primeiro
 	if err := l.applyPendingUpdate(); err != nil {
-		fmt.Printf("⚠️ Erro na atualização: %v\n", err)
+		fmt.Printf("⚠️ Erro ao aplicar atualização pendente: %v\n", err)
+		logs.LogError(logs.CategoryLauncher, "⚠️ Erro ao aplicar atualização pendente: %v", err)
+	}
+
+	// 2.2: Verificar por novas atualizações online
+	if err := l.checkForUpdates(); err != nil {
+		fmt.Printf("⚠️ Erro na verificação de atualizações: %v\n", err)
 		fmt.Printf("⚠️ Continuando com versão atual...\n\n")
-		logs.LogError(logs.CategoryLauncher, "⚠️ Erro na atualização: %v", err)
+		logs.LogError(logs.CategoryLauncher, "⚠️ Erro na verificação de atualizações: %v", err)
 	} else {
 		fmt.Printf("✅ Verificação de atualizações concluída\n\n")
 		logs.LogLauncher("✅ Verificação de atualizações concluída")
