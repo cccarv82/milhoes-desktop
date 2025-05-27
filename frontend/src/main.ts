@@ -400,7 +400,7 @@ function renderConfigurationForm() {
                             Atualizações Automáticas
                         </h3>
                         <p style="color: var(--text-secondary); margin-bottom: var(--spacing-4);">
-                            ${appInfo ? `Versão atual: <strong>v${appInfo.version}</strong> | Auto-update: <strong>${appInfo.autoUpdateEnabled ? 'Ativado' : 'Desativado'}</strong>` : 'Carregando informações...'}
+                            ${appInfo ? `Versão atual: <strong>${appInfo.version}</strong> | Auto-update: <strong>${appInfo.autoUpdateEnabled ? 'Ativado' : 'Desativado'}</strong>` : 'Carregando informações...'}
                         </p>
                         
                         <div style="display: flex; justify-content: center; margin-bottom: var(--spacing-6);">
@@ -576,7 +576,7 @@ function renderWelcome() {
                     <p class="tagline">Estratégias Inteligentes para Loterias</p>
                 </div>
                 <div class="header-actions">
-                    ${appInfo ? `<div class="version-badge">v${appInfo.version}</div>` : ''}
+                    ${appInfo ? `<div class="version-badge">${appInfo.version}</div>` : ''}
                     <div class="ai-badge">
                         <span class="ai-icon">🤖</span>
                         Powered by Claude AI
@@ -2129,6 +2129,7 @@ addDebugButton();
 (window as any).testConnections = testConnections;
 (window as any).loadDefaultConfig = loadDefaultConfig;
 (window as any).handleConfigSave = handleConfigSave;
+(window as any).checkConfigAndRender = checkConfigAndRender;
 (window as any).startStrategyWizard = startStrategyWizard;
 (window as any).setBudget = setBudget;
 (window as any).handlePreferencesSubmit = handlePreferencesSubmit;
