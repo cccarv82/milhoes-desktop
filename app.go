@@ -500,15 +500,16 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 	if totalCost > internalPrefs.Budget {
 		customLogger.Printf("⚠️ Custo total R$ %.2f excede orçamento R$ %.2f - ajustando jogos", totalCost, internalPrefs.Budget)
 
-		// Remover jogos mais caros até ficar dentro do orçamento
+		// NOVA ESTRATÉGIA: Remover jogos BARATOS primeiro para aproveitar melhor o orçamento
+		// Ordenar jogos por custo (MAIORES primeiro para priorizar jogos mais eficientes)
+		sort.Slice(validatedStrategy.Games, func(i, j int) bool {
+			return validatedStrategy.Games[i].Cost > validatedStrategy.Games[j].Cost
+		})
+
 		validGames := []lottery.Game{}
 		currentCost := 0.0
 
-		// Ordenar jogos por custo (menores primeiro para maximizar quantidade)
-		sort.Slice(validatedStrategy.Games, func(i, j int) bool {
-			return validatedStrategy.Games[i].Cost < validatedStrategy.Games[j].Cost
-		})
-
+		// Adicionar jogos mais caros primeiro até esgotar o orçamento
 		for _, game := range validatedStrategy.Games {
 			if currentCost+game.Cost <= internalPrefs.Budget {
 				validGames = append(validGames, game)
@@ -516,14 +517,54 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 			}
 		}
 
+		// Se ainda sobrar orçamento significativo, tentar adicionar jogos menores que foram ignorados
+		remainingBudget := internalPrefs.Budget - currentCost
+		if remainingBudget >= 3.0 { // Suficiente para pelo menos uma Lotofácil
+			// Ordenar jogos restantes por custo crescente para preencher o orçamento
+			var remainingGames []lottery.Game
+			gameIDs := make(map[string]bool)
+
+			// Marcar jogos já incluídos
+			for _, game := range validGames {
+				key := fmt.Sprintf("%s:%v", game.Type, game.Numbers)
+				gameIDs[key] = true
+			}
+
+			// Encontrar jogos não incluídos
+			for _, game := range validatedStrategy.Games {
+				key := fmt.Sprintf("%s:%v", game.Type, game.Numbers)
+				if !gameIDs[key] {
+					remainingGames = append(remainingGames, game)
+				}
+			}
+
+			// Ordenar restantes por custo crescente
+			sort.Slice(remainingGames, func(i, j int) bool {
+				return remainingGames[i].Cost < remainingGames[j].Cost
+			})
+
+			// Adicionar jogos menores para completar o orçamento
+			for _, game := range remainingGames {
+				if currentCost+game.Cost <= internalPrefs.Budget {
+					validGames = append(validGames, game)
+					currentCost += game.Cost
+					remainingBudget = internalPrefs.Budget - currentCost
+					if remainingBudget < 3.0 {
+						break // Não vale a pena continuar
+					}
+				}
+			}
+		}
+
 		validatedStrategy.Games = validGames
 		validatedStrategy.TotalCost = currentCost
 
-		customLogger.Printf("✅ Orçamento ajustado: %d jogos por R$ %.2f", len(validGames), currentCost)
+		customLogger.Printf("✅ Orçamento otimizado: %d jogos por R$ %.2f (%.1f%% do orçamento)",
+			len(validGames), currentCost, (currentCost/internalPrefs.Budget)*100)
 
 		// Atualizar reasoning para explicar o ajuste
 		if validatedStrategy.Reasoning != "" {
-			validatedStrategy.Reasoning += fmt.Sprintf("\n\n⚠️ AJUSTE DE ORÇAMENTO: A estratégia original custaria R$ %.2f, mas foi ajustada para R$ %.2f (dentro do seu orçamento de R$ %.2f) removendo jogos mais caros e priorizando máxima cobertura.", totalCost, currentCost, internalPrefs.Budget)
+			validatedStrategy.Reasoning += fmt.Sprintf("\n\n⚠️ AJUSTE DE ORÇAMENTO: A estratégia original custaria R$ %.2f, mas foi ajustada para R$ %.2f (%.1f%% do seu orçamento de R$ %.2f) priorizando jogos mais eficientes e maximizando a utilização do orçamento.", totalCost, currentCost, (currentCost/internalPrefs.Budget)*100, internalPrefs.Budget)
 		}
 	}
 
