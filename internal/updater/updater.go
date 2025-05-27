@@ -184,9 +184,9 @@ func (u *Updater) CheckForUpdates(ctx context.Context) (*UpdateInfo, error) {
 	var assetSize int64
 	for _, asset := range release.Assets {
 		// Aceitar tanto ZIP quanto EXE para Windows
-		if strings.Contains(asset.Name, "windows") || 
-		   strings.Contains(asset.Name, "Setup.exe") || 
-		   strings.Contains(asset.Name, ".exe") {
+		if strings.Contains(asset.Name, "windows") ||
+			strings.Contains(asset.Name, "Setup.exe") ||
+			strings.Contains(asset.Name, ".exe") {
 			downloadURL = asset.DownloadURL
 			assetSize = asset.Size
 			log.Printf("📦 Asset encontrado: %s (%d bytes)", asset.Name, asset.Size)
@@ -208,14 +208,14 @@ func (u *Updater) CheckForUpdates(ctx context.Context) (*UpdateInfo, error) {
 	log.Printf("📥 URL de download: %s", downloadURL)
 
 	return &UpdateInfo{
-		Available:   true,
-		Version:     latestVer,
-		DownloadURL: downloadURL,
-		ReleaseURL:  release.HTMLURL,
-		Size:        assetSize,
-		PublishedAt: release.PublishedAt,
+		Available:    true,
+		Version:      latestVer,
+		DownloadURL:  downloadURL,
+		ReleaseURL:   release.HTMLURL,
+		Size:         assetSize,
+		PublishedAt:  release.PublishedAt,
 		ReleaseNotes: release.Body,
-		Message:     fmt.Sprintf("Nova versão %s disponível!", latestVer),
+		Message:      fmt.Sprintf("Nova versão %s disponível!", latestVer),
 	}, nil
 }
 
@@ -319,7 +319,7 @@ func (u *Updater) InstallUpdate(updateInfo *UpdateInfo) error {
 // prepareWindowsInstall prepara a instalação no Windows (sem forçar fechamento)
 func (u *Updater) prepareWindowsInstall(installerPath string) error {
 	log.Printf("🔧 Preparando atualização no Windows: %s", installerPath)
-	
+
 	// Verificar se é ZIP ou EXE
 	if strings.HasSuffix(strings.ToLower(installerPath), ".zip") {
 		log.Printf("📦 Arquivo ZIP detectado, preparando extração...")
@@ -335,14 +335,14 @@ func (u *Updater) prepareWindowsInstall(installerPath string) error {
 // prepareZipInstall prepara extração ZIP (sem executar ainda)
 func (u *Updater) prepareZipInstall(zipPath string) error {
 	log.Printf("📦 Preparando extração de arquivo ZIP: %s", zipPath)
-	
+
 	// Verificar se ZIP é válido
 	reader, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return fmt.Errorf("erro ao verificar ZIP: %w", err)
 	}
 	reader.Close()
-	
+
 	log.Printf("✅ Arquivo ZIP válido e pronto para extração quando usuário reiniciar")
 	return nil
 }
@@ -350,21 +350,21 @@ func (u *Updater) prepareZipInstall(zipPath string) error {
 // prepareExeInstall prepara executável (verificação apenas)
 func (u *Updater) prepareExeInstall(exePath string) error {
 	log.Printf("🚀 Verificando instalador executável: %s", exePath)
-	
+
 	// Verificar se arquivo é executável válido
 	if stat, err := os.Stat(exePath); err != nil {
 		return fmt.Errorf("erro ao verificar executável: %w", err)
 	} else {
 		log.Printf("✅ Instalador executável válido (%d bytes) e pronto para execução quando usuário reiniciar", stat.Size())
 	}
-	
+
 	return nil
 }
 
 // installWindows instala no Windows usando o instalador
 func (u *Updater) installWindows(installerPath string) error {
 	log.Printf("🔧 Iniciando instalação no Windows: %s", installerPath)
-	
+
 	// Verificar se é ZIP ou EXE
 	if strings.HasSuffix(strings.ToLower(installerPath), ".zip") {
 		log.Printf("📦 Arquivo ZIP detectado, extraindo...")
@@ -380,7 +380,7 @@ func (u *Updater) installWindows(installerPath string) error {
 // installFromZip extrai ZIP e substitui executável atual
 func (u *Updater) installFromZip(zipPath string) error {
 	log.Printf("📦 Extraindo arquivo ZIP: %s", zipPath)
-	
+
 	// Abrir arquivo ZIP
 	reader, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -393,56 +393,56 @@ func (u *Updater) installFromZip(zipPath string) error {
 	if err != nil {
 		return fmt.Errorf("erro ao obter caminho do executável: %w", err)
 	}
-	
+
 	tempDir := filepath.Join(os.TempDir(), "milhoes_update")
-	
+
 	// Criar diretório temporário
 	os.RemoveAll(tempDir)
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		return fmt.Errorf("erro ao criar diretório temporário: %w", err)
 	}
-	
+
 	// Extrair arquivos
 	for _, file := range reader.File {
 		log.Printf("📄 Extraindo: %s", file.Name)
-		
+
 		rc, err := file.Open()
 		if err != nil {
 			return fmt.Errorf("erro ao abrir arquivo no ZIP: %w", err)
 		}
-		
+
 		destPath := filepath.Join(tempDir, file.Name)
-		
+
 		// Criar diretórios se necessário
 		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 			rc.Close()
 			return fmt.Errorf("erro ao criar diretório: %w", err)
 		}
-		
+
 		// Extrair arquivo
 		destFile, err := os.Create(destPath)
 		if err != nil {
 			rc.Close()
 			return fmt.Errorf("erro ao criar arquivo: %w", err)
 		}
-		
+
 		_, err = io.Copy(destFile, rc)
 		destFile.Close()
 		rc.Close()
-		
+
 		if err != nil {
 			return fmt.Errorf("erro ao extrair arquivo: %w", err)
 		}
 	}
-	
+
 	// Encontrar novo executável
 	newExePath := filepath.Join(tempDir, "milhoes.exe")
 	if _, err := os.Stat(newExePath); os.IsNotExist(err) {
 		return fmt.Errorf("executável não encontrado no ZIP: %s", newExePath)
 	}
-	
+
 	log.Printf("✅ Extração concluída. Preparando para substituir executável...")
-	
+
 	// Criar script de atualização
 	scriptPath := filepath.Join(os.TempDir(), "update_milhoes.bat")
 	scriptContent := fmt.Sprintf(`@echo off
@@ -471,31 +471,31 @@ del "%%~f0"
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
 		return fmt.Errorf("erro ao criar script de atualização: %w", err)
 	}
-	
+
 	log.Printf("🚀 Executando script de atualização...")
-	
+
 	// Executar script em background
 	cmd := exec.Command("cmd", "/C", scriptPath)
 	cmd.Dir = os.TempDir()
-	
+
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("erro ao executar script de atualização: %w", err)
 	}
-	
+
 	// Sair da aplicação para permitir atualização
 	log.Printf("👋 Encerrando aplicação para permitir atualização...")
 	go func() {
 		time.Sleep(1 * time.Second)
 		os.Exit(0)
 	}()
-	
+
 	return nil
 }
 
 // installFromExe executa instalador EXE
 func (u *Updater) installFromExe(exePath string) error {
 	log.Printf("🚀 Executando instalador: %s", exePath)
-	
+
 	// Executar instalador silencioso
 	cmd := exec.Command(exePath, "/SILENT", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS")
 
@@ -554,7 +554,7 @@ func (u *Updater) GetCurrentVersion() string {
 // isVersionNewer compara duas versões
 func (u *Updater) isVersionNewer(currentVer, latestVer string) (bool, error) {
 	log.Printf("🔬 isVersionNewer: Comparando '%s' vs '%s'", currentVer, latestVer)
-	
+
 	currentSemver, err := semver.NewVersion(currentVer)
 	if err != nil {
 		log.Printf("❌ Erro ao parsear versão atual '%s': %v", currentVer, err)
@@ -570,9 +570,9 @@ func (u *Updater) isVersionNewer(currentVer, latestVer string) (bool, error) {
 	log.Printf("✅ Versão do GitHub parseada: %s", latestSemver.String())
 
 	result := latestSemver.GreaterThan(currentSemver)
-	log.Printf("🔍 Resultado da comparação semver: %s.GreaterThan(%s) = %t", 
+	log.Printf("🔍 Resultado da comparação semver: %s.GreaterThan(%s) = %t",
 		latestSemver.String(), currentSemver.String(), result)
-	
+
 	return result, nil
 }
 
@@ -625,7 +625,7 @@ func (u *Updater) InstallSilently(updateInfo *UpdateInfo) error {
 // installWindowsSilently instala no Windows de forma silenciosa
 func (u *Updater) installWindowsSilently(installerPath string) error {
 	log.Printf("🔧 Instalação silenciosa no Windows: %s", installerPath)
-	
+
 	// Verificar se é ZIP ou EXE
 	if strings.HasSuffix(strings.ToLower(installerPath), ".zip") {
 		log.Printf("📦 Arquivo ZIP detectado, extraindo silenciosamente...")
@@ -641,7 +641,7 @@ func (u *Updater) installWindowsSilently(installerPath string) error {
 // installFromZipSilently extrai ZIP e prepara substituição do executável para próxima execução
 func (u *Updater) installFromZipSilently(zipPath string) error {
 	log.Printf("📦 Extração silenciosa de arquivo ZIP: %s", zipPath)
-	
+
 	// Abrir arquivo ZIP
 	reader, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -654,57 +654,57 @@ func (u *Updater) installFromZipSilently(zipPath string) error {
 	if err != nil {
 		return fmt.Errorf("erro ao obter caminho do executável: %w", err)
 	}
-	
+
 	currentDir := filepath.Dir(currentExe)
 	updateDir := filepath.Join(currentDir, ".update")
-	
+
 	// Criar diretório de atualização
 	os.RemoveAll(updateDir)
 	if err := os.MkdirAll(updateDir, 0755); err != nil {
 		return fmt.Errorf("erro ao criar diretório de atualização: %w", err)
 	}
-	
+
 	// Extrair arquivos
 	for _, file := range reader.File {
 		log.Printf("📄 Extraindo silenciosamente: %s", file.Name)
-		
+
 		rc, err := file.Open()
 		if err != nil {
 			return fmt.Errorf("erro ao abrir arquivo no ZIP: %w", err)
 		}
-		
+
 		destPath := filepath.Join(updateDir, file.Name)
-		
+
 		// Criar diretórios se necessário
 		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 			rc.Close()
 			return fmt.Errorf("erro ao criar diretório: %w", err)
 		}
-		
+
 		// Extrair arquivo
 		destFile, err := os.Create(destPath)
 		if err != nil {
 			rc.Close()
 			return fmt.Errorf("erro ao criar arquivo: %w", err)
 		}
-		
+
 		_, err = io.Copy(destFile, rc)
 		destFile.Close()
 		rc.Close()
-		
+
 		if err != nil {
 			return fmt.Errorf("erro ao extrair arquivo: %w", err)
 		}
 	}
-	
+
 	// Encontrar novo executável
 	newExePath := filepath.Join(updateDir, "milhoes.exe")
 	if _, err := os.Stat(newExePath); os.IsNotExist(err) {
 		return fmt.Errorf("executável não encontrado no ZIP: %s", newExePath)
 	}
-	
+
 	log.Printf("✅ Extração silenciosa concluída. Criando script de atualização...")
-	
+
 	// Criar script de atualização que será executado na próxima inicialização
 	scriptPath := filepath.Join(currentDir, "apply_update.bat")
 	scriptContent := fmt.Sprintf(`@echo off
@@ -754,7 +754,7 @@ del "%%~f0" 2>nul
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
 		return fmt.Errorf("erro ao criar script de atualização: %w", err)
 	}
-	
+
 	log.Printf("✅ Instalação silenciosa preparada. Atualização será aplicada na próxima execução do app.")
 	return nil
 }
@@ -762,15 +762,15 @@ del "%%~f0" 2>nul
 // installFromExeSilently prepara instalador EXE para execução silenciosa
 func (u *Updater) installFromExeSilently(exePath string) error {
 	log.Printf("🚀 Preparando instalação silenciosa via EXE: %s", exePath)
-	
+
 	// Obter caminho do executável atual
 	currentExe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("erro ao obter caminho do executável: %w", err)
 	}
-	
+
 	currentDir := filepath.Dir(currentExe)
-	
+
 	// Criar script que será executado na próxima inicialização
 	scriptPath := filepath.Join(currentDir, "apply_update.bat")
 	scriptContent := fmt.Sprintf(`@echo off
@@ -793,7 +793,7 @@ del "%%~f0" 2>nul
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
 		return fmt.Errorf("erro ao criar script de atualização: %w", err)
 	}
-	
+
 	log.Printf("✅ Instalação silenciosa preparada. Atualização será aplicada na próxima execução do app.")
 	return nil
 }
@@ -817,18 +817,18 @@ func (u *Updater) CheckAndApplyPendingUpdate() error {
 	if err != nil {
 		return err
 	}
-	
+
 	currentDir := filepath.Dir(currentExe)
 	scriptPath := filepath.Join(currentDir, "apply_update.bat")
-	
+
 	// Verificar se existe script de atualização pendente
 	if _, err := os.Stat(scriptPath); err == nil {
 		log.Printf("🔄 Script de atualização pendente encontrado, aplicando...")
-		
+
 		// Executar script de atualização
 		cmd := exec.Command("cmd", "/C", scriptPath)
 		cmd.Dir = currentDir
-		
+
 		// Executar e aguardar conclusão
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -836,13 +836,187 @@ func (u *Updater) CheckAndApplyPendingUpdate() error {
 			log.Printf("📄 Output: %s", string(output))
 			return fmt.Errorf("erro ao aplicar atualização pendente: %w", err)
 		}
-		
+
 		log.Printf("✅ Atualização pendente aplicada com sucesso!")
 		log.Printf("📄 Output: %s", string(output))
 		return nil
 	}
-	
+
 	// Sem atualizações pendentes
 	return nil
 }
- 
+
+// InstallImmediate aplica a atualização imediatamente sem encerrar o processo atual
+func (u *Updater) InstallImmediate(updateInfo *UpdateInfo) error {
+	tempDir := os.TempDir()
+	fileName := filepath.Base(updateInfo.DownloadURL)
+	installerPath := filepath.Join(tempDir, fileName)
+
+	// Verificar se arquivo existe
+	if _, err := os.Stat(installerPath); os.IsNotExist(err) {
+		return fmt.Errorf("arquivo de instalação não encontrado: %s", installerPath)
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		return u.installWindowsImmediate(installerPath)
+	case "darwin":
+		return u.installMacOSImmediate(installerPath)
+	case "linux":
+		return u.installLinuxImmediate(installerPath)
+	default:
+		return fmt.Errorf("plataforma não suportada: %s", runtime.GOOS)
+	}
+}
+
+// installWindowsImmediate instala no Windows imediatamente sem encerrar processo
+func (u *Updater) installWindowsImmediate(installerPath string) error {
+	log.Printf("🔧 Instalação imediata no Windows: %s", installerPath)
+
+	// Verificar se é ZIP ou EXE
+	if strings.HasSuffix(strings.ToLower(installerPath), ".zip") {
+		log.Printf("📦 Arquivo ZIP detectado, extraindo imediatamente...")
+		return u.installFromZipImmediate(installerPath)
+	} else if strings.HasSuffix(strings.ToLower(installerPath), ".exe") {
+		log.Printf("🚀 Executável detectado, aplicando instalação imediata...")
+		return u.installFromExeImmediate(installerPath)
+	} else {
+		return fmt.Errorf("formato de arquivo não suportado: %s", installerPath)
+	}
+}
+
+// installFromZipImmediate extrai ZIP e substitui o executável principal sem afetar o launcher
+func (u *Updater) installFromZipImmediate(zipPath string) error {
+	log.Printf("📦 Extração imediata de arquivo ZIP: %s", zipPath)
+
+	// Abrir arquivo ZIP
+	reader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("erro ao abrir ZIP: %w", err)
+	}
+	defer reader.Close()
+
+	// Obter caminho do diretório do executável
+	currentExe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("erro ao obter caminho do executável: %w", err)
+	}
+
+	installDir := filepath.Dir(currentExe)
+	tempDir := filepath.Join(os.TempDir(), "milhoes_update_immediate")
+
+	// Criar diretório temporário
+	os.RemoveAll(tempDir)
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("erro ao criar diretório temporário: %w", err)
+	}
+
+	// Extrair arquivos
+	log.Printf("📄 Extraindo arquivos para: %s", tempDir)
+	for _, file := range reader.File {
+		rc, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("erro ao abrir arquivo no ZIP: %w", err)
+		}
+
+		destPath := filepath.Join(tempDir, file.Name)
+
+		// Criar diretórios se necessário
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			rc.Close()
+			return fmt.Errorf("erro ao criar diretório: %w", err)
+		}
+
+		// Extrair arquivo
+		destFile, err := os.Create(destPath)
+		if err != nil {
+			rc.Close()
+			return fmt.Errorf("erro ao criar arquivo: %w", err)
+		}
+
+		_, err = io.Copy(destFile, rc)
+		destFile.Close()
+		rc.Close()
+
+		if err != nil {
+			return fmt.Errorf("erro ao extrair arquivo: %w", err)
+		}
+	}
+
+	// Encontrar novo executável principal (milhoes.exe)
+	newExePath := filepath.Join(tempDir, "milhoes.exe")
+	if _, err := os.Stat(newExePath); os.IsNotExist(err) {
+		return fmt.Errorf("executável principal não encontrado no ZIP: %s", newExePath)
+	}
+
+	// Caminho do executável principal atual
+	currentMainExe := filepath.Join(installDir, "milhoes.exe")
+	backupPath := currentMainExe + ".backup"
+
+	log.Printf("🔄 Substituindo executável principal: %s", currentMainExe)
+
+	// Fazer backup da versão atual (se existir)
+	if _, err := os.Stat(currentMainExe); err == nil {
+		log.Printf("💾 Fazendo backup: %s -> %s", currentMainExe, backupPath)
+		if err := os.Rename(currentMainExe, backupPath); err != nil {
+			return fmt.Errorf("erro ao fazer backup: %w", err)
+		}
+	}
+
+	// Copiar nova versão
+	log.Printf("📁 Copiando nova versão: %s -> %s", newExePath, currentMainExe)
+	if err := copyFile(newExePath, currentMainExe); err != nil {
+		// Restaurar backup em caso de erro
+		if _, backupExists := os.Stat(backupPath); backupExists == nil {
+			os.Rename(backupPath, currentMainExe)
+		}
+		return fmt.Errorf("erro ao copiar nova versão: %w", err)
+	}
+
+	// Limpar backup antigo
+	if _, err := os.Stat(backupPath); err == nil {
+		os.Remove(backupPath)
+		log.Printf("🗑️ Backup removido: %s", backupPath)
+	}
+
+	// Limpar arquivos temporários
+	os.RemoveAll(tempDir)
+	log.Printf("🗑️ Arquivos temporários removidos: %s", tempDir)
+
+	log.Printf("✅ Atualização imediata concluída com sucesso!")
+	return nil
+}
+
+// installFromExeImmediate executa instalador EXE imediatamente (não implementado)
+func (u *Updater) installFromExeImmediate(exePath string) error {
+	log.Printf("⚠️ Instalação imediata via EXE não implementada: %s", exePath)
+	return fmt.Errorf("instalação imediata via EXE não suportada")
+}
+
+// installMacOSImmediate - placeholder para macOS
+func (u *Updater) installMacOSImmediate(installerPath string) error {
+	return fmt.Errorf("instalação imediata no macOS não implementada")
+}
+
+// installLinuxImmediate - placeholder para Linux
+func (u *Updater) installLinuxImmediate(installerPath string) error {
+	return fmt.Errorf("instalação imediata no Linux não implementada")
+}
+
+// copyFile copia um arquivo de origem para destino
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}

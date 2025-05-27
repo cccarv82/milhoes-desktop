@@ -53,70 +53,58 @@ func (l *Launcher) checkMainApp() error {
 }
 
 func (l *Launcher) checkForUpdates() error {
-	fmt.Printf("🔍 Verificando atualizações online...\n")
-	logs.LogLauncher("🔍 Verificando atualizações online...")
-
-	// Timeout de 10 segundos para não travar o launcher
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	fmt.Printf("🌐 Verificando GitHub API: %s\\n", githubRepo)
+	logs.LogLauncher("🌐 Verificando GitHub API: %s", githubRepo)
+
+	// Verificar se há atualizações disponíveis
 	updateInfo, err := l.updater.CheckForUpdates(ctx)
 	if err != nil {
-		logs.LogError(logs.CategoryLauncher, "⚠️ Erro ao verificar atualizações: %v", err)
-		fmt.Printf("⚠️ Não foi possível verificar atualizações (continuando...)\n")
-		return nil // Não é erro crítico, continuar execução
-	}
-
-	if updateInfo == nil {
-		logs.LogLauncher("✅ Nenhuma informação de atualização retornada")
-		return nil
+		return fmt.Errorf("erro na verificação de atualizações: %w", err)
 	}
 
 	if !updateInfo.Available {
-		fmt.Printf("✅ App está atualizado (v%s)\n", updateInfo.Version)
-		logs.LogLauncher("✅ App está atualizado (v%s)", updateInfo.Version)
+		fmt.Printf("✅ Aplicação está atualizada: %s\\n", updateInfo.Version)
+		logs.LogLauncher("✅ Aplicação está atualizada: %s", updateInfo.Version)
 		return nil
 	}
 
-	// Nova versão disponível!
-	fmt.Printf("🚀 Nova versão disponível: v%s\n", updateInfo.Version)
-	fmt.Printf("📥 Baixando atualização...\n")
-	logs.LogLauncher("🚀 Nova versão disponível: v%s", updateInfo.Version)
-	logs.LogLauncher("📥 Iniciando download da atualização...")
+	// Nova versão disponível - informar usuário
+	fmt.Printf("🚀 Nova versão disponível: %s -> %s\\n", updateInfo.Version, updateInfo.Version)
+	logs.LogLauncher("🚀 Nova versão disponível: %s", updateInfo.Version)
 
-	// Download com timeout maior
-	downloadCtx, downloadCancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer downloadCancel()
+	// Baixar atualização
+	fmt.Printf("📥 Baixando atualização...\\n")
+	logs.LogLauncher("📥 Baixando atualização...")
 
-	progressCallback := func(downloaded, total int64) {
-		if total > 0 {
-			percent := float64(downloaded) / float64(total) * 100
-			if int(percent)%20 == 0 { // Log a cada 20%
-				logs.LogLauncher("📥 Download: %.1f%% (%d/%d bytes)", percent, downloaded, total)
-			}
-		}
+	progressFunc := func(downloaded, total int64) {
+		percentage := float64(downloaded) / float64(total) * 100
+		fmt.Printf("\\r📊 Progresso: %.1f%% (%d/%d bytes)", percentage, downloaded, total)
 	}
 
-	err = l.updater.DownloadUpdate(downloadCtx, updateInfo, progressCallback)
-	if err != nil {
-		logs.LogError(logs.CategoryLauncher, "❌ Erro no download: %v", err)
-		fmt.Printf("❌ Erro no download (continuando com versão atual...)\n")
-		return nil // Não é erro crítico
+	if err := l.updater.DownloadUpdate(ctx, updateInfo, progressFunc); err != nil {
+		return fmt.Errorf("erro no download: %w", err)
 	}
 
-	fmt.Printf("✅ Download concluído, preparando instalação...\n")
+	fmt.Printf("\\n✅ Download concluído\\n")
 	logs.LogLauncher("✅ Download concluído")
 
-	// Preparar instalação
-	err = l.updater.InstallUpdate(updateInfo)
-	if err != nil {
-		logs.LogError(logs.CategoryLauncher, "❌ Erro ao preparar instalação: %v", err)
-		fmt.Printf("❌ Erro ao preparar instalação (continuando...)\n")
-		return nil // Não é erro crítico
+	// APLICAR ATUALIZAÇÃO IMEDIATAMENTE
+	fmt.Printf("🔧 Aplicando atualização IMEDIATAMENTE...\\n")
+	logs.LogLauncher("🔧 Aplicando atualização IMEDIATAMENTE...")
+
+	if err := l.updater.InstallImmediate(updateInfo); err != nil {
+		fmt.Printf("⚠️ Erro ao aplicar atualização: %v\\n", err)
+		fmt.Printf("⚠️ Continuando com versão atual...\\n")
+		logs.LogError(logs.CategoryLauncher, "⚠️ Erro ao aplicar atualização: %v", err)
+		return nil // Não falha completamente, apenas continua com versão atual
 	}
 
-	fmt.Printf("🎉 Atualização preparada! Será aplicada no próximo reinício.\n")
-	logs.LogLauncher("🎉 Atualização v%s preparada para próximo reinício", updateInfo.Version)
+	fmt.Printf("✅ Atualização aplicada com sucesso!\\n")
+	fmt.Printf("🔄 App será iniciado na versão mais recente...\\n")
+	logs.LogLauncher("✅ Atualização aplicada com sucesso!")
 
 	return nil
 }
