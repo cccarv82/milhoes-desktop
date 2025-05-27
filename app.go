@@ -496,6 +496,37 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 	}
 	validatedStrategy.TotalCost = totalCost
 
+	// VALIDAÇÃO CRÍTICA: Garantir que não excede o orçamento
+	if totalCost > internalPrefs.Budget {
+		customLogger.Printf("⚠️ Custo total R$ %.2f excede orçamento R$ %.2f - ajustando jogos", totalCost, internalPrefs.Budget)
+
+		// Remover jogos mais caros até ficar dentro do orçamento
+		validGames := []lottery.Game{}
+		currentCost := 0.0
+
+		// Ordenar jogos por custo (menores primeiro para maximizar quantidade)
+		sort.Slice(validatedStrategy.Games, func(i, j int) bool {
+			return validatedStrategy.Games[i].Cost < validatedStrategy.Games[j].Cost
+		})
+
+		for _, game := range validatedStrategy.Games {
+			if currentCost+game.Cost <= internalPrefs.Budget {
+				validGames = append(validGames, game)
+				currentCost += game.Cost
+			}
+		}
+
+		validatedStrategy.Games = validGames
+		validatedStrategy.TotalCost = currentCost
+
+		customLogger.Printf("✅ Orçamento ajustado: %d jogos por R$ %.2f", len(validGames), currentCost)
+
+		// Atualizar reasoning para explicar o ajuste
+		if validatedStrategy.Reasoning != "" {
+			validatedStrategy.Reasoning += fmt.Sprintf("\n\n⚠️ AJUSTE DE ORÇAMENTO: A estratégia original custaria R$ %.2f, mas foi ajustada para R$ %.2f (dentro do seu orçamento de R$ %.2f) removendo jogos mais caros e priorizando máxima cobertura.", totalCost, currentCost, internalPrefs.Budget)
+		}
+	}
+
 	// Debug: mostrar jogos após "validação"
 	if config.IsVerbose() {
 		customLogger.Printf("✅ Após validação: %d jogos com custo total R$ %.2f", len(validatedStrategy.Games), validatedStrategy.TotalCost)

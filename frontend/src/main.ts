@@ -1209,8 +1209,8 @@ function renderStrategyResult(response: StrategyResponse) {
                         ${strategy.games.map((game: LotteryGame, index: number) => `
                             <div class="game-card">
                                 <div class="game-header">
-                                    <span class="game-icon">${game.type === 'megasena' ? '🔥' : '⭐'}</span>
-                                    <span class="game-title">${game.type === 'megasena' ? 'Mega-Sena' : 'Lotofácil'} #${index + 1}</span>
+                                    <span class="game-icon">${(game.type === 'megasena' || game.type === 'mega-sena') ? '🔥' : '⭐'}</span>
+                                    <span class="game-title">${(game.type === 'megasena' || game.type === 'mega-sena') ? 'Mega-Sena' : 'Lotofácil'} #${index + 1}</span>
                                     <span class="game-cost">R$ ${game.cost.toFixed(2)}</span>
                                 </div>
                                 <div class="game-numbers">
@@ -1501,7 +1501,7 @@ function printStrategy() {
                 ${strategy.games.map((game: LotteryGame, index: number) => `
                     <div class="game-card">
                         <div class="game-header">
-                            <span class="game-title">${game.type === 'megasena' ? '🔥 Mega-Sena' : '⭐ Lotofácil'} #${index + 1}</span>
+                            <span class="game-title">${(game.type === 'megasena' || game.type === 'mega-sena') ? '🔥 Mega-Sena' : '⭐ Lotofácil'} #${index + 1}</span>
                             <span class="game-cost">R$ ${game.cost.toFixed(2)}</span>
                         </div>
                         <div class="game-numbers">
@@ -1573,7 +1573,7 @@ function renderError(message: string) {
 function showSaveGameModal(lotteryType: string, numbers: number[]) {
     // Buscar informações do próximo sorteio
     GetNextDraws().then(nextDraws => {
-        const nextDraw = lotteryType === 'megasena' ? nextDraws.megasena : nextDraws.lotofacil;
+        const nextDraw = (lotteryType === 'megasena' || lotteryType === 'mega-sena') ? nextDraws.megasena : nextDraws.lotofacil;
         const expectedDate = nextDraw ? nextDraw.date : '';
         const contestNumber = nextDraw ? nextDraw.number : 0;
         
@@ -1589,7 +1589,7 @@ function showSaveGameModal(lotteryType: string, numbers: number[]) {
                 <div class="modal-body">
                     <div class="save-game-form">
                         <div class="form-section">
-                            <h4>${lotteryType === 'megasena' ? 'Mega-Sena' : 'Lotofácil'}</h4>
+                            <h4>${(lotteryType === 'megasena' || lotteryType === 'mega-sena') ? 'Mega-Sena' : 'Lotofácil'}</h4>
                             <div class="game-numbers">
                                 ${numbers.slice().sort((a, b) => a - b).map(num => `<span class="number">${num.toString().padStart(2, '0')}</span>`).join('')}
                             </div>
@@ -1635,7 +1635,7 @@ function closeModal() {
 async function confirmSaveGame(lotteryType: string, numbers: number[], expectedDraw: string, contestNumber: number) {
     try {
         const request = new models.SaveGameRequest({
-            lottery_type: lotteryType === 'megasena' ? 'mega-sena' : 'lotofacil',
+            lottery_type: (lotteryType === 'megasena' || lotteryType === 'mega-sena') ? 'mega-sena' : 'lotofacil',
             numbers: numbers,
             expected_draw: expectedDraw.split('/').reverse().join('-'), // Converter DD/MM/YYYY para YYYY-MM-DD
             contest_number: contestNumber
