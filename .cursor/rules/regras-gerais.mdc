@@ -4,3 +4,8 @@ globs:
 alwaysApply: true
 ---
 sempre formate o código com gofmt
+
+sempre garanta que o código está nos conformes para que o [ci.yml](mdc:.github/workflows/ci.yml) rode 100%!
+
+
+lembre-se que temos launcher e app principal, ambos deve funcionar 100% e lindamente!

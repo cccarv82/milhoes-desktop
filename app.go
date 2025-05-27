@@ -628,7 +628,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		return map[string]interface{}{
 			"exists":       false,
 			"claudeApiKey": "",
-			"claudeModel":  "claude-3-5-sonnet-20241022",
+			"claudeModel":  "claude-sonnet-4-20250514",
 			"maxTokens":    8000,
 			"timeoutSec":   60,
 			"verbose":      false,
@@ -906,7 +906,7 @@ func (a *App) ValidateConfig() map[string]interface{} {
 func (a *App) GetDefaultConfig() ConfigData {
 	return ConfigData{
 		ClaudeAPIKey: "",
-		ClaudeModel:  "claude-3-5-sonnet-20241022",
+		ClaudeModel:  "claude-sonnet-4-20250514",
 		TimeoutSec:   60,
 		MaxTokens:    8000,
 		Verbose:      false,

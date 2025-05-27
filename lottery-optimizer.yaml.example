@@ -18,7 +18,7 @@ claude:
   # api_key: "sk-ant-api03-SUA_CHAVE_AQUI"
   
   # Modelo mais avancado da Anthropic (recomendado)
-  model: "claude-3-5-sonnet-20241022"
+  model: "claude-sonnet-4-20250514"
   
   # Tokens maximos por resposta (4000 = bom equilibrio)
   max_tokens: 4000

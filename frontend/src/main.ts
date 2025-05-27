@@ -120,7 +120,7 @@ let userPreferences: UserPreferences = {
 
 let currentConfig: ConfigData = {
     claudeApiKey: '',
-    claudeModel: 'claude-3-5-sonnet-20241022',
+    claudeModel: 'claude-sonnet-4-20250514',
     timeoutSec: 60,
     maxTokens: 8000,
     verbose: false
@@ -179,7 +179,7 @@ async function loadCurrentConfig() {
         if (config.exists) {
             currentConfig = {
                 claudeApiKey: config.claudeApiKey || '',
-                claudeModel: config.claudeModel || 'claude-3-5-sonnet-20241022',
+                claudeModel: config.claudeModel || 'claude-sonnet-4-20250514',
                 timeoutSec: config.timeoutSec || 60,
                 maxTokens: config.maxTokens || 8000,
                 verbose: config.verbose || false
@@ -315,7 +315,8 @@ function renderConfigurationForm() {
                                 name="claudeModel" 
                                 style="width: 100%; padding: var(--spacing-4); background: var(--bg-tertiary); border: 2px solid var(--border-color); border-radius: var(--border-radius); color: var(--text-primary); font-size: var(--font-size-base);"
                             >
-                                <option value="claude-3-5-sonnet-20241022" ${currentConfig.claudeModel === 'claude-3-5-sonnet-20241022' ? 'selected' : ''}>Claude 3.5 Sonnet (Recomendado)</option>
+                                <option value="claude-sonnet-4-20250514" ${currentConfig.claudeModel === 'claude-sonnet-4-20250514' ? 'selected' : ''}>Claude Sonnet 4 (🆕 Mais Recente)</option>
+                                <option value="claude-3-5-sonnet-20241022" ${currentConfig.claudeModel === 'claude-3-5-sonnet-20241022' ? 'selected' : ''}>Claude 3.5 Sonnet</option>
                                 <option value="claude-3-opus-20240229" ${currentConfig.claudeModel === 'claude-3-opus-20240229' ? 'selected' : ''}>Claude 3 Opus</option>
                                 <option value="claude-3-haiku-20240307" ${currentConfig.claudeModel === 'claude-3-haiku-20240307' ? 'selected' : ''}>Claude 3 Haiku</option>
                             </select>

@@ -17,8 +17,8 @@ claude:
   # Obtenha em: https://console.anthropic.com/
   api_key: "sua-chave-aqui"
   
-  # Modelo a usar (recomendado: claude-3-5-sonnet-20241022)
-  model: "claude-3-5-sonnet-20241022"
+  # Modelo a usar (recomendado: claude-sonnet-4-20250514)
+  model: "claude-sonnet-4-20250514"
   
   # Máximo de tokens por requisição
   max_tokens: 4000
