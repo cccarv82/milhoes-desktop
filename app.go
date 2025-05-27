@@ -549,6 +549,33 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000000")
 	customLogger.Printf("📖 [%s] GetCurrentConfig INICIADO", timestamp)
 	
+	// PRIORIDADE 1: Usar configuração já carregada na memória (config.GlobalConfig)
+	if config.GetClaudeAPIKey() != "" {
+		customLogger.Printf("✅ [%s] GetCurrentConfig: Usando configuração da MEMÓRIA (GlobalConfig)", timestamp)
+		
+		result := map[string]interface{}{
+			"exists":       true,
+			"claudeApiKey": config.GetClaudeAPIKey(),
+			"claudeModel":  config.GetClaudeModel(),
+			"maxTokens":    config.GetMaxTokens(),
+			"timeoutSec":   config.GlobalConfig.Claude.TimeoutSec,
+			"verbose":      config.IsVerbose(),
+			"source":       "memory", // Debug: indicar fonte
+			"debug": map[string]interface{}{
+				"source":    "GlobalConfig",
+				"apiKeyLen": len(config.GetClaudeAPIKey()),
+			},
+		}
+		
+		customLogger.Printf("✅ [%s] GetCurrentConfig: Retornando da MEMÓRIA - APIKey length=%d", 
+			timestamp, len(config.GetClaudeAPIKey()))
+		flushLogs()
+		return result
+	}
+	
+	// PRIORIDADE 2: Fallback para leitura do arquivo (se GlobalConfig estiver vazio)
+	customLogger.Printf("⚠️ [%s] GetCurrentConfig: GlobalConfig vazio, fazendo fallback para ARQUIVO", timestamp)
+	
 	configPath, err := getConfigPath()
 	if err != nil {
 		customLogger.Printf("❌ [%s] GetCurrentConfig: Erro ao determinar caminho: %v", timestamp, err)
@@ -568,10 +595,11 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		return map[string]interface{}{
 			"exists":        false,
 			"claudeApiKey":  "",
-			"claudeModel":   "claude-3-sonnet-20240229",
-			"maxTokens":     4096,
+			"claudeModel":   "claude-3-5-sonnet-20241022",
+			"maxTokens":     8000,
 			"timeoutSec":    60,
 			"verbose":       false,
+			"source":        "default", // Debug: indicar fonte
 		}
 	}
 	
@@ -588,7 +616,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		}
 	}
 	
-	customLogger.Printf("📝 [%s] GetCurrentConfig: Arquivo lido (%d bytes):\n%s", timestamp, len(data), string(data))
+	customLogger.Printf("📝 [%s] GetCurrentConfig: Arquivo lido (%d bytes)", timestamp, len(data))
 	
 	// Parse YAML
 	var configStruct struct {
@@ -615,15 +643,15 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 	customLogger.Printf("✅ [%s] GetCurrentConfig: Parse realizado - APIKey length=%d, Model=%s", 
 		timestamp, len(configStruct.Claude.APIKey), configStruct.Claude.Model)
 	
-	// Atualizar configuração global se a chave estiver definida
+	// Atualizar configuração global se a chave estiver definida (sincronizar arquivo -> memória)
 	if configStruct.Claude.APIKey != "" {
 		config.GlobalConfig.Claude.APIKey = configStruct.Claude.APIKey
 		config.GlobalConfig.Claude.Model = configStruct.Claude.Model
 		config.GlobalConfig.Claude.MaxTokens = configStruct.Claude.MaxTokens
 		config.GlobalConfig.Claude.TimeoutSec = configStruct.Claude.TimeoutSec
 		
-		customLogger.Printf("✅ CONFIGURAÇÃO CARREGADA: APIKey length=%d, Model=%s, MaxTokens=%d", 
-			len(configStruct.Claude.APIKey), configStruct.Claude.Model, configStruct.Claude.MaxTokens)
+		customLogger.Printf("✅ CONFIGURAÇÃO SINCRONIZADA: Arquivo -> Memória - APIKey length=%d", 
+			len(configStruct.Claude.APIKey))
 	} else {
 		customLogger.Printf("⚠️ Arquivo de configuração existe mas não contém chave Claude API")
 	}
@@ -635,14 +663,16 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		"maxTokens":    configStruct.Claude.MaxTokens,
 		"timeoutSec":   configStruct.Claude.TimeoutSec,
 		"verbose":      configStruct.App.Verbose,
+		"source":       "file", // Debug: indicar fonte
 		"debug": map[string]interface{}{
 			"configPath": configPath,
 			"fileSize":   len(data),
 			"apiKeyLen":  len(configStruct.Claude.APIKey),
+			"source":     "file",
 		},
 	}
 	
-	customLogger.Printf("✅ [%s] GetCurrentConfig: Retornando configuração - APIKey presente: %t", 
+	customLogger.Printf("✅ [%s] GetCurrentConfig: Retornando do ARQUIVO - APIKey presente: %t", 
 		timestamp, configStruct.Claude.APIKey != "")
 	
 	flushLogs()

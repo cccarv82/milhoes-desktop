@@ -14,7 +14,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "v1.0.21.23"
+	version = "v1.0.21.24"
 )
 
 func main() {
