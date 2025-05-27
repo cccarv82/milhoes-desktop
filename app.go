@@ -488,6 +488,14 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 	// TEMPORÁRIO: Pular validação para debug - usar estratégia da IA diretamente
 	validatedStrategy := &response.Strategy
 
+	// Recalcular totalCost corretamente baseado nos jogos individuais
+	// (corrige erro da IA que às vezes retorna totalCost incorreto)
+	totalCost := 0.0
+	for _, game := range validatedStrategy.Games {
+		totalCost += game.Cost
+	}
+	validatedStrategy.TotalCost = totalCost
+
 	// Debug: mostrar jogos após "validação"
 	if config.IsVerbose() {
 		customLogger.Printf("✅ Após validação: %d jogos com custo total R$ %.2f", len(validatedStrategy.Games), validatedStrategy.TotalCost)
