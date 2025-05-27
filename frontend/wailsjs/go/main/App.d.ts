@@ -20,8 +20,6 @@ export function DebugSavedGamesDB():Promise<Record<string, any>>;
 
 export function DeleteSavedGame(arg1:string):Promise<Record<string, any>>;
 
-export function DismissUpdateNotification():Promise<Record<string, any>>;
-
 export function DownloadUpdate(arg1:updater.UpdateInfo):Promise<void>;
 
 export function GenerateStrategy(arg1:main.UserPreferences):Promise<main.StrategyResponse>;
@@ -55,8 +53,6 @@ export function Greet(arg1:string):Promise<string>;
 export function InstallUpdate(arg1:updater.UpdateInfo):Promise<void>;
 
 export function OpenLogDirectory():Promise<Record<string, any>>;
-
-export function RestartForUpdate():Promise<Record<string, any>>;
 
 export function SaveConfig(arg1:main.ConfigData):Promise<Record<string, any>>;
 
