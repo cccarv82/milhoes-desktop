@@ -595,38 +595,38 @@ function renderWelcome() {
                 <div class="features-grid">
                     <div class="feature-card">
                         <span class="feature-icon">🧠</span>
-                        <h3>IA Avançada</h3>
-                        <p>Claude Opus 4 oferece poder matemático superior para análise estatística complexa e otimização inteligente de estratégias.</p>
+                        <h3>IA Nível Mundial</h3>
+                        <p>Claude Opus 4 analisa 250+ sorteios históricos com sistemas de Wheeling profissionais e 12 filtros matemáticos avançados.</p>
                     </div>
                     
                     <div class="feature-card">
                         <span class="feature-icon">📊</span>
-                        <h3>Análise Estatística</h3>
-                        <p>Algoritmos sofisticados calculam probabilidades, números quentes e frios, além de padrões de frequência.</p>
+                        <h3>Análise Estatística Avançada</h3>
+                        <p>Identificação precisa de números "devidos", análise de regressão e matriz de distância Hamming para máxima cobertura combinatorial.</p>
                     </div>
                     
                     <div class="feature-card">
                         <span class="feature-icon">🎯</span>
-                        <h3>Estratégias Personalizadas</h3>
-                        <p>Configure seu orçamento, prefira números da sorte e evite padrões para estratégias totalmente customizadas.</p>
+                        <h3>Sistemas de Garantia</h3>
+                        <p>Implementa sistemas de redução profissionais que garantem prêmios menores e maximizam suas chances de retorno.</p>
                     </div>
                     
                     <div class="feature-card">
                         <span class="feature-icon">💎</span>
-                        <h3>Multi-Loteria</h3>
-                        <p>Suporte completo para Mega-Sena e Lotofácil com dados sempre atualizados da CAIXA.</p>
+                        <h3>Multi-Loteria Premium</h3>
+                        <p>Estratégias otimizadas para Mega-Sena e Lotofácil com preços oficiais CAIXA e cálculo de valor esperado completo.</p>
                     </div>
                     
                     <div class="feature-card">
                         <span class="feature-icon">⚡</span>
-                        <h3>Resultados Instantâneos</h3>
-                        <p>Gere estratégias completas em segundos com explicações detalhadas do raciocínio da IA.</p>
+                        <h3>Estratégias Instantâneas</h3>
+                        <p>Gera estratégias completas em segundos com explicações detalhadas dos filtros aplicados e sistemas de redução utilizados.</p>
                     </div>
                     
                     <div class="feature-card">
                         <span class="feature-icon">🔒</span>
-                        <h3>100% Seguro</h3>
-                        <p>Todos os cálculos são feitos localmente. Seus dados e preferências nunca saem do seu computador.</p>
+                        <h3>100% Privado</h3>
+                        <p>Todos os cálculos são locais. Seus dados, preferências e estratégias nunca saem do seu computador.</p>
                     </div>
                 </div>
                 
@@ -666,17 +666,6 @@ function renderWelcome() {
                         <div class="loading">Verificando conexões...</div>
                     </div>
                 </div>
-                
-                <!-- Estatísticas rápidas -->
-                <div class="statistics-section">
-                    <h3>
-                        <span>📈</span>
-                        Estatísticas Rápidas
-                    </h3>
-                    <div class="stats-grid" id="quickStats">
-                        <div class="loading">Carregando estatísticas...</div>
-                    </div>
-                </div>
             </div>
         </div>
     `;
@@ -684,7 +673,6 @@ function renderWelcome() {
     // Carregar dados assíncronos
     loadNextDraws();
     loadConnectionStatus();
-    loadQuickStats();
 }
 
 // Carregar próximos sorteios
@@ -764,58 +752,6 @@ async function loadConnectionStatus() {
         `;
     } catch (error) {
         document.getElementById('connectionStatusGrid')!.innerHTML = '<div class="no-data">Erro ao verificar conexões</div>';
-    }
-}
-
-// Carregar estatísticas rápidas
-async function loadQuickStats() {
-    try {
-        const stats = await GetStatistics();
-        const container = document.getElementById('quickStats');
-        
-        if (!container) {
-            console.warn('Elemento quickStats não encontrado');
-            return;
-        }
-        
-        let html = '';
-        
-        if (stats.megasena) {
-            html += `
-                <div class="stat-card">
-                    <div class="stat-icon">🔥</div>
-                    <div class="stat-content">
-                        <span class="label">Mega-Sena</span>
-                        <span class="value">${stats.megasena.totalDraws}</span>
-                        <small>sorteios analisados</small>
-                    </div>
-                </div>
-            `;
-        }
-        
-        if (stats.lotofacil) {
-            html += `
-                <div class="stat-card">
-                    <div class="stat-icon">⭐</div>
-                    <div class="stat-content">
-                        <span class="label">Lotofácil</span>
-                        <span class="value">${stats.lotofacil.totalDraws}</span>
-                        <small>sorteios analisados</small>
-                    </div>
-                </div>
-            `;
-        }
-        
-        if (html === '') {
-            html = '<div class="no-data">Nenhuma estatística disponível</div>';
-        }
-        
-        container.innerHTML = html;
-    } catch (error) {
-        const container = document.getElementById('quickStats');
-        if (container) {
-            container.innerHTML = '<div class="no-data">Erro ao carregar estatísticas</div>';
-        }
     }
 }
 
@@ -947,12 +883,6 @@ function renderPreferencesForm() {
                             <span>🔧</span>
                             Opções Avançadas
                         </h3>
-                        <div class="advanced-options">
-                            <div class="checkbox-option">
-                                <input type="checkbox" name="avoidPatterns" id="avoidPatterns">
-                                <label for="avoidPatterns">Evitar padrões óbvios (sequências, múltiplos)</label>
-                            </div>
-                        </div>
                         
                         <div class="numbers-input">
                             <label for="favoriteNumbers">Números da sorte (opcional)</label>
@@ -1021,7 +951,7 @@ async function handlePreferencesSubmit(event: Event) {
         lotteryTypes,
         budget: parseFloat(form.budget.value),
         strategy: form.strategy.value,
-        avoidPatterns: form.avoidPatterns.checked,
+        avoidPatterns: true, // Sempre ativo (removido da interface)
         favoriteNumbers,
         excludeNumbers
     };
