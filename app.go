@@ -424,7 +424,7 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 	var failedLotteries []lottery.LotteryType
 
 	for _, ltype := range internalPrefs.LotteryTypes {
-		draws, err := a.dataClient.GetLatestDraws(ltype, 100)
+		draws, err := a.dataClient.GetLatestDraws(ltype, 250)
 		if err != nil {
 			failedLotteries = append(failedLotteries, ltype)
 			continue
@@ -580,8 +580,8 @@ func (a *App) GetNextDraws() map[string]interface{} {
 func (a *App) GetStatistics() map[string]interface{} {
 	result := make(map[string]interface{})
 
-	// Buscar dados para estatísticas
-	megaDraws, err := a.dataClient.GetLatestDraws(lottery.MegaSena, 20)
+	// Buscar dados para estatísticas (usando mais dados para melhor precisão)
+	megaDraws, err := a.dataClient.GetLatestDraws(lottery.MegaSena, 50)
 	if err == nil {
 		result["megasena"] = map[string]interface{}{
 			"totalDraws": len(megaDraws),
@@ -589,7 +589,7 @@ func (a *App) GetStatistics() map[string]interface{} {
 		}
 	}
 
-	lotofacilDraws, err := a.dataClient.GetLatestDraws(lottery.Lotofacil, 20)
+	lotofacilDraws, err := a.dataClient.GetLatestDraws(lottery.Lotofacil, 50)
 	if err == nil {
 		result["lotofacil"] = map[string]interface{}{
 			"totalDraws": len(lotofacilDraws),
