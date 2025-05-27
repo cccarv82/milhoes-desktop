@@ -10,13 +10,11 @@ import {
     GetDefaultConfig, 
     GetStatistics, 
     TestConnectionsWithConfig, 
-    DebugConfigPath,
     SaveGame,
     GetSavedGames,
     CheckGameResult,
     CheckAllPendingResults,
     DeleteSavedGame,
-    DebugSavedGamesDB,
     GetAppInfo,
     CheckForUpdates,
     GetCurrentConfig
