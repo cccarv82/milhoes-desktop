@@ -457,10 +457,27 @@ func (c *ClaudeClient) buildAnalysisPrompt(request lottery.AnalysisRequest) stri
 %s
 
 === OTIMIZAÇÃO MATEMÁTICA OBRIGATÓRIA ===
-MEGA-SENA ROI: 6num=1comb/R$5(0.2), 7num=7comb/R$35(0.2), 8num=28comb/R$140(0.2), 9num=84comb/R$420(0.2)
-LOTOFÁCIL ROI: 15num=1comb/R$3(0.33), 16num=8008comb/R$48(166.8!), 17num=19448comb/R$408(47.7)
+MEGA-SENA PREÇOS OFICIAIS CAIXA:
+- 6 números: R$ 5,00 (1 combinação) - ROI: R$ 5,00/comb
+- 7 números: R$ 35,00 (7 combinações) - ROI: R$ 5,00/comb
+- 8 números: R$ 140,00 (28 combinações) - ROI: R$ 5,00/comb
+- 9 números: R$ 420,00 (84 combinações) - ROI: R$ 5,00/comb
+- 10 números: R$ 1.050,00 (210 combinações) - ROI: R$ 5,00/comb
+- 11 números: R$ 2.310,00 (462 combinações) - ROI: R$ 5,00/comb
 
-MATEMATICAMENTE: Lotofácil 16 números tem ROI 834x melhor que Mega-Sena!
+LOTOFÁCIL PREÇOS OFICIAIS CAIXA:
+- 15 números: R$ 3,00 (1 combinação) - ROI: R$ 3,00/comb
+- 16 números: R$ 48,00 (16 combinações) - ROI: R$ 3,00/comb ⭐ ÓTIMO!
+- 17 números: R$ 408,00 (136 combinações) - ROI: R$ 3,00/comb
+- 18 números: R$ 2.448,00 (680 combinações) - ROI: R$ 3,60/comb
+- 19 números: R$ 11.628,00 (3.060 combinações) - ROI: R$ 3,80/comb
+- 20 números: R$ 46.512,00 (15.504 combinações) - ROI: R$ 3,00/comb
+
+ANÁLISE DE CUSTO-BENEFÍCIO:
+- Lotofácil 16 números: MELHOR ROI = 16 comb por R$ 48 = R$ 3,00 por combinação
+- Mega-Sena 8 números: BOM ROI = 28 comb por R$ 140 = R$ 5,00 por combinação
+- Evitar jogos com custo > 20% do orçamento total
+- Priorizar múltiplas combinações com orçamento disponível
 
 === ESTRATÉGIA OBRIGATÓRIA ===
 1. PRIORIZE Lotofácil 16+ números (ROI máximo)

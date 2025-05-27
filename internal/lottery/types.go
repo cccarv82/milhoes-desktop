@@ -131,7 +131,7 @@ func GetRules(ltype LotteryType) LotteryRules {
 		return LotteryRules{
 			Name:          "Mega Sena",
 			MinNumbers:    6,
-			MaxNumbers:    15,
+			MaxNumbers:    20,
 			NumberRange:   60,
 			BasePrice:     5.00,
 			DrawDays:      []time.Weekday{time.Wednesday, time.Saturday},
@@ -259,30 +259,62 @@ func ValidateGame(game Game) error {
 
 // CalculateGameCost calcula o custo de um jogo baseado na quantidade de números
 func CalculateGameCost(ltype LotteryType, numCount int) float64 {
-	rules := GetRules(ltype)
-
-	if numCount == rules.MinNumbers {
-		return rules.BasePrice
-	}
-
-	// Cálculo combinatório para jogos com mais números
-	// Custo = BasePrice * C(numCount, MinNumbers)
-	combinations := calculateCombinations(numCount, rules.MinNumbers)
-	return rules.BasePrice * float64(combinations)
-}
-
-// calculateCombinations calcula C(n, r) = n! / (r! * (n-r)!)
-func calculateCombinations(n, r int) int {
-	if r > n {
+	switch ltype {
+	case MegaSena:
+		// Valores oficiais da CAIXA para Mega-Sena
+		switch numCount {
+		case 6:
+			return 5.00
+		case 7:
+			return 35.00
+		case 8:
+			return 140.00
+		case 9:
+			return 420.00
+		case 10:
+			return 1050.00
+		case 11:
+			return 2310.00
+		case 12:
+			return 4620.00
+		case 13:
+			return 8580.00
+		case 14:
+			return 15015.00
+		case 15:
+			return 25025.00
+		case 16:
+			return 40040.00
+		case 17:
+			return 61880.00
+		case 18:
+			return 92820.00
+		case 19:
+			return 135660.00
+		case 20:
+			return 193800.00
+		default:
+			return 5.00 // Fallback para jogo mínimo
+		}
+	case Lotofacil:
+		// Valores oficiais da CAIXA para Lotofácil
+		switch numCount {
+		case 15:
+			return 3.00
+		case 16:
+			return 48.00
+		case 17:
+			return 408.00
+		case 18:
+			return 2448.00
+		case 19:
+			return 11628.00
+		case 20:
+			return 46512.00
+		default:
+			return 3.00 // Fallback para jogo mínimo
+		}
+	default:
 		return 0
 	}
-	if r == 0 || r == n {
-		return 1
-	}
-
-	result := 1
-	for i := 0; i < r; i++ {
-		result = result * (n - i) / (i + 1)
-	}
-	return result
 }
