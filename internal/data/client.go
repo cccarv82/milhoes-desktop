@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"lottery-optimizer-gui/internal/config"
+	"lottery-optimizer-gui/internal/logs"
 	"lottery-optimizer-gui/internal/lottery"
 	"time"
 
@@ -55,7 +56,7 @@ func (c *Client) GetLatestDraws(ltype lottery.LotteryType, count int) ([]lottery
 		// API funcionou, salvar no cache
 		if cacheErr := c.cacheManager.SaveToCache(ltype, draws, count); cacheErr != nil {
 			if config.IsVerbose() {
-				fmt.Printf("⚠️  Erro ao salvar cache: %v\n", cacheErr)
+				logs.LogData("⚠️ Erro ao salvar cache: %v", cacheErr)
 			}
 		}
 		return draws, nil
@@ -63,15 +64,15 @@ func (c *Client) GetLatestDraws(ltype lottery.LotteryType, count int) ([]lottery
 
 	// API falhou, tentar cache
 	if config.IsVerbose() {
-		fmt.Printf("⚠️  API falhou para %s: %v\n", ltype, err)
-		fmt.Printf("🔍 Verificando cache...\n")
+		logs.LogData("⚠️ API falhou para %s: %v", ltype, err)
+		logs.LogData("🔍 Verificando cache...")
 	}
 
 	cachedDraws, hasCachedData := c.cacheManager.LoadFromCache(ltype, count)
 
 	if hasCachedData {
 		cacheTime, _, _ := c.cacheManager.GetCacheInfo(ltype)
-		fmt.Printf("📋 Usando dados do cache para %s (salvos em %s)\n",
+		logs.LogData("📋 Usando dados do cache para %s (salvos em %s)",
 			ltype, cacheTime.Format("02/01/2006 15:04"))
 		return cachedDraws, nil
 	}
@@ -93,25 +94,29 @@ func (c *Client) fetchFromAPI(ltype lottery.LotteryType, count int) ([]lottery.D
 	latestResp, err := c.client.R().Get(endpoint)
 
 	if err != nil {
+		logs.LogError(logs.CategoryData, "Erro de conectividade: %v", err)
 		return nil, fmt.Errorf("erro de conectividade: %w", err)
 	}
 
 	if latestResp.StatusCode() == 403 {
+		logs.LogError(logs.CategoryData, "API da CAIXA bloqueada (erro 403)")
 		return nil, fmt.Errorf("API da CAIXA bloqueada (erro 403)")
 	}
 
 	if latestResp.StatusCode() != 200 {
+		logs.LogError(logs.CategoryData, "API retornou status %d", latestResp.StatusCode())
 		return nil, fmt.Errorf("API retornou status %d", latestResp.StatusCode())
 	}
 
 	// Debug: Log da resposta
 	if config.IsVerbose() {
-		fmt.Printf("🔍 Debug %s: Status=%d, Content-Type=%s\n", ltype, latestResp.StatusCode(), latestResp.Header().Get("Content-Type"))
-		fmt.Printf("🔍 Debug %s: Primeiros 200 chars da resposta: %s\n", ltype, string(latestResp.Body()[:min(200, len(latestResp.Body()))]))
+		logs.LogData("🔍 Debug %s: Status=%d, Content-Type=%s", ltype, latestResp.StatusCode(), latestResp.Header().Get("Content-Type"))
+		logs.LogData("🔍 Debug %s: Primeiros 200 chars da resposta: %s", ltype, string(latestResp.Body()[:min(200, len(latestResp.Body()))]))
 	}
 
 	var latest lottery.Draw
 	if err := json.Unmarshal(latestResp.Body(), &latest); err != nil {
+		logs.LogError(logs.CategoryData, "Erro ao decodificar resposta da API: %v", err)
 		return nil, fmt.Errorf("erro ao decodificar resposta da API: %w", err)
 	}
 
@@ -127,7 +132,7 @@ func (c *Client) fetchFromAPI(ltype lottery.LotteryType, count int) ([]lottery.D
 
 		if err != nil || drawResp.StatusCode() != 200 {
 			if config.IsVerbose() {
-				fmt.Printf("Erro ao buscar sorteio %d, parando busca: %v\n", drawNumber, err)
+				logs.LogData("Erro ao buscar sorteio %d, parando busca: %v", drawNumber, err)
 			}
 			break
 		}
@@ -135,7 +140,7 @@ func (c *Client) fetchFromAPI(ltype lottery.LotteryType, count int) ([]lottery.D
 		var draw lottery.Draw
 		if err := json.Unmarshal(drawResp.Body(), &draw); err != nil {
 			if config.IsVerbose() {
-				fmt.Printf("Erro ao decodificar sorteio %d: %v\n", drawNumber, err)
+				logs.LogData("Erro ao decodificar sorteio %d: %v", drawNumber, err)
 			}
 			continue
 		}
@@ -143,6 +148,7 @@ func (c *Client) fetchFromAPI(ltype lottery.LotteryType, count int) ([]lottery.D
 		draws = append(draws, draw)
 	}
 
+	logs.LogData("✅ Fetched %d draws for %s from API", len(draws), ltype)
 	return draws, nil
 }
 
@@ -185,7 +191,7 @@ func (c *Client) GetDrawsRange(ltype lottery.LotteryType, startNumber, endNumber
 		draw, err := c.GetDrawByNumber(ltype, number)
 		if err != nil {
 			if config.IsVerbose() {
-				fmt.Printf("Erro ao buscar sorteio %d: %v\n", number, err)
+				logs.LogData("Erro ao buscar sorteio %d: %v", number, err)
 			}
 			continue
 		}
@@ -195,6 +201,7 @@ func (c *Client) GetDrawsRange(ltype lottery.LotteryType, startNumber, endNumber
 		time.Sleep(100 * time.Millisecond)
 	}
 
+	logs.LogData("✅ Fetched %d draws in range %d-%d for %s", len(draws), startNumber, endNumber, ltype)
 	return draws, nil
 }
 
@@ -203,14 +210,17 @@ func (c *Client) GetAllHistoricalDraws(ltype lottery.LotteryType) ([]lottery.Dra
 	// Primeiro, buscar o último sorteio para saber quantos existem
 	latest, err := c.GetLatestDraws(ltype, 1)
 	if err != nil {
+		logs.LogError(logs.CategoryData, "Erro ao buscar último sorteio: %v", err)
 		return nil, fmt.Errorf("erro ao buscar último sorteio: %w", err)
 	}
 
 	if len(latest) == 0 {
+		logs.LogError(logs.CategoryData, "Nenhum sorteio encontrado")
 		return nil, fmt.Errorf("nenhum sorteio encontrado")
 	}
 
 	latestNumber := latest[0].Number
+	logs.LogData("🔍 Buscando histórico completo de %s até sorteio %d", ltype, latestNumber)
 
 	// Buscar todos os sorteios do 1 até o último
 	return c.GetDrawsRange(ltype, 1, latestNumber)
@@ -221,17 +231,21 @@ func (c *Client) TestConnection() error {
 	resp, err := c.client.R().Get(fmt.Sprintf("%s/megasena/", c.baseURL))
 
 	if err != nil {
+		logs.LogError(logs.CategoryData, "Erro de conectividade no teste: %v", err)
 		return fmt.Errorf("erro de conectividade: %w", err)
 	}
 
 	if resp.StatusCode() == 403 {
+		logs.LogError(logs.CategoryData, "API da CAIXA bloqueada no teste (403)")
 		return fmt.Errorf("API da CAIXA bloqueada (403)")
 	}
 
 	if resp.StatusCode() != 200 {
+		logs.LogError(logs.CategoryData, "API retornou status %d no teste", resp.StatusCode())
 		return fmt.Errorf("API retornou status %d", resp.StatusCode())
 	}
 
+	logs.LogData("✅ Teste de conexão com API da CAIXA bem-sucedido")
 	return nil
 }
 
@@ -239,14 +253,17 @@ func (c *Client) TestConnection() error {
 func (c *Client) GetNextDrawInfo(ltype lottery.LotteryType) (time.Time, int, error) {
 	draws, err := c.GetLatestDraws(ltype, 1)
 	if err != nil {
+		logs.LogError(logs.CategoryData, "Erro ao buscar próximo sorteio para %s: %v", ltype, err)
 		return time.Time{}, 0, err
 	}
 
 	if len(draws) == 0 {
+		logs.LogError(logs.CategoryData, "Nenhum sorteio encontrado para %s", ltype)
 		return time.Time{}, 0, fmt.Errorf("nenhum sorteio encontrado")
 	}
 
 	latest := draws[0]
+	logs.LogData("🔍 Próximo sorteio %s: %d em %s", ltype, latest.NextDrawNumber, time.Time(latest.NextDrawDate).Format("02/01/2006"))
 	return time.Time(latest.NextDrawDate), latest.NextDrawNumber, nil
 }
 
@@ -255,16 +272,26 @@ func (c *Client) TestDirectAPI() (string, error) {
 	resp, err := c.client.R().Get(fmt.Sprintf("%s/megasena/", c.baseURL))
 
 	if err != nil {
+		logs.LogError(logs.CategoryData, "Erro no teste direto da API: %v", err)
 		return "", fmt.Errorf("erro de conectividade: %w", err)
 	}
 
-	return fmt.Sprintf("Status: %d, Content-Type: %s, Body: %s",
+	result := fmt.Sprintf("Status: %d, Content-Type: %s, Body: %s",
 		resp.StatusCode(),
 		resp.Header().Get("Content-Type"),
-		string(resp.Body())), nil
+		string(resp.Body()))
+
+	logs.LogData("🔍 Teste direto da API: %s", result)
+	return result, nil
 }
 
 // CleanCache limpa caches antigos
 func (c *Client) CleanCache() error {
-	return c.cacheManager.CleanOldCache()
+	err := c.cacheManager.CleanOldCache()
+	if err != nil {
+		logs.LogError(logs.CategoryData, "Erro ao limpar cache: %v", err)
+	} else {
+		logs.LogData("✅ Cache limpo com sucesso")
+	}
+	return err
 }

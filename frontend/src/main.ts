@@ -144,9 +144,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Carregar configuração atual
     await loadCurrentConfig();
     
-    // Adicionar botão de debug
-    addDebugButton();
-    
     // Verificar configuração e renderizar tela apropriada
     await checkConfigAndRender();
 });
@@ -2000,130 +1997,8 @@ async function deleteSavedGame(gameId: string) {
 }
 
 // ===============================
-// DEBUG
+// GLOBAL WINDOW FUNCTIONS
 // ===============================
-
-// Função de debug específica para Claude
-async function debugClaudeConfig() {
-    console.log('🔍 [DEBUG] Testando configuração do Claude...');
-    
-    try {
-        const debugInfo = await DebugConfigPath();
-        console.log('🔍 [DEBUG] Informações do caminho de configuração:', debugInfo);
-        
-        // Mostrar info detalhada no console
-        console.table(debugInfo);
-        
-        // Mostrar alerta com informações principais
-        const summary = `
-🔍 DEBUG CONFIG PATH:
-• Executable Path: ${debugInfo.executablePath}
-• Executable Dir: ${debugInfo.executableDir}
-• Config Path: ${debugInfo.configPath}
-• Config Exists: ${debugInfo.configExists}
-• Config Size: ${debugInfo.configSize || 'N/A'} bytes
-• Can Write: ${debugInfo.canWrite}
-• Config Length: ${debugInfo.configLength || 'N/A'}
-${debugInfo.configError ? `• Config Error: ${debugInfo.configError}` : ''}
-${debugInfo.readError ? `• Read Error: ${debugInfo.readError}` : ''}
-${debugInfo.writePermissionError ? `• Write Error: ${debugInfo.writePermissionError}` : ''}
-${debugInfo.dirListError ? `• Dir List Error: ${debugInfo.dirListError}` : ''}
-${debugInfo.executableError ? `• Executable Error: ${debugInfo.executableError}` : ''}
-`;
-        
-        alert(summary);
-        
-        return debugInfo;
-        
-    } catch (error) {
-        console.error('❌ [DEBUG] Erro ao testar configuração:', error);
-        alert('❌ Erro ao testar configuração: ' + error);
-        return null;
-    }
-}
-
-// Função de debug específica para SQLite/Saved Games
-async function debugSavedGamesDB() {
-    console.log('🔍 [DEBUG] Testando banco de dados SQLite...');
-    
-    try {
-        const debugInfo = await DebugSavedGamesDB();
-        console.log('🔍 [DEBUG] Informações do banco SQLite:', debugInfo);
-        
-        // Mostrar info detalhada no console
-        console.table(debugInfo);
-        
-        // Mostrar alerta com informações principais
-        const summary = `
-🔍 DEBUG SQLITE DATABASE:
-• Executable Path: ${debugInfo.executablePath}
-• Data Directory: ${debugInfo.dataDirectory}
-• Database Path: ${debugInfo.databasePath}
-• DB Initialized: ${debugInfo.dbInitialized}
-• Result Checker Initialized: ${debugInfo.resultCheckerInitialized}
-• Directory Exists: ${debugInfo.directoryExists}
-• Database File Exists: ${debugInfo.databaseFileExists}
-• Write Permission: ${debugInfo.writePermission}
-${debugInfo.directoryError ? `• Directory Error: ${debugInfo.directoryError}` : ''}
-${debugInfo.databaseFileError ? `• DB File Error: ${debugInfo.databaseFileError}` : ''}
-${debugInfo.writePermissionError ? `• Write Error: ${debugInfo.writePermissionError}` : ''}
-${debugInfo.reinitializationError ? `• Reinit Error: ${debugInfo.reinitializationError}` : ''}
-`;
-        
-        alert(summary);
-        
-        return debugInfo;
-        
-    } catch (error) {
-        console.error('❌ [DEBUG] Erro ao testar SQLite:', error);
-        alert('❌ Erro ao testar banco de dados SQLite: ' + error);
-        return null;
-    }
-}
-
-// Função para adicionar botão de debug na interface
-function addDebugButton() {
-    // Botão de debug do Claude
-    const debugClaudeButton = document.createElement('button');
-    debugClaudeButton.textContent = '🔍 Debug Claude';
-    debugClaudeButton.style.cssText = `
-        position: fixed;
-        bottom: 10px;
-        right: 10px;
-        z-index: 9999;
-        background: #007bff;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-    `;
-    debugClaudeButton.onclick = debugClaudeConfig;
-    document.body.appendChild(debugClaudeButton);
-    
-    // Botão de debug do SQLite
-    const debugSQLiteButton = document.createElement('button');
-    debugSQLiteButton.textContent = '💾 Debug SQLite';
-    debugSQLiteButton.style.cssText = `
-        position: fixed;
-        bottom: 10px;
-        right: 140px;
-        z-index: 9999;
-        background: #28a745;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-    `;
-    debugSQLiteButton.onclick = debugSavedGamesDB;
-    document.body.appendChild(debugSQLiteButton);
-}
-
-// Adicionar debug button se necessário
-addDebugButton();
 
 // Expor funções globalmente para uso em onclick handlers
 (window as any).testConnections = testConnections;
@@ -2147,8 +2022,6 @@ addDebugButton();
 (window as any).generateStrategy = generateStrategy;
 (window as any).renderStrategyResult = renderStrategyResult;
 (window as any).printStrategy = printStrategy;
-(window as any).debugClaudeConfig = debugClaudeConfig;
-(window as any).debugSavedGamesDB = debugSavedGamesDB;
 
 // Adicionando funções ao objeto global window para acessibilidade
 (window as any).loadAppInfo = loadAppInfo;

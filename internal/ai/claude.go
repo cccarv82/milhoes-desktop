@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"lottery-optimizer-gui/internal/config"
+	"lottery-optimizer-gui/internal/logs"
 	"lottery-optimizer-gui/internal/lottery"
 	"net/http"
 	"sort"
@@ -80,19 +81,20 @@ func NewClaudeClientWithConfig(apiKey, model string, maxTokens, timeoutSec int) 
 
 // AnalyzeStrategy usa Claude para analisar dados e gerar estratégia
 func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lottery.AnalysisResponse, error) {
-	// DEBUG: Logs detalhados sobre o cliente
-	fmt.Printf("🔍 [CLAUDE DEBUG] Iniciando AnalyzeStrategy...\n")
-	fmt.Printf("🔍 [CLAUDE DEBUG] API Key length: %d\n", len(c.apiKey))
+	// Logs especializados de IA
+	logs.LogAI("🔍 Iniciando AnalyzeStrategy...")
+	logs.LogAI("🔍 API Key length: %d", len(c.apiKey))
+
 	if c.apiKey != "" {
-		fmt.Printf("🔍 [CLAUDE DEBUG] API Key prefix: %s\n", c.apiKey[:min(10, len(c.apiKey))])
+		logs.LogAI("🔍 API Key prefix: %s", c.apiKey[:min(10, len(c.apiKey))])
 	} else {
-		fmt.Printf("🔍 [CLAUDE DEBUG] API Key VAZIA! ❌\n")
-		// Se não tem chave, retornar erro ao invés de continuar
+		logs.LogError(logs.CategoryAI, "API Key VAZIA! ❌")
 		return nil, fmt.Errorf("chave da API do Claude não configurada")
 	}
-	fmt.Printf("🔍 [CLAUDE DEBUG] Model: %s\n", c.model)
-	fmt.Printf("🔍 [CLAUDE DEBUG] MaxTokens: %d\n", c.maxTokens)
-	fmt.Printf("🔍 [CLAUDE DEBUG] BaseURL: %s\n", c.baseURL)
+
+	logs.LogAI("🔍 Model: %s", c.model)
+	logs.LogAI("🔍 MaxTokens: %d", c.maxTokens)
+	logs.LogAI("🔍 BaseURL: %s", c.baseURL)
 
 	prompt := c.buildAnalysisPrompt(request)
 
@@ -109,11 +111,11 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 
 	reqBody, err := json.Marshal(claudeReq)
 	if err != nil {
-		fmt.Printf("🔍 [CLAUDE DEBUG] Erro ao serializar: %v\n", err)
+		logs.LogError(logs.CategoryAI, "Erro ao serializar requisição: %v", err)
 		return nil, fmt.Errorf("erro ao serializar requisição: %w", err)
 	}
 
-	fmt.Printf("🔍 [CLAUDE DEBUG] Request body preparado. Size: %d bytes\n", len(reqBody))
+	logs.LogAI("🔍 Request body preparado. Size: %d bytes", len(reqBody))
 
 	// Implementar retry logic com exponential backoff
 	var resp *http.Response
@@ -123,6 +125,7 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(reqBody))
 		if err != nil {
+			logs.LogError(logs.CategoryAI, "Erro ao criar requisição: %v", err)
 			return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 		}
 
@@ -135,11 +138,12 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 			if attempt < maxRetries-1 {
 				delay := baseDelay * time.Duration(1<<attempt) // Exponential backoff
 				if config.IsVerbose() {
-					fmt.Printf("⚠️  Tentativa %d falhou, tentando novamente em %v...\n", attempt+1, delay)
+					logs.LogAI("⚠️ Tentativa %d falhou, tentando novamente em %v...", attempt+1, delay)
 				}
 				time.Sleep(delay)
 				continue
 			}
+			logs.LogError(logs.CategoryAI, "Erro na requisição após %d tentativas: %v", maxRetries, err)
 			return nil, fmt.Errorf("erro na requisição após %d tentativas: %w", maxRetries, err)
 		}
 		break
@@ -147,15 +151,18 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		logs.LogError(logs.CategoryAI, "API retornou status %d", resp.StatusCode)
 		return nil, fmt.Errorf("API retornou status %d", resp.StatusCode)
 	}
 
 	var claudeResp ClaudeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&claudeResp); err != nil {
+		logs.LogError(logs.CategoryAI, "Erro ao decodificar resposta: %v", err)
 		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
 
 	if len(claudeResp.Content) == 0 {
+		logs.LogError(logs.CategoryAI, "Resposta vazia do Claude")
 		return nil, fmt.Errorf("resposta vazia do Claude")
 	}
 
@@ -165,37 +172,37 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 
 	// Enhanced debug logging
 	if config.IsVerbose() {
-		fmt.Printf("🤖 Resposta COMPLETA do Claude:\n%s\n", rawResponse)
-		fmt.Printf("🔍 JSON extraído:\n%s\n", jsonContent)
+		logs.LogAI("🤖 Resposta COMPLETA do Claude: %s", rawResponse)
+		logs.LogAI("🔍 JSON extraído: %s", jsonContent)
 	} else {
-		fmt.Printf("🤖 Resposta do Claude: %s\n", rawResponse[:min(200, len(rawResponse))]+"...")
-		fmt.Printf("🔍 JSON extraído: %s\n", jsonContent[:min(200, len(jsonContent))]+"...")
+		logs.LogAI("🤖 Resposta do Claude: %s", rawResponse[:min(200, len(rawResponse))]+"...")
+		logs.LogAI("🔍 JSON extraído: %s", jsonContent[:min(200, len(jsonContent))]+"...")
 	}
 
 	// Parsear a resposta JSON do Claude
 	var analysisResp lottery.AnalysisResponse
 	if err := json.Unmarshal([]byte(jsonContent), &analysisResp); err != nil {
-		fmt.Printf("❌ Erro ao fazer parse do JSON: %v\n", err)
-		fmt.Printf("📄 JSON que falhou: %s\n", jsonContent)
+		logs.LogError(logs.CategoryAI, "❌ Erro ao fazer parse do JSON: %v", err)
+		logs.LogAI("📄 JSON que falhou: %s", jsonContent)
 
 		// SEM FALLBACK! Retornar erro para o usuário tentar novamente
 		return nil, fmt.Errorf("erro no parsing da resposta do Claude - tente gerar novamente")
 	} else {
 		// Validate parsed strategy
 		if analysisResp.Strategy.Games == nil || len(analysisResp.Strategy.Games) == 0 {
-			fmt.Printf("⚠️ JSON parseado mas sem jogos válidos\n")
+			logs.LogAI("⚠️ JSON parseado mas sem jogos válidos")
 			return nil, fmt.Errorf("estratégia inválida gerada pelo Claude - tente novamente")
 		} else {
 			// VALIDAÇÃO DE DIVERSIFICAÇÃO CRÍTICA
 			if !validateDiversification(analysisResp.Strategy.Games) {
-				fmt.Printf("🔄 Estratégia falhou na validação de diversificação, tentando novamente...\n")
+				logs.LogAI("🔄 Estratégia falhou na validação de diversificação, tentando novamente...")
 
 				// Retry até 5 vezes mais para conseguir diversificação correta
 				maxRetries := 5
 				bestStrategy := analysisResp // Manter a melhor estratégia gerada
 
 				for retry := 0; retry < maxRetries; retry++ {
-					fmt.Printf("🔄 Tentativa %d/%d para diversificação correta...\n", retry+1, maxRetries)
+					logs.LogAI("🔄 Tentativa %d/%d para diversificação correta...", retry+1, maxRetries)
 
 					// Gerar nova estratégia
 					newPrompt := c.buildAnalysisPrompt(request)
@@ -240,14 +247,14 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 
 					if err := json.Unmarshal([]byte(newJsonContent), &newAnalysisResp); err == nil {
 						if validateDiversification(newAnalysisResp.Strategy.Games) {
-							fmt.Printf("✅ Diversificação correta conseguida na tentativa %d!\n", retry+1)
+							logs.LogAI("✅ Diversificação correta conseguida na tentativa %d!", retry+1)
 							analysisResp = newAnalysisResp
 							break
 						} else {
 							// Manter a estratégia com melhor orçamento/qualidade
 							if newAnalysisResp.Strategy.TotalCost > bestStrategy.Strategy.TotalCost {
 								bestStrategy = newAnalysisResp
-								fmt.Printf("💡 Nova melhor estratégia encontrada: R$ %.2f\n", newAnalysisResp.Strategy.TotalCost)
+								logs.LogAI("💡 Nova melhor estratégia encontrada: R$ %.2f", newAnalysisResp.Strategy.TotalCost)
 							}
 						}
 					}
@@ -255,18 +262,18 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 
 				// Se não conseguiu diversificação perfeita, usar a MELHOR estratégia do Claude
 				if !validateDiversification(analysisResp.Strategy.Games) {
-					fmt.Printf("💪 Usando MELHOR estratégia Claude (sem fallback!): R$ %.2f - Qualidade superior!\n", bestStrategy.Strategy.TotalCost)
+					logs.LogAI("💪 Usando MELHOR estratégia Claude (sem fallback!): R$ %.2f - Qualidade superior!", bestStrategy.Strategy.TotalCost)
 					analysisResp = bestStrategy
 					analysisResp.Confidence = analysisResp.Confidence * 0.9 // Reduzir confiança ligeiramente
 				}
 			} else {
-				fmt.Printf("✅ JSON parseado com sucesso: %d jogos gerados\n", len(analysisResp.Strategy.Games))
+				logs.LogAI("✅ JSON parseado com sucesso: %d jogos gerados", len(analysisResp.Strategy.Games))
 			}
 		}
 	}
 
 	if config.IsVerbose() {
-		fmt.Printf("Tokens usados: %d input + %d output = %d total\n",
+		logs.LogAI("Tokens usados: %d input + %d output = %d total",
 			claudeResp.Usage.InputTokens, claudeResp.Usage.OutputTokens,
 			claudeResp.Usage.InputTokens+claudeResp.Usage.OutputTokens)
 	}
@@ -280,7 +287,7 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 	var games []lottery.Game
 	totalCost := 0.0
 
-	fmt.Printf("🔄 Gerando estratégia fallback para orçamento R$ %.2f\n", budget)
+	logs.LogAI("🔄 Gerando estratégia fallback para orçamento R$ %.2f", budget)
 
 	// Generate simple games based on budget and preferences
 	for _, lotteryType := range request.Preferences.LotteryTypes {
@@ -843,18 +850,18 @@ func validateDiversification(games []lottery.Game) bool {
 			commonNumbers := getCommonNumbers(lotofacilGames[i].Numbers, lotofacilGames[j].Numbers)
 			differentNumbers := len(lotofacilGames[i].Numbers) - commonNumbers
 
-			fmt.Printf("🔍 Diversificação Jogo %d vs %d: %d números em comum, %d diferentes\n",
+			logs.LogAI("🔍 Diversificação Jogo %d vs %d: %d números em comum, %d diferentes",
 				i+1, j+1, commonNumbers, differentNumbers)
 
 			// Regra: cada par deve ter pelo menos 8 números DIFERENTES (máximo 8 em comum)
 			if commonNumbers > 8 {
-				fmt.Printf("❌ FALHA na diversificação: %d números em comum (máximo permitido: 8)\n", commonNumbers)
+				logs.LogAI("❌ FALHA na diversificação: %d números em comum (máximo permitido: 8)", commonNumbers)
 				return false
 			}
 		}
 	}
 
-	fmt.Printf("✅ Diversificação validada com sucesso!\n")
+	logs.LogAI("✅ Diversificação validada com sucesso!")
 	return true
 }
 

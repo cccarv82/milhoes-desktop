@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"lottery-optimizer-gui/internal/logs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 const (
 	appExecutable   = "milhoes.exe"
 	appName         = "Lottery Optimizer"
-	launcherVersion = "v1.1.0"
+	launcherVersion = "v1.1.1"
 )
 
 type Launcher struct {
@@ -52,6 +53,7 @@ func (l *Launcher) applyPendingUpdate() error {
 	}
 
 	fmt.Printf("📦 Aplicando atualização pendente...\n")
+	logs.LogLauncher("📦 Aplicando atualização pendente...")
 
 	cmd := exec.Command("cmd", "/C", updateScriptPath)
 	cmd.Dir = l.appDir
@@ -61,10 +63,12 @@ func (l *Launcher) applyPendingUpdate() error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
+		logs.LogError(logs.CategoryLauncher, "Falha na execução do script de atualização: %v", err)
 		return fmt.Errorf("falha na execução do script de atualização: %w", err)
 	}
 
 	fmt.Printf("✅ Atualização aplicada com sucesso!\n")
+	logs.LogLauncher("✅ Atualização aplicada com sucesso!")
 	time.Sleep(1 * time.Second)
 
 	return nil
@@ -72,6 +76,7 @@ func (l *Launcher) applyPendingUpdate() error {
 
 func (l *Launcher) startMainApp() error {
 	fmt.Printf("🚀 Iniciando %s...\n", appName)
+	logs.LogLauncher("🚀 Iniciando %s...", appName)
 
 	var cmd *exec.Cmd
 
@@ -90,18 +95,23 @@ func (l *Launcher) startMainApp() error {
 		cmd.Stdout = nil
 		cmd.Stderr = nil
 		cmd.Stdin = nil
+
+		logs.LogLauncher("🔧 Configurações Windows: processo independente, sem redirecionamento")
 	} else {
 		// Método genérico para outros sistemas
 		cmd = exec.Command(l.appPath)
 		cmd.Dir = l.appDir
+		logs.LogLauncher("🔧 Configurações genéricas para OS: %s", runtime.GOOS)
 	}
 
 	// Iniciar processo
 	if err := cmd.Start(); err != nil {
+		logs.LogError(logs.CategoryLauncher, "Falha ao iniciar processo: %v", err)
 		return fmt.Errorf("falha ao iniciar processo: %w", err)
 	}
 
 	fmt.Printf("✅ %s iniciado com sucesso (PID: %d)\n", appName, cmd.Process.Pid)
+	logs.LogLauncher("✅ %s iniciado com sucesso (PID: %d)", appName, cmd.Process.Pid)
 
 	// Dar um tempo para o app inicializar
 	time.Sleep(2 * time.Second)
@@ -114,6 +124,7 @@ func (l *Launcher) startMainApp() error {
 			cmd.Process.Release()
 		}
 		fmt.Printf("✅ Aplicativo está executando independentemente\n")
+		logs.LogLauncher("✅ Aplicativo executando independentemente, launcher pode ser fechado")
 	}
 
 	return nil
@@ -124,25 +135,35 @@ func (l *Launcher) run() error {
 	fmt.Printf("🚀 %s Launcher %s\n", appName, launcherVersion)
 	fmt.Printf("🚀 ===============================================\n\n")
 
+	logs.LogLauncher("🚀 %s Launcher %s iniciado", appName, launcherVersion)
+
 	// Etapa 1: Verificar app principal
 	fmt.Printf("🔍 [1/3] Verificando aplicativo principal...\n")
+	logs.LogLauncher("🔍 [1/3] Verificando aplicativo principal...")
 	if err := l.checkMainApp(); err != nil {
+		logs.LogError(logs.CategoryLauncher, "❌ %v", err)
 		return fmt.Errorf("❌ %w", err)
 	}
 	fmt.Printf("✅ Aplicativo principal encontrado\n\n")
+	logs.LogLauncher("✅ Aplicativo principal encontrado: %s", l.appPath)
 
 	// Etapa 2: Aplicar atualizações pendentes
 	fmt.Printf("🔄 [2/3] Verificando atualizações pendentes...\n")
+	logs.LogLauncher("🔄 [2/3] Verificando atualizações pendentes...")
 	if err := l.applyPendingUpdate(); err != nil {
 		fmt.Printf("⚠️ Erro na atualização: %v\n", err)
 		fmt.Printf("⚠️ Continuando com versão atual...\n\n")
+		logs.LogError(logs.CategoryLauncher, "⚠️ Erro na atualização: %v", err)
 	} else {
 		fmt.Printf("✅ Verificação de atualizações concluída\n\n")
+		logs.LogLauncher("✅ Verificação de atualizações concluída")
 	}
 
 	// Etapa 3: Iniciar app principal
 	fmt.Printf("🚀 [3/3] Iniciando aplicativo principal...\n")
+	logs.LogLauncher("🚀 [3/3] Iniciando aplicativo principal...")
 	if err := l.startMainApp(); err != nil {
+		logs.LogError(logs.CategoryLauncher, "❌ %v", err)
 		return fmt.Errorf("❌ %w", err)
 	}
 
@@ -151,13 +172,24 @@ func (l *Launcher) run() error {
 	fmt.Printf("🎉 %s está rodando independentemente\n", appName)
 	fmt.Printf("🎉 ===============================================\n\n")
 
+	logs.LogLauncher("🎉 Launcher concluído com sucesso - %s executando independentemente", appName)
+
 	return nil
 }
 
 func main() {
+	// Inicializar sistema de logs antes de qualquer operação
+	if err := logs.Init(); err != nil {
+		fmt.Printf("⚠️ Erro ao inicializar logs: %v\n", err)
+		// Continuar sem logs se necessário
+	} else {
+		logs.LogLauncher("📋 Sistema de logs do launcher inicializado")
+	}
+
 	launcher, err := NewLauncher()
 	if err != nil {
 		fmt.Printf("❌ Erro ao inicializar launcher: %v\n", err)
+		logs.LogError(logs.CategoryLauncher, "❌ Erro ao inicializar launcher: %v", err)
 		fmt.Printf("\nPressione Enter para sair...")
 		fmt.Scanln()
 		os.Exit(1)
@@ -166,6 +198,8 @@ func main() {
 	if err := launcher.run(); err != nil {
 		fmt.Printf("\n%v\n", err)
 		fmt.Printf("💡 Tente executar %s diretamente se o problema persistir\n", appExecutable)
+		logs.LogError(logs.CategoryLauncher, "%v", err)
+		logs.LogLauncher("💡 Sugestão: executar %s diretamente se problema persistir", appExecutable)
 		fmt.Printf("\nPressione Enter para sair...")
 		fmt.Scanln()
 		os.Exit(1)
@@ -173,5 +207,7 @@ func main() {
 
 	// Aguardar um pouco antes de fechar
 	fmt.Printf("🔄 Launcher será fechado em 3 segundos...\n")
+	logs.LogLauncher("🔄 Launcher encerrando em 3 segundos...")
 	time.Sleep(3 * time.Second)
+	logs.LogLauncher("👋 Launcher finalizado com sucesso")
 }

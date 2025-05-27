@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"lottery-optimizer-gui/internal/config"
+	"lottery-optimizer-gui/internal/logs"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -15,7 +16,7 @@ import (
 var assets embed.FS
 
 var (
-	version = "v1.1.5"
+	version = "v1.1.6"
 )
 
 func main() {
@@ -24,21 +25,24 @@ func main() {
 	fmt.Printf("🚀 Versão: %s\n", version)
 	fmt.Println("🚀 =================================")
 
+	// Inicializar sistema de logs especializado
+	if err := logs.Init(); err != nil {
+		fmt.Printf("⚠️ Erro ao inicializar logs: %v\n", err)
+	} else {
+		fmt.Println("✅ Sistema de logs especializado inicializado")
+	}
+
 	// Inicializar configuração
 	config.Init()
-	fmt.Println("✅ Configuração inicializada")
+	logs.LogMain("✅ Configuração inicializada")
 
 	// Create an instance of the app structure
 	app := NewApp()
-	fmt.Println("✅ App instance criada")
+	logs.LogMain("✅ App instance criada")
 
 	// Create application with options
-	fmt.Println("🚀 Iniciando Wails com interface gráfica...")
-	fmt.Println("🔧 Configurações da janela:")
-	fmt.Println("   - Tamanho: 1200x800")
-	fmt.Println("   - Mínimo: 1000x700")
-	fmt.Println("   - StartHidden: false")
-	fmt.Println("   - Debug: true")
+	logs.LogMain("🚀 Iniciando Wails com interface gráfica...")
+	logs.LogMain("🔧 Configurações da janela: 1200x800, mínimo: 1000x700")
 
 	err := wails.Run(&options.App{
 		Title:     "🎰 Lottery Optimizer - Estratégias Inteligentes",
@@ -67,21 +71,20 @@ func main() {
 		AlwaysOnTop:       false,
 		Fullscreen:        false,
 		StartHidden:       false, // GARANTIR que não inicia hidden
-		// Configurações de desenvolvimento - ATIVAR DEBUG COMPLETO
+		// Configurações de desenvolvimento - DESATIVAR DEBUG
 		Debug: options.Debug{
-			OpenInspectorOnStartup: true, // Ativar para debug
+			OpenInspectorOnStartup: false, // Desativar debug automático
 		},
 	})
 
 	if err != nil {
+		logs.LogError(logs.CategoryMain, "❌ ERRO CRÍTICO ao iniciar Wails: %v", err)
 		fmt.Printf("❌ ERRO CRÍTICO ao iniciar Wails: %v\n", err)
-		fmt.Println("💡 Possíveis causas:")
-		fmt.Println("   - WebView2 não instalado ou desatualizado")
-		fmt.Println("   - Problemas com assets do frontend")
-		fmt.Println("   - Conflitos de antivírus")
+		fmt.Println("💡 Verifique os logs especializados em:")
+		fmt.Printf("   📁 %s\n", logs.GetLogDir())
 		fmt.Println("🔧 Pressione Enter para sair...")
 		fmt.Scanln()
 	} else {
-		fmt.Println("✅ Wails executado com sucesso!")
+		logs.LogMain("✅ Wails executado com sucesso!")
 	}
 }
