@@ -720,53 +720,15 @@ function renderWelcome() {
             
             <div class="main-content">
                 <div class="welcome-section">
-                    <h2 style="font-size: var(--font-size-4xl); font-weight: 800; margin-bottom: var(--spacing-6); background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        Bem-vindo ao Futuro das Loterias! 🚀
+                    <h2 style="font-size: var(--font-size-4xl); font-weight: 800; margin-bottom: var(--spacing-4); background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        Estratégias Inteligentes para Loterias 🚀
                     </h2>
                     <p style="font-size: var(--font-size-xl); color: var(--text-secondary); max-width: 600px; margin: 0 auto var(--spacing-8) auto; line-height: 1.7;">
-                        Utilize o poder da inteligência artificial para gerar estratégias baseadas em análise histórica, 
-                        padrões estatísticos e suas preferências pessoais.
+                        IA avançada + Análise matemática + Sistemas profissionais
                     </p>
                 </div>
                 
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <span class="feature-icon">🧠</span>
-                        <h3>IA Nível Mundial</h3>
-                        <p>Claude Opus 4 analisa 250+ sorteios históricos com sistemas de Wheeling profissionais e 6 filtros matemáticos obrigatórios.</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <span class="feature-icon">📊</span>
-                        <h3>Análise Estatística Avançada</h3>
-                        <p>Identificação precisa de números "devidos", análise de regressão e matriz de distância Hamming para máxima cobertura combinatorial.</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <span class="feature-icon">🎯</span>
-                        <h3>Sistemas de Garantia</h3>
-                        <p>Implementa sistemas de redução profissionais que garantem prêmios menores e maximizam suas chances de retorno.</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <span class="feature-icon">💎</span>
-                        <h3>Multi-Loteria Premium</h3>
-                        <p>Estratégias otimizadas para Mega-Sena e Lotofácil com preços oficiais CAIXA e cálculo de valor esperado completo.</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <span class="feature-icon">⚡</span>
-                        <h3>Estratégias Instantâneas</h3>
-                        <p>Gera estratégias completas em segundos com explicações detalhadas dos filtros aplicados e sistemas de redução utilizados.</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <span class="feature-icon">🔒</span>
-                        <h3>100% Privado</h3>
-                        <p>Todos os cálculos são locais. Seus dados, preferências e estratégias nunca saem do seu computador.</p>
-                    </div>
-                </div>
-                
+                <!-- Botões Principais -->
                 <div class="cta-section">
                     <!-- Botão Principal: Gerar Estratégia -->
                     <button class="btn-primary main-cta" onclick="startStrategyWizard()">
@@ -789,7 +751,7 @@ function renderWelcome() {
                     </button>
                     
                     <button class="main-nav-btn" onclick="renderROICalculator()">
-                        <span class="btn-icon">🔒</span>
+                        <span class="btn-icon">💰</span>
                         Calc. ROI
                     </button>
                     
@@ -802,6 +764,38 @@ function renderWelcome() {
                         <span class="btn-icon">⚙️</span>
                         Configurações
                     </button>
+                </div>
+
+                <!-- Features em Grid Compacto -->
+                <div class="features-compact">
+                    <h3 style="text-align: center; color: var(--accent-primary); margin-bottom: var(--spacing-6);">
+                        🎲 Tecnologia de Ponta
+                    </h3>
+                    <div class="features-compact-grid">
+                        <div class="feature-compact">
+                            <span class="feature-compact-icon">🧠</span>
+                            <h4>IA Claude Opus 4</h4>
+                            <p>Análise de 250+ sorteios com sistemas Wheeling profissionais</p>
+                        </div>
+                        
+                        <div class="feature-compact">
+                            <span class="feature-compact-icon">📊</span>
+                            <h4>Análise Matemática</h4>
+                            <p>Matriz de distância Hamming e 6 filtros matemáticos obrigatórios</p>
+                        </div>
+                        
+                        <div class="feature-compact">
+                            <span class="feature-compact-icon">💎</span>
+                            <h4>Multi-Loteria</h4>
+                            <p>Mega-Sena e Lotofácil com preços oficiais CAIXA</p>
+                        </div>
+                        
+                        <div class="feature-compact">
+                            <span class="feature-compact-icon">🔒</span>
+                            <h4>100% Privado</h4>
+                            <p>Todos os cálculos são locais, seus dados não saem do computador</p>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Informações dos próximos sorteios -->

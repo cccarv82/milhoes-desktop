@@ -204,63 +204,7 @@ body {
   margin-bottom: var(--spacing-12);
 }
 
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--spacing-6);
-  margin: var(--spacing-12) 0;
-}
-
-.feature-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-8);
-  text-align: center;
-  transition: var(--transition);
-  position: relative;
-  overflow: hidden;
-}
-
-.feature-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-  transform: scaleX(0);
-  transition: var(--transition);
-}
-
-.feature-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-xl);
-  border-color: var(--accent-primary);
-}
-
-.feature-card:hover::before {
-  transform: scaleX(1);
-}
-
-.feature-icon {
-  font-size: var(--font-size-4xl);
-  margin-bottom: var(--spacing-4);
-    display: block;
-}
-
-.feature-card h3 {
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  margin-bottom: var(--spacing-3);
-  color: var(--text-primary);
-}
-
-.feature-card p {
-  color: var(--text-secondary);
-  line-height: 1.7;
-}
+/* REMOVIDO: Features grid antigas - agora usando features-compact */
 
 /* Buttons */
 .btn-primary, .btn-secondary, .btn-back, .btn-danger {
@@ -2150,4 +2094,119 @@ body {
   border-color: var(--accent-secondary);
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
+}
+
+/* ===============================
+   FEATURES COMPACTAS - DESIGN LIMPO
+   =============================== */
+
+.features-compact {
+  margin: var(--spacing-12) 0;
+  padding: var(--spacing-8);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+  border-radius: var(--border-radius-lg);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.features-compact h3 {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: var(--spacing-8);
+}
+
+.features-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-4);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.feature-compact {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-5);
+  text-align: center;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-compact::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  transform: scaleX(0);
+  transition: var(--transition);
+}
+
+.feature-compact:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-primary);
+}
+
+.feature-compact:hover::before {
+  transform: scaleX(1);
+}
+
+.feature-compact-icon {
+  font-size: var(--font-size-3xl);
+  display: block;
+  margin-bottom: var(--spacing-3);
+}
+
+.feature-compact h4 {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  margin: 0 0 var(--spacing-2) 0;
+  color: var(--text-primary);
+}
+
+.feature-compact p {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Responsividade para features compactas */
+@media (max-width: 768px) {
+  .features-compact {
+    padding: var(--spacing-6);
+    margin: var(--spacing-8) 0;
+  }
+  
+  .features-compact-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-3);
+  }
+  
+  .feature-compact {
+    padding: var(--spacing-4);
+  }
+  
+  .feature-compact-icon {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+@media (max-width: 480px) {
+  .features-compact-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .feature-compact h4 {
+    font-size: var(--font-size-base);
+  }
+  
+  .feature-compact p {
+    font-size: var(--font-size-xs);
+  }
 }
