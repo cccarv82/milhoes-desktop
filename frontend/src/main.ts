@@ -22,7 +22,9 @@ import {
     GetDashboardSummary,
     GetNotifications,
     MarkNotificationAsRead,
-    ClearOldNotifications
+    ClearOldNotifications,
+    CheckGameResult,
+    CheckAllPendingResults
 } from '../wailsjs/go/main/App';
 
 import { models } from '../wailsjs/go/models';
@@ -2116,7 +2118,7 @@ async function filterSavedGames() {
 
 // Verificar jogo individual
 async function checkSingleGame(gameId: string) {
-    const button = document.querySelector(`[data-game-id="${gameId}"] .check-button`) as HTMLButtonElement;
+    const button = document.querySelector(`button[onclick="checkSingleGame('${gameId}')"]`) as HTMLButtonElement;
     if (!button) return;
 
     const originalText = button.innerHTML;
@@ -2124,12 +2126,14 @@ async function checkSingleGame(gameId: string) {
     button.disabled = true;
 
     try {
-        // TODO: Implementar CheckGameResult no backend
-        console.log(`🔍 Verificando jogo ${gameId}`);
-        // const result = await CheckGameResult(gameId);
-        // Simular sucesso por enquanto
-        showNotification('Jogo verificado com sucesso!', 'success');
-        await renderSavedGamesScreen(); // Recarregar a lista
+        const result = await CheckGameResult(gameId);
+        
+        if (result.success) {
+            showNotification('Resultado verificado com sucesso!', 'success');
+            await renderSavedGamesScreen(); // Recarregar a lista
+        } else {
+            showNotification('Erro ao verificar resultado: ' + (result.error || 'Erro desconhecido'), 'error');
+        }
     } catch (error) {
         console.error('❌ Erro ao verificar jogo:', error);
         showNotification('Erro ao verificar jogo: ' + String(error), 'error');
@@ -2149,12 +2153,14 @@ async function checkAllPendingGames() {
     button.disabled = true;
 
     try {
-        // TODO: Implementar CheckAllPendingResults no backend  
-        console.log('🔍 Verificando todos os jogos pendentes');
-        // const results = await CheckAllPendingResults();
-        // Simular sucesso por enquanto
-        showNotification('Todos os jogos foram verificados!', 'success');
-        await renderSavedGamesScreen(); // Recarregar a lista
+        const results = await CheckAllPendingResults();
+        
+        if (results.success) {
+            showNotification(`Verificados ${results.checked} de ${results.total} jogos!`, 'success');
+            await renderSavedGamesScreen(); // Recarregar a lista
+        } else {
+            showNotification('Erro ao verificar jogos: ' + (results.error || 'Erro desconhecido'), 'error');
+        }
     } catch (error) {
         console.error('❌ Erro ao verificar jogos:', error);
         showNotification('Erro ao verificar jogos: ' + String(error), 'error');
@@ -2618,7 +2624,7 @@ function renderDashboardContent(summary: DashboardSummary, _metrics: Performance
                 </div>
 
                 <!-- Últimos 30 Dias -->
-                <div class="feature-card">
+                <div class="feature-card" style="margin-bottom: 2rem;">
                     <h3 style="margin-bottom: 1rem;">📅 Últimos 30 Dias</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
                         <div style="text-align: center;">
@@ -2650,14 +2656,14 @@ function renderDashboardContent(summary: DashboardSummary, _metrics: Performance
 
                 <!-- Current Streak -->
                 ${summary.currentStreak.type !== 'none' ? `
-                <div class="feature-card" style="background: ${summary.currentStreak.type === 'win' ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, #dc2626, #ef4444)'}; color: white; text-align: center;">
-                    <h3 style="color: white;">
+                <div class="feature-card" style="background: ${summary.currentStreak.type === 'win' ? 'linear-gradient(135deg, #a7f3d0, #d1fae5)' : 'linear-gradient(135deg, #fecaca, #fee2e2)'}; color: ${summary.currentStreak.type === 'win' ? '#065f46' : '#7f1d1d'}; text-align: center; margin-top: 2rem;">
+                    <h3 style="color: ${summary.currentStreak.type === 'win' ? '#065f46' : '#7f1d1d'};">
                         ${summary.currentStreak.type === 'win' ? '🔥 Sequência de Vitórias' : '❄️ Sequência de Derrotas'}
                     </h3>
                     <div style="font-size: 3rem; font-weight: bold; margin: 1rem 0;">
                         ${summary.currentStreak.count}
                     </div>
-                    <p style="margin: 0; opacity: 0.9;">
+                    <p style="margin: 0; opacity: 0.8;">
                         ${summary.currentStreak.type === 'win' ? 'Jogos consecutivos com prêmio!' : 'Jogos consecutivos sem prêmio'}
                     </p>
                 </div>
@@ -2713,11 +2719,11 @@ function getPerformanceIcon(level: string): string {
 
 function getPerformanceBgColor(level: string): string {
     switch (level) {
-        case 'Excelente': return 'linear-gradient(135deg, #059669, #10b981)';
-        case 'Boa': return 'linear-gradient(135deg, #3b82f6, #60a5fa)';
-        case 'Regular': return 'linear-gradient(135deg, #f59e0b, #fbbf24)';
-        case 'Baixa': return 'linear-gradient(135deg, #dc2626, #ef4444)';
-        default: return 'linear-gradient(135deg, #6b7280, #9ca3af)';
+        case 'Excelente': return 'linear-gradient(135deg, #a7f3d0, #d1fae5)'; // Verde pastel
+        case 'Boa': return 'linear-gradient(135deg, #bfdbfe, #dbeafe)'; // Azul pastel  
+        case 'Regular': return 'linear-gradient(135deg, #fed7aa, #fef3c7)'; // Laranja pastel
+        case 'Baixa': return 'linear-gradient(135deg, #fecaca, #fee2e2)'; // Vermelho pastel
+        default: return 'linear-gradient(135deg, #e5e7eb, #f3f4f6)'; // Cinza pastel
     }
 }
 
@@ -2941,25 +2947,52 @@ function renderROIResults(calculation: ROICalculation) {
 
         <!-- Ações Recomendadas -->
         <div class="feature-card">
-            <h3 style="margin-bottom: 1rem;">💡 Próximos Passos</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                <button onclick="startStrategyWizard()" class="feature-card" style="border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                    <span style="font-size: 2rem;">🧠</span>
-                    <h4>Gerar Nova Estratégia</h4>
-                    <p style="margin: 0;">Baseada na projeção</p>
-                </button>
+            <h3 style="margin-bottom: 1.5rem; color: var(--accent-primary);">💡 Próximos Passos Recomendados</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+                Com base na sua projeção, recomendamos as seguintes ações para otimizar seus resultados:
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                <div onclick="startStrategyWizard()" 
+                     style="background: linear-gradient(135deg, #a7f3d0, #d1fae5); border: 1px solid #34d399; border-radius: 0.75rem; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center;"
+                     onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(52, 211, 153, 0.25)'" 
+                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🧠</div>
+                    <h4 style="color: #065f46; margin-bottom: 0.75rem; font-weight: 600;">Gerar Nova Estratégia</h4>
+                    <p style="margin: 0; color: #047857; opacity: 0.9; font-size: 0.9rem;">
+                        Crie uma estratégia inteligente baseada na sua projeção de ROI e dados históricos
+                    </p>
+                </div>
 
-                <button onclick="renderPerformanceDashboard()" class="feature-card" style="border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                    <span style="font-size: 2rem;">📊</span>
-                    <h4>Ver Dashboard</h4>
-                    <p style="margin: 0;">Análise completa</p>
-                </button>
+                <div onclick="renderPerformanceDashboard()" 
+                     style="background: linear-gradient(135deg, #bfdbfe, #dbeafe); border: 1px solid #60a5fa; border-radius: 0.75rem; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center;"
+                     onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(96, 165, 250, 0.25)'" 
+                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+                    <h4 style="color: #1e40af; margin-bottom: 0.75rem; font-weight: 600;">Análise Completa</h4>
+                    <p style="margin: 0; color: #1d4ed8; opacity: 0.9; font-size: 0.9rem;">
+                        Veja todas as métricas detalhadas no dashboard de performance executivo
+                    </p>
+                </div>
 
-                <button onclick="renderSavedGamesScreen()" class="feature-card" style="border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                    <span style="font-size: 2rem;">💾</span>
-                    <h4>Jogos Salvos</h4>
-                    <p style="margin: 0;">Histórico completo</p>
-                </button>
+                <div onclick="renderSavedGamesScreen()" 
+                     style="background: linear-gradient(135deg, #fed7aa, #fef3c7); border: 1px solid #fbbf24; border-radius: 0.75rem; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center;"
+                     onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(251, 191, 36, 0.25)'" 
+                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">💾</div>
+                    <h4 style="color: #92400e; margin-bottom: 0.75rem; font-weight: 600;">Revisar Histórico</h4>
+                    <p style="margin: 0; color: #b45309; opacity: 0.9; font-size: 0.9rem;">
+                        Confira seus jogos salvos e verifique resultados pendentes
+                    </p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 0.75rem; border-left: 4px solid var(--accent-primary);">
+                <h4 style="color: var(--accent-primary); margin-bottom: 0.75rem;">🎯 Dica Profissional</h4>
+                <p style="margin: 0; color: #4b5563; line-height: 1.6;">
+                    Para melhores resultados, mantenha um histórico consistente de jogos e revise suas estratégias 
+                    regularmente com base nas análises de performance. Lembre-se: disciplina e análise de dados 
+                    são fundamentais para o sucesso a longo prazo.
+                </p>
             </div>
         </div>
     `;
@@ -3464,7 +3497,7 @@ function renderDetailedAnalyticsContent(metrics: PerformanceMetrics) {
                         </div>
 
                         <div style="border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem;">
-                            <h4 style="color: #7c3aed; margin-bottom: 1rem;">⭐ Lotofácil</h4>
+                            <h4 style="color: #f59e0b; margin-bottom: 1rem;">⭐ Lotofácil</h4>
                             <div style="space-y: 0.5rem;">
                                 <div style="display: flex; justify-content: space-between;">
                                     <span>Jogos:</span>
@@ -3637,9 +3670,9 @@ function renderNumberAnalysisResults(lottery: string, frequencies: NumberFrequen
                 <h4 style="color: #dc2626; margin-bottom: 1rem;">🔥 Números Quentes (Mais Frequentes)</h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;">
                     ${hotNumbers.slice(0, 10).map(num => `
-                        <div style="background: linear-gradient(135deg, #dc2626, #ef4444); color: white; padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                        <div style="background: linear-gradient(135deg, #fecaca, #fee2e2); color: #7f1d1d; padding: 1rem; border-radius: 0.5rem; text-align: center; border: 1px solid #f87171;">
                             <div style="font-size: 1.5rem; font-weight: bold;">${num.number}</div>
-                            <div style="font-size: 0.8rem; opacity: 0.9;">${num.frequency}x (${num.percentage.toFixed(1)}%)</div>
+                            <div style="font-size: 0.8rem; opacity: 0.8;">${num.frequency}x (${num.percentage.toFixed(1)}%)</div>
                         </div>
                     `).join('')}
                 </div>
@@ -3652,9 +3685,9 @@ function renderNumberAnalysisResults(lottery: string, frequencies: NumberFrequen
                 <h4 style="color: #3b82f6; margin-bottom: 1rem;">❄️ Números Frios (Menos Frequentes)</h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;">
                     ${coldNumbers.slice(0, 10).map(num => `
-                        <div style="background: linear-gradient(135deg, #3b82f6, #60a5fa); color: white; padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                        <div style="background: linear-gradient(135deg, #bfdbfe, #dbeafe); color: #1e40af; padding: 1rem; border-radius: 0.5rem; text-align: center; border: 1px solid #60a5fa;">
                             <div style="font-size: 1.5rem; font-weight: bold;">${num.number}</div>
-                            <div style="font-size: 0.8rem; opacity: 0.9;">${num.frequency}x (${num.percentage.toFixed(1)}%)</div>
+                            <div style="font-size: 0.8rem; opacity: 0.8;">${num.frequency}x (${num.percentage.toFixed(1)}%)</div>
                         </div>
                     `).join('')}
                 </div>
@@ -3667,9 +3700,9 @@ function renderNumberAnalysisResults(lottery: string, frequencies: NumberFrequen
                 <h4 style="color: #059669; margin-bottom: 1rem;">📊 Números com Frequência Normal</h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;">
                     ${normalNumbers.slice(0, 15).map(num => `
-                        <div style="background: linear-gradient(135deg, #059669, #10b981); color: white; padding: 1rem; border-radius: 0.5rem; text-align: center;">
+                        <div style="background: linear-gradient(135deg, #a7f3d0, #d1fae5); color: #065f46; padding: 1rem; border-radius: 0.5rem; text-align: center; border: 1px solid #34d399;">
                             <div style="font-size: 1.5rem; font-weight: bold;">${num.number}</div>
-                            <div style="font-size: 0.8rem; opacity: 0.9;">${num.frequency}x (${num.percentage.toFixed(1)}%)</div>
+                            <div style="font-size: 0.8rem; opacity: 0.8;">${num.frequency}x (${num.percentage.toFixed(1)}%)</div>
                         </div>
                     `).join('')}
                 </div>

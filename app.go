@@ -1483,3 +1483,122 @@ func loadExistingConfig() {
 		customLogger.Printf("⚠️ Arquivo de configuração existe mas não contém chave Claude API")
 	}
 }
+
+// ===============================
+// VERIFICAÇÃO DE RESULTADOS
+// ===============================
+
+// CheckGameResult verifica o resultado de um jogo específico
+func (a *App) CheckGameResult(gameID string) map[string]interface{} {
+	if a.savedGamesDB == nil || a.resultChecker == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Sistema de verificação não disponível",
+		}
+	}
+
+	// Buscar todos os jogos e filtrar por ID
+	filter := models.SavedGamesFilter{}
+	games, err := a.savedGamesDB.GetSavedGames(filter)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao buscar jogos: %v", err),
+		}
+	}
+
+	// Filtrar pelo ID específico
+	var game models.SavedGame
+	found := false
+	for _, g := range games {
+		if g.ID == gameID {
+			game = g
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Jogo não encontrado",
+		}
+	}
+
+	// Verificar se já foi checado
+	if game.Status == "checked" {
+		return map[string]interface{}{
+			"success": true,
+			"message": "Jogo já foi verificado",
+			"result":  game.Result,
+		}
+	}
+
+	// Verificar resultado
+	result, err := a.resultChecker.CheckGameResult(game)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao verificar resultado: %v", err),
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"result":  result,
+		"message": "Resultado verificado com sucesso",
+	}
+}
+
+// CheckAllPendingResults verifica todos os jogos pendentes
+func (a *App) CheckAllPendingResults() map[string]interface{} {
+	if a.savedGamesDB == nil || a.resultChecker == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Sistema de verificação não disponível",
+		}
+	}
+
+	// Buscar jogos pendentes
+	filter := models.SavedGamesFilter{Status: "pending"}
+	games, err := a.savedGamesDB.GetSavedGames(filter)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao buscar jogos pendentes: %v", err),
+		}
+	}
+
+	if len(games) == 0 {
+		return map[string]interface{}{
+			"success": true,
+			"message": "Nenhum jogo pendente para verificar",
+			"checked": 0,
+		}
+	}
+
+	checked := 0
+	errors := []string{}
+
+	for _, game := range games {
+		_, err := a.resultChecker.CheckGameResult(game)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Jogo %s: %v", game.ID, err))
+		} else {
+			checked++
+		}
+	}
+
+	result := map[string]interface{}{
+		"success": true,
+		"checked": checked,
+		"total":   len(games),
+		"message": fmt.Sprintf("Verificados %d de %d jogos", checked, len(games)),
+	}
+
+	if len(errors) > 0 {
+		result["errors"] = errors
+	}
+
+	return result
+}

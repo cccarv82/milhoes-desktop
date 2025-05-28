@@ -4,7 +4,11 @@ import {updater} from '../models';
 import {main} from '../models';
 import {models} from '../models';
 
+export function CheckAllPendingResults():Promise<Record<string, any>>;
+
 export function CheckForUpdates():Promise<updater.UpdateInfo>;
+
+export function CheckGameResult(arg1:string):Promise<Record<string, any>>;
 
 export function ClearOldNotifications(arg1:number):Promise<Record<string, any>>;
 
