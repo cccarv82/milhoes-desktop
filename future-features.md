@@ -44,5 +44,4 @@
 ├─ 📊 Kelly Criterion Implementation
 ├─ 🎯 Portfolio de Apostas
 ├─ ⚖️ Risk Assessment
-├─ 💰 Profit Taking Automático
 └─ 🛡️ Loss Prevention System
