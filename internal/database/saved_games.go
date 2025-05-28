@@ -35,7 +35,8 @@ func NewSavedGamesDB(dbPath string) (*SavedGamesDB, error) {
 
 // createTables cria as tabelas necessárias
 func (sg *SavedGamesDB) createTables() error {
-	query := `
+	// Primeiro, criar a tabela principal
+	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS saved_games (
 		id TEXT PRIMARY KEY,
 		lottery_type TEXT NOT NULL,
@@ -43,8 +44,6 @@ func (sg *SavedGamesDB) createTables() error {
 		expected_draw TEXT NOT NULL, -- Data esperada (YYYY-MM-DD)
 		contest_number INTEGER NOT NULL,
 		status TEXT NOT NULL DEFAULT 'pending', -- pending, checked, error
-		cost REAL NOT NULL DEFAULT 0,          -- Custo do jogo
-		prize REAL NOT NULL DEFAULT 0,         -- Valor do prêmio
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		checked_at DATETIME NULL
 	);
@@ -52,14 +51,65 @@ func (sg *SavedGamesDB) createTables() error {
 	CREATE INDEX IF NOT EXISTS idx_saved_games_lottery_type ON saved_games(lottery_type);
 	CREATE INDEX IF NOT EXISTS idx_saved_games_status ON saved_games(status);
 	CREATE INDEX IF NOT EXISTS idx_saved_games_expected_draw ON saved_games(expected_draw);
-	
-	-- Migração: adicionar colunas cost e prize se não existirem
-	ALTER TABLE saved_games ADD COLUMN cost REAL NOT NULL DEFAULT 0;
-	ALTER TABLE saved_games ADD COLUMN prize REAL NOT NULL DEFAULT 0;
 	`
 
-	_, err := sg.db.Exec(query)
-	return err
+	_, err := sg.db.Exec(createTableQuery)
+	if err != nil {
+		return fmt.Errorf("erro ao criar tabela principal: %w", err)
+	}
+
+	// Verificar se colunas cost e prize existem e adicioná-las se necessário
+	if err := sg.addColumnIfNotExists("cost", "REAL NOT NULL DEFAULT 0"); err != nil {
+		return fmt.Errorf("erro ao adicionar coluna cost: %w", err)
+	}
+
+	if err := sg.addColumnIfNotExists("prize", "REAL NOT NULL DEFAULT 0"); err != nil {
+		return fmt.Errorf("erro ao adicionar coluna prize: %w", err)
+	}
+
+	return nil
+}
+
+// addColumnIfNotExists adiciona uma coluna se ela não existir
+func (sg *SavedGamesDB) addColumnIfNotExists(columnName, columnDefinition string) error {
+	// Verificar se a coluna já existe
+	checkQuery := "PRAGMA table_info(saved_games)"
+	rows, err := sg.db.Query(checkQuery)
+	if err != nil {
+		return fmt.Errorf("erro ao verificar estrutura da tabela: %w", err)
+	}
+	defer rows.Close()
+
+	columnExists := false
+	for rows.Next() {
+		var cid int
+		var name, dataType string
+		var notNull, dfltValue, pk interface{}
+
+		err := rows.Scan(&cid, &name, &dataType, &notNull, &dfltValue, &pk)
+		if err != nil {
+			return fmt.Errorf("erro ao ler informações da coluna: %w", err)
+		}
+
+		if name == columnName {
+			columnExists = true
+			break
+		}
+	}
+
+	// Se a coluna não existe, adicioná-la
+	if !columnExists {
+		alterQuery := fmt.Sprintf("ALTER TABLE saved_games ADD COLUMN %s %s", columnName, columnDefinition)
+		_, err := sg.db.Exec(alterQuery)
+		if err != nil {
+			return fmt.Errorf("erro ao adicionar coluna %s: %w", columnName, err)
+		}
+		logs.LogDatabase("✅ Coluna %s adicionada com sucesso", columnName)
+	} else {
+		logs.LogDatabase("ℹ️ Coluna %s já existe, pulando adição", columnName)
+	}
+
+	return nil
 }
 
 // SaveGame salva um novo jogo para verificação posterior
