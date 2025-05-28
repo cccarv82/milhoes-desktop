@@ -14,6 +14,8 @@ type SavedGame struct {
 	ExpectedDraw  string      `json:"expected_draw" db:"expected_draw"`   // Data esperada do sorteio (YYYY-MM-DD)
 	ContestNumber int         `json:"contest_number" db:"contest_number"` // Número do concurso esperado
 	Status        string      `json:"status" db:"status"`                 // "pending", "checked", "error"
+	Cost          float64     `json:"cost" db:"cost"`                     // Custo do jogo
+	Prize         float64     `json:"prize" db:"prize"`                   // Valor do prêmio (se ganhou)
 	CreatedAt     time.Time   `json:"created_at" db:"created_at"`
 	CheckedAt     *time.Time  `json:"checked_at,omitempty" db:"checked_at"`
 	Result        *GameResult `json:"result,omitempty"` // Resultado da verificação (não armazenado no DB)

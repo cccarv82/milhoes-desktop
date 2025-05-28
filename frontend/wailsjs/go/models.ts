@@ -172,22 +172,6 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class UpdateStatus {
-	    status: string;
-	    message: string;
-	    version: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new UpdateStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.status = source["status"];
-	        this.message = source["message"];
-	        this.version = source["version"];
-	    }
-	}
 	export class UserPreferences {
 	    lotteryTypes: string[];
 	    budget: number;

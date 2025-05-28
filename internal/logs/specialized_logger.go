@@ -12,12 +12,13 @@ import (
 type LogCategory string
 
 const (
-	CategoryMain     LogCategory = "main"
-	CategoryAI       LogCategory = "ai"
-	CategoryData     LogCategory = "data"
-	CategoryUpdater  LogCategory = "updater"
-	CategoryDatabase LogCategory = "database"
-	CategoryLauncher LogCategory = "launcher"
+	CategoryMain      LogCategory = "main"
+	CategoryAI        LogCategory = "ai"
+	CategoryData      LogCategory = "data"
+	CategoryUpdater   LogCategory = "updater"
+	CategoryDatabase  LogCategory = "database"
+	CategoryLauncher  LogCategory = "launcher"
+	CategoryAnalytics LogCategory = "analytics"
 )
 
 // SpecializedLogger logger especializado com categorias
@@ -55,6 +56,7 @@ func Init() error {
 		CategoryUpdater,
 		CategoryDatabase,
 		CategoryLauncher,
+		CategoryAnalytics,
 	}
 
 	for _, category := range categories {
@@ -139,6 +141,13 @@ func LogLauncher(format string, v ...interface{}) {
 	if GlobalLogger != nil {
 		msg := fmt.Sprintf(format, v...)
 		GlobalLogger.getLogger(CategoryLauncher).Printf("[LAUNCHER] %s", msg)
+	}
+}
+
+func LogAnalytics(format string, v ...interface{}) {
+	if GlobalLogger != nil {
+		msg := fmt.Sprintf(format, v...)
+		GlobalLogger.getLogger(CategoryAnalytics).Printf("[ANALYTICS] %s", msg)
 	}
 }
 

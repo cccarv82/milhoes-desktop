@@ -17,7 +17,7 @@ var assets embed.FS
 
 var (
 	// Versão da aplicação
-	version = "v1.6.1"
+	version = "v2.0.0"
 )
 
 func main() {

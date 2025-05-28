@@ -274,7 +274,7 @@ body {
   font-size: var(--font-size-base);
   font-weight: 600;
   text-decoration: none;
-  cursor: pointer;
+    cursor: pointer;
   transition: var(--transition);
   position: relative;
   overflow: hidden;
@@ -594,7 +594,7 @@ body {
 }
 
 .budget-input input:focus {
-  outline: none;
+    outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }

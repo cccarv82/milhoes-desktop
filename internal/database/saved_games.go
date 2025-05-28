@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"lottery-optimizer-gui/internal/models"
+
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -41,6 +42,8 @@ func (sg *SavedGamesDB) createTables() error {
 		expected_draw TEXT NOT NULL, -- Data esperada (YYYY-MM-DD)
 		contest_number INTEGER NOT NULL,
 		status TEXT NOT NULL DEFAULT 'pending', -- pending, checked, error
+		cost REAL NOT NULL DEFAULT 0,          -- Custo do jogo
+		prize REAL NOT NULL DEFAULT 0,         -- Valor do prêmio
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		checked_at DATETIME NULL
 	);
@@ -48,6 +51,10 @@ func (sg *SavedGamesDB) createTables() error {
 	CREATE INDEX IF NOT EXISTS idx_saved_games_lottery_type ON saved_games(lottery_type);
 	CREATE INDEX IF NOT EXISTS idx_saved_games_status ON saved_games(status);
 	CREATE INDEX IF NOT EXISTS idx_saved_games_expected_draw ON saved_games(expected_draw);
+	
+	-- Migração: adicionar colunas cost e prize se não existirem
+	ALTER TABLE saved_games ADD COLUMN cost REAL NOT NULL DEFAULT 0;
+	ALTER TABLE saved_games ADD COLUMN prize REAL NOT NULL DEFAULT 0;
 	`
 
 	_, err := sg.db.Exec(query)
@@ -206,6 +213,16 @@ func (sg *SavedGamesDB) GetGameByID(gameID string) (*models.SavedGame, error) {
 	}
 
 	return &game, nil
+}
+
+// GetAllSavedGames busca todos os jogos salvos (para analytics)
+func (sg *SavedGamesDB) GetAllSavedGames() ([]models.SavedGame, error) {
+	return sg.GetSavedGames(models.SavedGamesFilter{})
+}
+
+// GetGamesByLottery busca jogos por tipo de loteria (para analytics)
+func (sg *SavedGamesDB) GetGamesByLottery(lotteryType string) ([]models.SavedGame, error) {
+	return sg.GetSavedGames(models.SavedGamesFilter{LotteryType: lotteryType})
 }
 
 // GetStats retorna estatísticas dos jogos salvos

@@ -3,19 +3,23 @@ package main
 import (
 	"context"
 	"fmt"
-	"lottery-optimizer-gui/internal/ai"
-	"lottery-optimizer-gui/internal/config"
-	"lottery-optimizer-gui/internal/data"
-	"lottery-optimizer-gui/internal/database"
-	"lottery-optimizer-gui/internal/lottery"
-	"lottery-optimizer-gui/internal/models"
-	"lottery-optimizer-gui/internal/services"
-	"lottery-optimizer-gui/internal/updater"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"lottery-optimizer-gui/internal/ai"
+	"lottery-optimizer-gui/internal/analytics"
+	"lottery-optimizer-gui/internal/config"
+	"lottery-optimizer-gui/internal/data"
+	"lottery-optimizer-gui/internal/database"
+	"lottery-optimizer-gui/internal/logs"
+	"lottery-optimizer-gui/internal/lottery"
+	"lottery-optimizer-gui/internal/models"
+	"lottery-optimizer-gui/internal/notifications"
+	"lottery-optimizer-gui/internal/services"
+	"lottery-optimizer-gui/internal/updater"
 
 	"gopkg.in/yaml.v3"
 )
@@ -96,66 +100,61 @@ func NewApp() *App {
 		customLogger.Printf("🧪 TESTE PÓS-INICIALIZAÇÃO - NewApp iniciado com logging funcional")
 	}
 
-	// CARREGAR CONFIGURAÇÃO EXISTENTE NA INICIALIZAÇÃO
-	loadExistingConfig()
+	customLogger.Printf("🔧 Inicializando aplicação...")
 
+	// Inicializar clientes
 	dataClient := data.NewClient()
+	customLogger.Printf("✅ Cliente de dados inicializado")
 
 	// Inicializar banco de dados de jogos salvos
-	// Usar diretório absoluto baseado no executável
+	var savedGamesDB *database.SavedGamesDB
+	var resultChecker *services.ResultChecker
+
+	// Determinar caminho do banco de dados
 	execPath, err := os.Executable()
 	if err != nil {
-		customLogger.Printf("Erro ao obter caminho do executável: %v", err)
-		execPath, _ = os.Getwd() // Fallback para diretório atual
+		execPath, _ = os.Getwd()
+		customLogger.Printf("⚠️ Erro ao obter executável, usando diretório atual: %v", err)
 	}
 
 	dataDir := filepath.Join(filepath.Dir(execPath), "data")
 	dbPath := filepath.Join(dataDir, "saved_games.db")
 
-	// Criar diretório se não existir com permissões adequadas
+	customLogger.Printf("📁 Caminho do banco de dados: %s", dbPath)
+
+	// Criar diretório se não existir
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		customLogger.Printf("❌ Erro ao criar diretório de dados (%s): %v", dataDir, err)
-	}
-
-	customLogger.Printf("📁 Inicializando banco de dados em: %s", dbPath)
-
-	savedGamesDB, err := database.NewSavedGamesDB(dbPath)
-	if err != nil {
-		customLogger.Printf("❌ ERRO ao inicializar banco de jogos salvos: %v", err)
-		customLogger.Printf("   📂 Diretório: %s", dataDir)
-		customLogger.Printf("   💾 Arquivo DB: %s", dbPath)
-
-		// Verificar se o diretório existe
-		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-			customLogger.Printf("   ⚠️  Diretório não existe: %s", dataDir)
-		} else {
-			customLogger.Printf("   ✅ Diretório existe: %s", dataDir)
-		}
-
-		// Verificar permissões
-		if file, err := os.OpenFile(filepath.Join(dataDir, "test_write.tmp"), os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-			customLogger.Printf("   ❌ Sem permissão de escrita no diretório: %v", err)
-		} else {
-			file.Close()
-			os.Remove(filepath.Join(dataDir, "test_write.tmp"))
-			customLogger.Printf("   ✅ Permissão de escrita OK")
-		}
-
-		savedGamesDB = nil // Garantir que seja nil em caso de erro
+		customLogger.Printf("❌ Erro ao criar diretório de dados: %v", err)
 	} else {
-		customLogger.Printf("✅ Banco de jogos salvos inicializado com sucesso!")
+		customLogger.Printf("✅ Diretório de dados criado/verificado")
+
+		// Tentar inicializar banco
+		if db, err := database.NewSavedGamesDB(dbPath); err != nil {
+			customLogger.Printf("❌ Erro ao inicializar banco de dados: %v", err)
+		} else {
+			savedGamesDB = db
+			customLogger.Printf("✅ Banco de dados de jogos salvos inicializado")
+
+			// Definir instância global para analytics
+			if savedGamesDB != nil {
+				database.SetGlobalDB(savedGamesDB)
+				logs.LogMain("✅ Instância global do database definida para analytics")
+			}
+
+			// Inicializar sistema de notificações
+			notifications.InitNotificationManager()
+			logs.LogMain("🔔 Sistema de notificações inicializado")
+
+			// Inicializar verificador de resultados
+			resultChecker = services.NewResultChecker(dataClient, savedGamesDB)
+			customLogger.Printf("✅ Verificador de resultados inicializado")
+		}
 	}
 
-	// Inicializar verificador de resultados usando o dataClient existente
-	var resultChecker *services.ResultChecker
-	if savedGamesDB != nil {
-		resultChecker = services.NewResultChecker(dataClient, savedGamesDB)
-		// Iniciar verificação automática
-		resultChecker.ScheduleAutoCheck()
-		customLogger.Printf("✅ Verificador de resultados inicializado e agendado!")
-	} else {
-		customLogger.Printf("⚠️  Verificador de resultados não inicializado (banco indisponível)")
-	}
+	// Carregar configuração existente
+	loadExistingConfig()
+
+	customLogger.Printf("✅ App inicializado com sucesso - Versão %s", version)
 
 	return &App{
 		dataClient:    dataClient,
@@ -179,9 +178,6 @@ func (a *App) startup(ctx context.Context) {
 
 	customLogger.Printf("✅ Context salvo com sucesso")
 
-	// Verificação automática de atualizações restaurada
-	a.ScheduleUpdateCheck()
-
 	// Verificação de atualizações na inicialização (em background)
 	go func() {
 		customLogger.Printf("🔍 Verificando atualizações na inicialização...")
@@ -193,10 +189,13 @@ func (a *App) startup(ctx context.Context) {
 			customLogger.Printf("📦 Download: %s", updateInfo.DownloadURL)
 			// Salvar informações da atualização para o frontend
 			a.pendingUpdate = updateInfo
-			a.setUpdateStatus("available", fmt.Sprintf("Nova versão %s disponível", updateInfo.Version))
+			a.updateStatus.Status = "available"
+			a.updateStatus.Message = fmt.Sprintf("Nova versão %s disponível", updateInfo.Version)
+			a.updateStatus.Version = updateInfo.Version
 		} else {
 			customLogger.Printf("✅ Aplicativo está atualizado")
-			a.setUpdateStatus("up_to_date", "Aplicativo está atualizado")
+			a.updateStatus.Status = "up_to_date"
+			a.updateStatus.Message = "Aplicativo está atualizado"
 		}
 	}()
 
@@ -729,7 +728,7 @@ func (a *App) GetCurrentConfig() map[string]interface{} {
 		}
 	}
 
-	customLogger.Printf("📝 [%s] GetCurrentConfig: Arquivo lido (%d bytes)", timestamp, len(data))
+	customLogger.Printf("📖 Arquivo lido (%d bytes)", len(data))
 
 	// Parse YAML
 	var configStruct struct {
@@ -877,7 +876,7 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 		}
 	}
 
-	customLogger.Printf("📝 [%s] YAML gerado (%d bytes):\n%s", timestamp, len(yamlData), string(yamlData))
+	customLogger.Printf("📝 [%s] YAML gerado (%d bytes)", timestamp, len(yamlData))
 
 	// Salvar arquivo
 	if err := os.WriteFile(configPath, yamlData, 0644); err != nil {
@@ -890,31 +889,6 @@ func (a *App) SaveConfig(configData ConfigData) map[string]interface{} {
 	}
 
 	customLogger.Printf("✅ [%s] Arquivo salvo com sucesso", timestamp)
-
-	// Verificar se arquivo foi realmente salvo lendo de volta
-	if savedContent, err := os.ReadFile(configPath); err != nil {
-		customLogger.Printf("❌ [%s] Erro ao verificar arquivo salvo: %v", timestamp, err)
-		flushLogs()
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Erro ao verificar arquivo salvo: " + err.Error(),
-		}
-	} else {
-		customLogger.Printf("✅ [%s] Verificação: arquivo contém %d bytes", timestamp, len(savedContent))
-
-		// Parse de volta para verificar
-		var verifyStruct struct {
-			Claude struct {
-				APIKey string `yaml:"api_key"`
-			} `yaml:"claude"`
-		}
-
-		if err := yaml.Unmarshal(savedContent, &verifyStruct); err != nil {
-			customLogger.Printf("❌ [%s] Erro ao verificar YAML salvo: %v", timestamp, err)
-		} else {
-			customLogger.Printf("✅ [%s] Verificação: chave salva tem %d caracteres", timestamp, len(verifyStruct.Claude.APIKey))
-		}
-	}
 
 	// Atualizar configuração global diretamente
 	config.GlobalConfig.Claude.APIKey = configData.ClaudeAPIKey
@@ -993,127 +967,6 @@ func (a *App) GetDefaultConfig() ConfigData {
 	}
 }
 
-// DebugConfig função para debug - mostra configuração atual
-func (a *App) DebugConfig() map[string]interface{} {
-	return map[string]interface{}{
-		"claudeApiKey": config.GetClaudeAPIKey(),
-		"claudeModel":  config.GetClaudeModel(),
-		"maxTokens":    config.GetMaxTokens(),
-		"verbose":      config.IsVerbose(),
-		"aiClientKey":  a.aiClient != nil,
-	}
-}
-
-// DebugConfigPath função para debug detalhado de caminhos e arquivos
-func (a *App) DebugConfigPath() map[string]interface{} {
-	result := map[string]interface{}{}
-
-	// Caminho do executável
-	exePath, err := os.Executable()
-	if err != nil {
-		result["executableError"] = err.Error()
-		result["executablePath"] = "ERRO"
-	} else {
-		result["executablePath"] = exePath
-		result["executableDir"] = filepath.Dir(exePath)
-	}
-
-	// Diretório de dados do usuário (APPDATA)
-	userConfigDir, err := os.UserConfigDir()
-	if err != nil {
-		result["userConfigDirError"] = err.Error()
-		result["userConfigDir"] = "ERRO"
-	} else {
-		result["userConfigDir"] = userConfigDir
-		appDataDir := filepath.Join(userConfigDir, "lottery-optimizer")
-		result["appDataDir"] = appDataDir
-
-		// Verificar se diretório APPDATA existe
-		if stat, err := os.Stat(appDataDir); err != nil {
-			result["appDataDirExists"] = false
-			result["appDataDirError"] = err.Error()
-		} else {
-			result["appDataDirExists"] = true
-			result["appDataDirMode"] = stat.Mode().String()
-		}
-
-		// Testar permissões de escrita no APPDATA
-		testFile := filepath.Join(appDataDir, "write_test.tmp")
-		if err := os.MkdirAll(appDataDir, 0755); err != nil {
-			result["appDataWritable"] = false
-			result["appDataWriteError"] = err.Error()
-		} else if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-			result["appDataWritable"] = false
-			result["appDataWriteError"] = err.Error()
-		} else {
-			result["appDataWritable"] = true
-			os.Remove(testFile)
-		}
-	}
-
-	// Caminho final resolvido
-	configPath, err := getConfigPath()
-	if err != nil {
-		result["finalConfigPathError"] = err.Error()
-		result["finalConfigPath"] = "ERRO"
-	} else {
-		result["finalConfigPath"] = configPath
-		result["finalConfigDir"] = filepath.Dir(configPath)
-	}
-
-	// Verificar se arquivo final existe
-	if configPath != "ERRO" {
-		if stat, err := os.Stat(configPath); err != nil {
-			result["configExists"] = false
-			result["configError"] = err.Error()
-		} else {
-			result["configExists"] = true
-			result["configSize"] = stat.Size()
-			result["configModTime"] = stat.ModTime().Format("2006-01-02 15:04:05")
-			result["configMode"] = stat.Mode().String()
-		}
-
-		// Tentar ler conteúdo
-		if content, err := os.ReadFile(configPath); err != nil {
-			result["readError"] = err.Error()
-		} else {
-			result["configContent"] = string(content)
-			result["configLength"] = len(content)
-		}
-
-		// Testar permissões de escrita no diretório final
-		configDir := filepath.Dir(configPath)
-		if err := os.WriteFile(configPath+"_test", []byte("test"), 0644); err != nil {
-			result["writePermissionError"] = err.Error()
-			result["canWrite"] = false
-		} else {
-			result["canWrite"] = true
-			os.Remove(configPath + "_test") // Limpar arquivo de teste
-		}
-
-		// Informações do diretório final
-		if files, err := os.ReadDir(configDir); err != nil {
-			result["dirListError"] = err.Error()
-		} else {
-			fileList := []string{}
-			for _, file := range files {
-				fileList = append(fileList, file.Name())
-			}
-			result["dirFiles"] = fileList
-		}
-	}
-
-	// Estratégias testadas
-	result["strategies"] = map[string]interface{}{
-		"1_appdata":    result["appDataDir"],
-		"2_executable": result["executableDir"],
-		"3_current":    "lottery-optimizer.yaml",
-		"final_chosen": result["finalConfigPath"],
-	}
-
-	return result
-}
-
 // CheckForUpdates verifica se há atualizações disponíveis
 func (a *App) CheckForUpdates() (*updater.UpdateInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -1122,49 +975,9 @@ func (a *App) CheckForUpdates() (*updater.UpdateInfo, error) {
 	return a.updater.CheckForUpdates(ctx)
 }
 
-// DownloadUpdate baixa uma atualização
-func (a *App) DownloadUpdate(updateInfo *updater.UpdateInfo) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-
-	// Callback para progresso de download
-	progressCallback := func(downloaded, total int64) {
-		customLogger.Printf("Download: %d/%d bytes (%.2f%%)",
-			downloaded, total, float64(downloaded)/float64(total)*100)
-	}
-
-	return a.updater.DownloadUpdate(ctx, updateInfo, progressCallback)
-}
-
-// InstallUpdate instala a atualização baixada
-func (a *App) InstallUpdate(updateInfo *updater.UpdateInfo) error {
-	return a.updater.InstallUpdate(updateInfo)
-}
-
 // GetCurrentVersion retorna a versão atual do aplicativo
 func (a *App) GetCurrentVersion() string {
 	return version
-}
-
-// ScheduleUpdateCheck agenda verificação automática de atualizações
-func (a *App) ScheduleUpdateCheck() {
-	go func() {
-		ticker := time.NewTicker(24 * time.Hour) // Verificar a cada 24 horas
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				updateInfo, err := a.CheckForUpdates()
-				if err != nil {
-					customLogger.Printf("❌ Erro na verificação automática de updates: %v", err)
-				} else if updateInfo != nil && updateInfo.Available {
-					customLogger.Printf("🚀 NOVA VERSÃO DISPONÍVEL: %s -> %s", version, updateInfo.Version)
-					customLogger.Printf("📦 Download: %s", updateInfo.DownloadURL)
-				}
-			}
-		}
-	}()
 }
 
 // ===============================
@@ -1212,76 +1025,10 @@ func (a *App) GetSavedGames(filter models.SavedGamesFilter) map[string]interface
 		}
 	}
 
-	// Adicionar resultados aos jogos que já foram verificados
-	for i := range games {
-		if games[i].Status == "checked" && a.resultChecker != nil {
-			// Buscar resultado do jogo
-			result, err := a.resultChecker.CheckSingleGame(games[i].ID)
-			if err == nil && result != nil {
-				games[i].Result = result
-			}
-		}
-	}
-
 	return map[string]interface{}{
 		"success": true,
 		"games":   games,
 		"total":   len(games),
-	}
-}
-
-// CheckGameResult verifica o resultado de um jogo específico
-func (a *App) CheckGameResult(gameID string) map[string]interface{} {
-	if a.resultChecker == nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Verificador de resultados não disponível",
-		}
-	}
-
-	result, err := a.resultChecker.CheckSingleGame(gameID)
-	if err != nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   fmt.Sprintf("Erro ao verificar resultado: %v", err),
-		}
-	}
-
-	if result == nil {
-		return map[string]interface{}{
-			"success": true,
-			"pending": true,
-			"message": "Sorteio ainda não foi realizado",
-		}
-	}
-
-	return map[string]interface{}{
-		"success": true,
-		"result":  result,
-		"message": fmt.Sprintf("Resultado verificado: %d acertos", result.HitCount),
-	}
-}
-
-// CheckAllPendingResults verifica todos os jogos pendentes
-func (a *App) CheckAllPendingResults() map[string]interface{} {
-	if a.resultChecker == nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Verificador de resultados não disponível",
-		}
-	}
-
-	err := a.resultChecker.CheckPendingResults()
-	if err != nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   fmt.Sprintf("Erro ao verificar jogos pendentes: %v", err),
-		}
-	}
-
-	return map[string]interface{}{
-		"success": true,
-		"message": "Verificação de jogos pendentes concluída",
 	}
 }
 
@@ -1308,91 +1055,282 @@ func (a *App) DeleteSavedGame(gameID string) map[string]interface{} {
 	}
 }
 
-// GetSavedGamesStats retorna estatísticas dos jogos salvos
-func (a *App) GetSavedGamesStats() map[string]interface{} {
-	if a.savedGamesDB == nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Banco de dados de jogos salvos não disponível",
-		}
-	}
+// ===============================
+// ANALYTICS & PERFORMANCE DASHBOARD - V2.0.0
+// ===============================
 
-	stats, err := a.savedGamesDB.GetStats()
+// GetPerformanceMetrics retorna todas as métricas de performance do usuário
+func (a *App) GetPerformanceMetrics() map[string]interface{} {
+	metrics, err := analytics.CalculatePerformanceMetrics()
 	if err != nil {
 		return map[string]interface{}{
 			"success": false,
-			"error":   fmt.Sprintf("Erro ao buscar estatísticas: %v", err),
+			"error":   fmt.Sprintf("Erro ao calcular métricas: %v", err),
 		}
 	}
 
 	return map[string]interface{}{
 		"success": true,
-		"stats":   stats,
+		"metrics": metrics,
 	}
 }
 
-// DebugSavedGamesDB retorna informações de diagnóstico do banco de dados
-func (a *App) DebugSavedGamesDB() map[string]interface{} {
-	// Obter informações do caminho do banco
-	execPath, err := os.Executable()
+// GetNumberFrequencyAnalysis retorna análise de frequência de números
+func (a *App) GetNumberFrequencyAnalysis(lotteryType string) map[string]interface{} {
+	frequencies, err := analytics.GetNumberFrequencyAnalysis(lotteryType)
 	if err != nil {
-		execPath, _ = os.Getwd()
-	}
-
-	dataDir := filepath.Join(filepath.Dir(execPath), "data")
-	dbPath := filepath.Join(dataDir, "saved_games.db")
-
-	debug := map[string]interface{}{
-		"executablePath":           execPath,
-		"dataDirectory":            dataDir,
-		"databasePath":             dbPath,
-		"dbInitialized":            a.savedGamesDB != nil,
-		"resultCheckerInitialized": a.resultChecker != nil,
-	}
-
-	// Verificar se diretório existe
-	if stat, err := os.Stat(dataDir); err != nil {
-		debug["directoryExists"] = false
-		debug["directoryError"] = err.Error()
-	} else {
-		debug["directoryExists"] = true
-		debug["directoryMode"] = stat.Mode().String()
-	}
-
-	// Verificar se arquivo do banco existe
-	if stat, err := os.Stat(dbPath); err != nil {
-		debug["databaseFileExists"] = false
-		debug["databaseFileError"] = err.Error()
-	} else {
-		debug["databaseFileExists"] = true
-		debug["databaseFileSize"] = stat.Size()
-		debug["databaseFileMode"] = stat.Mode().String()
-	}
-
-	// Testar permissões de escrita
-	testFile := filepath.Join(dataDir, "test_write_permission.tmp")
-	if file, err := os.OpenFile(testFile, os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-		debug["writePermission"] = false
-		debug["writePermissionError"] = err.Error()
-	} else {
-		file.Close()
-		os.Remove(testFile)
-		debug["writePermission"] = true
-	}
-
-	// Tentar inicializar banco de dados se não estiver inicializado
-	if a.savedGamesDB == nil {
-		testDB, err := database.NewSavedGamesDB(dbPath)
-		if err != nil {
-			debug["reinitializationTest"] = false
-			debug["reinitializationError"] = err.Error()
-		} else {
-			debug["reinitializationTest"] = true
-			testDB.Close()
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao analisar frequência: %v", err),
 		}
 	}
 
-	return debug
+	return map[string]interface{}{
+		"success":      true,
+		"frequencies":  frequencies,
+		"lotteryType":  lotteryType,
+		"totalNumbers": len(frequencies),
+	}
+}
+
+// GetROICalculator retorna cálculos detalhados de ROI
+func (a *App) GetROICalculator(investment float64, timeframe string) map[string]interface{} {
+	metrics, err := analytics.CalculatePerformanceMetrics()
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao calcular ROI: %v", err),
+		}
+	}
+
+	// Determinar período baseado no timeframe
+	var periodMetrics analytics.PeriodMetrics
+	switch timeframe {
+	case "30d":
+		periodMetrics = metrics.Last30Days
+	case "90d":
+		periodMetrics = metrics.Last90Days
+	case "365d":
+		periodMetrics = metrics.Last365Days
+	default:
+		// Usar dados totais
+		periodMetrics = analytics.PeriodMetrics{
+			Games:      metrics.TotalGames,
+			Investment: metrics.TotalInvestment,
+			Winnings:   metrics.TotalWinnings,
+			ROI:        metrics.ROIPercentage,
+			WinRate:    metrics.WinRate,
+		}
+	}
+
+	// Projeções baseadas no investimento fornecido
+	projectedWinnings := 0.0
+	projectedROI := 0.0
+
+	if periodMetrics.Investment > 0 {
+		winRate := periodMetrics.Winnings / periodMetrics.Investment
+		projectedWinnings = investment * winRate
+		projectedROI = ((projectedWinnings - investment) / investment) * 100
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"calculation": map[string]interface{}{
+			"investment":        investment,
+			"timeframe":         timeframe,
+			"projectedWinnings": projectedWinnings,
+			"projectedROI":      projectedROI,
+			"projectedProfit":   projectedWinnings - investment,
+			"historicalROI":     periodMetrics.ROI,
+			"historicalWinRate": periodMetrics.WinRate,
+			"basedOnGames":      periodMetrics.Games,
+			"confidence":        getConfidenceLevel(periodMetrics.Games),
+			"recommendation":    getROIRecommendation(projectedROI, periodMetrics.Games),
+		},
+	}
+}
+
+// getConfidenceLevel retorna nível de confiança baseado no número de jogos
+func getConfidenceLevel(games int) string {
+	if games >= 100 {
+		return "Alta"
+	} else if games >= 50 {
+		return "Média"
+	} else if games >= 20 {
+		return "Baixa"
+	}
+	return "Muito Baixa"
+}
+
+// getROIRecommendation retorna recomendação baseada no ROI projetado
+func getROIRecommendation(roi float64, games int) string {
+	if games < 10 {
+		return "Dados insuficientes para recomendação precisa. Continue jogando para obter análises mais confiáveis."
+	}
+
+	if roi > 0 {
+		return fmt.Sprintf("Performance positiva! ROI de %.2f%% indica estratégia promissora.", roi)
+	} else if roi > -20 {
+		return "ROI ligeiramente negativo. Considere ajustar estratégia ou aguardar mais resultados."
+	} else {
+		return "ROI significativamente negativo. Recomenda-se revisar estratégia ou reduzir investimento."
+	}
+}
+
+// GetDashboardSummary retorna resumo executivo para o dashboard
+func (a *App) GetDashboardSummary() map[string]interface{} {
+	metrics, err := analytics.CalculatePerformanceMetrics()
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao gerar resumo: %v", err),
+		}
+	}
+
+	// Determinar tendência
+	trend := "neutral"
+	if len(metrics.MonthlyTrends) >= 2 {
+		current := metrics.MonthlyTrends[len(metrics.MonthlyTrends)-1]
+		previous := metrics.MonthlyTrends[len(metrics.MonthlyTrends)-2]
+
+		if current.ROI > previous.ROI {
+			trend = "up"
+		} else if current.ROI < previous.ROI {
+			trend = "down"
+		}
+	}
+
+	// Calcular streak atual
+	currentStreak := map[string]interface{}{
+		"type":  "none",
+		"count": 0,
+	}
+
+	if metrics.CurrentWinStreak > 0 {
+		currentStreak["type"] = "win"
+		currentStreak["count"] = metrics.CurrentWinStreak
+	} else if metrics.CurrentLossStreak > 0 {
+		currentStreak["type"] = "loss"
+		currentStreak["count"] = metrics.CurrentLossStreak
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"summary": map[string]interface{}{
+			"totalGames":      metrics.TotalGames,
+			"totalInvestment": metrics.TotalInvestment,
+			"totalWinnings":   metrics.TotalWinnings,
+			"currentROI":      metrics.ROIPercentage,
+			"winRate":         metrics.WinRate * 100,
+			"biggestWin":      metrics.BiggestWin,
+			"averageWin":      metrics.AverageWinAmount,
+			"trend":           trend,
+			"currentStreak":   currentStreak,
+			"last30Days": map[string]interface{}{
+				"games":      metrics.Last30Days.Games,
+				"investment": metrics.Last30Days.Investment,
+				"winnings":   metrics.Last30Days.Winnings,
+				"roi":        metrics.Last30Days.ROI,
+			},
+			"performance": map[string]interface{}{
+				"level":       getPerformanceLevel(metrics.ROIPercentage),
+				"description": getPerformanceDescription(metrics.ROIPercentage, metrics.WinRate),
+			},
+		},
+	}
+}
+
+// getPerformanceLevel retorna nível de performance baseado no ROI
+func getPerformanceLevel(roi float64) string {
+	if roi > 20 {
+		return "Excelente"
+	} else if roi > 0 {
+		return "Boa"
+	} else if roi > -20 {
+		return "Regular"
+	} else {
+		return "Baixa"
+	}
+}
+
+// getPerformanceDescription retorna descrição da performance
+func getPerformanceDescription(roi float64, winRate float64) string {
+	if roi > 10 && winRate > 0.3 {
+		return "Estratégia muito eficaz com ROI positivo e boa taxa de acerto!"
+	} else if roi > 0 {
+		return "Performance positiva! Continue com a estratégia atual."
+	} else if roi > -10 {
+		return "Performance neutra. Considere ajustes na estratégia."
+	} else {
+		return "Performance abaixo do esperado. Recomenda-se revisão da estratégia."
+	}
+}
+
+// ===============================
+// NOTIFICAÇÕES - V2.0.0
+// ===============================
+
+// GetNotifications retorna notificações do usuário
+func (a *App) GetNotifications(limit int, onlyUnread bool) map[string]interface{} {
+	if notifications.GlobalNotificationManager == nil {
+		return map[string]interface{}{
+			"success":       false,
+			"error":         "Sistema de notificações não inicializado",
+			"notifications": []interface{}{},
+			"total":         0,
+		}
+	}
+
+	notificationsList := notifications.GlobalNotificationManager.GetNotifications(limit, onlyUnread)
+
+	return map[string]interface{}{
+		"success":       true,
+		"notifications": notificationsList,
+		"total":         len(notificationsList),
+	}
+}
+
+// MarkNotificationAsRead marca notificação como lida
+func (a *App) MarkNotificationAsRead(notificationID string) map[string]interface{} {
+	if notifications.GlobalNotificationManager == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Sistema de notificações não inicializado",
+		}
+	}
+
+	err := notifications.GlobalNotificationManager.MarkAsRead(notificationID)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao marcar notificação: %v", err),
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"message": "Notificação marcada como lida",
+	}
+}
+
+// ClearOldNotifications limpa notificações antigas
+func (a *App) ClearOldNotifications(daysOld int) map[string]interface{} {
+	if notifications.GlobalNotificationManager == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Sistema de notificações não inicializado",
+			"cleared": 0,
+		}
+	}
+
+	duration := time.Duration(daysOld) * 24 * time.Hour
+	cleared := notifications.GlobalNotificationManager.ClearNotifications(duration)
+
+	return map[string]interface{}{
+		"success": true,
+		"cleared": cleared,
+		"message": fmt.Sprintf("Removidas %d notificações antigas", cleared),
+	}
 }
 
 // GetAppInfo retorna informações do aplicativo
@@ -1404,159 +1342,13 @@ func (a *App) GetAppInfo() map[string]interface{} {
 		"repository":        "cccarv82/milhoes-desktop",
 		"buildDate":         time.Now().Format("2006-01-02"),
 		"autoUpdateEnabled": true,
-		"logDirectory":      logDir,
-	}
-}
-
-// ===============================
-// MÉTODOS PARA GERENCIAR LOGS
-// ===============================
-
-// GetLogFiles retorna lista de arquivos de log disponíveis
-func (a *App) GetLogFiles() map[string]interface{} {
-	if logDir == "" {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Diretório de logs não inicializado",
-		}
-	}
-
-	files, err := os.ReadDir(logDir)
-	if err != nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   fmt.Sprintf("Erro ao ler diretório de logs: %v", err),
-		}
-	}
-
-	var logFiles []map[string]interface{}
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), "lottery-optimizer-") && strings.HasSuffix(file.Name(), ".log") {
-			info, err := file.Info()
-			if err != nil {
-				continue
-			}
-
-			logFiles = append(logFiles, map[string]interface{}{
-				"name":    file.Name(),
-				"size":    info.Size(),
-				"modTime": info.ModTime().Format("2006-01-02 15:04:05"),
-				"path":    filepath.Join(logDir, file.Name()),
-				"isToday": file.Name() == fmt.Sprintf("lottery-optimizer-%s.log", time.Now().Format("2006-01-02")),
-			})
-		}
-	}
-
-	// Ordenar por data (mais recente primeiro)
-	sort.Slice(logFiles, func(i, j int) bool {
-		return logFiles[i]["name"].(string) > logFiles[j]["name"].(string)
-	})
-
-	return map[string]interface{}{
-		"success":    true,
-		"logFiles":   logFiles,
-		"logDir":     logDir,
-		"totalFiles": len(logFiles),
-	}
-}
-
-// GetLogContent retorna o conteúdo de um arquivo de log
-func (a *App) GetLogContent(fileName string) map[string]interface{} {
-	if logDir == "" {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Diretório de logs não inicializado",
-		}
-	}
-
-	// Validar nome do arquivo por segurança
-	if !strings.HasPrefix(fileName, "lottery-optimizer-") || !strings.HasSuffix(fileName, ".log") {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Nome de arquivo inválido",
-		}
-	}
-
-	filePath := filepath.Join(logDir, fileName)
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   fmt.Sprintf("Erro ao ler arquivo de log: %v", err),
-		}
-	}
-
-	return map[string]interface{}{
-		"success": true,
-		"content": string(content),
-		"size":    len(content),
-		"file":    fileName,
-	}
-}
-
-// GetTodayLogContent retorna o conteúdo do log de hoje
-func (a *App) GetTodayLogContent() map[string]interface{} {
-	todayFileName := fmt.Sprintf("lottery-optimizer-%s.log", time.Now().Format("2006-01-02"))
-	return a.GetLogContent(todayFileName)
-}
-
-// OpenLogDirectory abre o diretório de logs no explorador
-func (a *App) OpenLogDirectory() map[string]interface{} {
-	if logDir == "" {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Diretório de logs não inicializado",
-		}
-	}
-
-	// No Windows, usar o comando explorer
-	// Nota: Esta função pode precisar de ajustes dependendo do sistema
-	return map[string]interface{}{
-		"success": true,
-		"message": "Use o explorador de arquivos para navegar até: " + logDir,
-		"path":    logDir,
-	}
-}
-
-// ClearOldLogs remove logs antigos (mais de 7 dias)
-func (a *App) ClearOldLogs() map[string]interface{} {
-	if logDir == "" {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "Diretório de logs não inicializado",
-		}
-	}
-
-	files, err := os.ReadDir(logDir)
-	if err != nil {
-		return map[string]interface{}{
-			"success": false,
-			"error":   fmt.Sprintf("Erro ao ler diretório de logs: %v", err),
-		}
-	}
-
-	var removedFiles []string
-	cutoff := time.Now().AddDate(0, 0, -7) // 7 dias atrás
-
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), "lottery-optimizer-") && strings.HasSuffix(file.Name(), ".log") {
-			filePath := filepath.Join(logDir, file.Name())
-			if info, err := file.Info(); err == nil {
-				if info.ModTime().Before(cutoff) {
-					if err := os.Remove(filePath); err == nil {
-						removedFiles = append(removedFiles, file.Name())
-						customLogger.Printf("🗑️ Log antigo removido: %s", file.Name())
-					}
-				}
-			}
-		}
-	}
-
-	return map[string]interface{}{
-		"success":      true,
-		"removedFiles": removedFiles,
-		"totalRemoved": len(removedFiles),
-		"message":      fmt.Sprintf("Removidos %d arquivos de log antigos", len(removedFiles)),
+		"features": []string{
+			"Performance Analytics",
+			"ROI Calculator",
+			"Smart Notifications",
+			"Historical Analysis",
+			"Number Frequency Analysis",
+		},
 	}
 }
 
@@ -1604,50 +1396,17 @@ func initCustomLogging() error {
 	// Criar logger personalizado
 	customLogger = &CustomLogger{file: logFile}
 
-	// TESTE IMEDIATO - escrever logs para verificar
-	fmt.Printf("🧪 Testando log no console...\n")
-
 	// Log inicial
 	customLogger.Printf("🚀 =================================")
 	customLogger.Printf("🚀 LOTTERY OPTIMIZER %s INICIADO", version)
-	customLogger.Printf("🚀 Sistema de Atualização Silenciosa ATIVO")
+	customLogger.Printf("🚀 VERSÃO 2.0.0 - ANALYTICS DASHBOARD")
 	customLogger.Printf("🚀 =================================")
 	customLogger.Printf("📁 Diretório de logs: %s", logDir)
 	customLogger.Printf("📝 Arquivo de log: %s", logFilePath)
-	customLogger.Printf("🧪 TESTE DE LOGGING - Se você está vendo isso, o sistema funciona!")
 
 	fmt.Printf("✅ Logs iniciais escritos e sincronizados\n")
 
-	// Rotação de logs (manter últimos 7 dias)
-	go rotateLogFiles()
-
 	return nil
-}
-
-// rotateLogFiles remove logs antigos (manter últimos 7 dias)
-func rotateLogFiles() {
-	if logDir == "" {
-		return
-	}
-
-	files, err := os.ReadDir(logDir)
-	if err != nil {
-		customLogger.Printf("❌ Erro ao ler diretório de logs: %v", err)
-		return
-	}
-
-	cutoff := time.Now().AddDate(0, 0, -7) // 7 dias atrás
-
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), "lottery-optimizer-") && strings.HasSuffix(file.Name(), ".log") {
-			if info, err := file.Info(); err == nil && info.ModTime().Before(cutoff) {
-				logPath := filepath.Join(logDir, file.Name())
-				if err := os.Remove(logPath); err == nil {
-					customLogger.Printf("🗑️ Log antigo removido: %s", file.Name())
-				}
-			}
-		}
-	}
 }
 
 // flushLogs força a sincronização dos logs para o disco
@@ -1723,18 +1482,4 @@ func loadExistingConfig() {
 	} else {
 		customLogger.Printf("⚠️ Arquivo de configuração existe mas não contém chave Claude API")
 	}
-}
-
-// setUpdateStatus atualiza o status da atualização
-func (a *App) setUpdateStatus(status, message string) {
-	a.updateStatus.Status = status
-	a.updateStatus.Message = message
-	if a.pendingUpdate != nil {
-		a.updateStatus.Version = a.pendingUpdate.Version
-	}
-}
-
-// GetUpdateStatus retorna o status atual da atualização
-func (a *App) GetUpdateStatus() *UpdateStatus {
-	return a.updateStatus
 }

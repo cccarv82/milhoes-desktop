@@ -1,8 +1,9 @@
-# 🎰 Milhões - Otimizador Inteligente de Loterias
+# 🎰 Milhões - Otimizador Inteligente de Loterias v2.0.0
 
 ![Version](https://img.shields.io/github/v/release/yourusername/milhoes)
 ![License](https://img.shields.io/github/license/yourusername/milhoes)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
+![Analytics](https://img.shields.io/badge/v2.0.0-Analytics%20Dashboard-green)
 
 ## 🎯 Sobre o Projeto
 
@@ -10,6 +11,16 @@
 
 ### ✨ Principais Funcionalidades
 
+#### 🆕 **NOVO v2.0.0**: Dashboard de Performance Completo
+- 📊 **Analytics Avançado** - Métricas detalhadas de ROI, win rate e performance
+- 💰 **Calculadora ROI** - Projeções baseadas no seu histórico real
+- 🔔 **Sistema de Notificações** - Alertas inteligentes sobre resultados e conquistas
+- 📈 **Análise de Frequência** - Números quentes, frios e padrões estatísticos
+- 🎯 **Dashboard Executivo** - Resumo completo da sua performance
+- 📅 **Análise Temporal** - Performance por período (30/90/365 dias)
+- 🏆 **Níveis de Performance** - Sistema de classificação baseado em resultados
+
+#### Funcionalidades Principais
 - 🧠 **IA Claude Integrada** - Análise avançada com inteligência artificial
 - 📊 **Dados CAIXA em Tempo Real** - Sorteios históricos atualizados
 - 💰 **Otimização de Orçamento** - Máximo retorno para seu investimento

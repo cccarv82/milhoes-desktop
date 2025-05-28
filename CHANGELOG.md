@@ -298,6 +298,110 @@ This should definitively resolve the installer generation issue.
 - Full CLI functionality
 - Production-ready deployment options
 
+## [2.0.0] - 2025-01-27 - DASHBOARD DE PERFORMANCE
+
+### 🆕 NEW FEATURES - Analytics & Performance Dashboard
+
+#### 📊 Dashboard de Performance Completo
+- **Dashboard Executivo**: Visão geral completa com todas as métricas principais
+- **ROI em Tempo Real**: Acompanhamento instantâneo do retorno sobre investimento
+- **Análise de Tendências**: Indicadores visuais de performance (alta/baixa/estável)
+- **Níveis de Performance**: Sistema de classificação (Excelente/Boa/Regular/Baixa)
+- **Métricas por Período**: Análise detalhada dos últimos 30, 90 e 365 dias
+- **Sequências de Vitórias/Derrotas**: Tracking de streaks atuais e recordes
+
+#### 💰 Calculadora ROI Inteligente
+- **Projeções Baseadas em Histórico**: Estimativas usando dados reais do usuário
+- **Múltiplos Cenários de Investimento**: Simule diferentes valores
+- **Análise de Confiança**: Níveis de precisão baseados na quantidade de dados
+- **Recomendações Personalizadas**: Sugestões baseadas na performance individual
+- **Suporte a Múltiplos Períodos**: Análise para 30, 90, 180 e 365 dias
+
+#### 🔔 Sistema de Notificações Avançado
+- **Centro de Notificações**: Interface centralizada para gerenciar todas as notificações
+- **Categorização Inteligente**: Jogo, Financeiro, Sistema, Conquistas
+- **Priorização**: Urgente, Alta, Média, Baixa
+- **Status de Leitura**: Marcar como lida/não lida
+- **Limpeza Automática**: Remoção de notificações antigas
+- **Filtros Avançados**: Visualizar por tipo, prioridade e status
+
+#### 📈 Análise de Números e Frequência
+- **Números Quentes vs Frios**: Identificação de padrões estatísticos
+- **Análise por Loteria**: Estatísticas específicas para Mega-Sena e Lotofácil
+- **Frequência Detalhada**: Contagem precisa de aparições por número
+- **Percentuais de Frequência**: Dados normalizados para comparação
+- **Status Inteligente**: Classificação automática (quente/frio/normal)
+- **Histórico de Última Aparição**: Tracking de quando cada número foi usado
+
+#### 🎯 Analytics Detalhado
+- **Métricas Completas**: Total de jogos, investimento, retorno, ROI, win rate
+- **Análise de Sequências**: Streaks atuais e recordes históricos
+- **Performance por Loteria**: Estatísticas separadas para cada tipo de jogo
+- **Números Favoritos**: Identificação dos números mais utilizados
+- **Tendências Mensais**: Análise de crescimento mês a mês
+- **Valor Esperado**: Cálculos de retorno baseados em probabilidades
+
+### 🔧 TECHNICAL IMPROVEMENTS
+
+#### Backend Enhancements
+- **Analytics Module**: Sistema completo de cálculo de métricas (`internal/analytics/`)
+- **Notification System**: Gerenciador global de notificações (`internal/notifications/`)
+- **Database Analytics**: Queries otimizadas para análise de performance
+- **API Endpoints**: 7 novos endpoints para dashboard e analytics
+- **Global Database Instance**: Acesso centralizado para analytics
+- **Custom Logging**: Sistema aprimorado de logs com timestamps
+
+#### Frontend Enhancements
+- **TypeScript Interfaces**: Tipos completos para todas as estruturas de dados
+- **Dashboard Components**: Interface moderna e responsiva
+- **Real-time Updates**: Carregamento dinâmico de dados
+- **Error Handling**: Tratamento gracioso de erros e estados de loading
+- **Responsive Design**: Layout adaptativo para diferentes tamanhos de tela
+- **Interactive Elements**: Botões e cards com hover effects
+
+#### API Methods Added
+- `GetPerformanceMetrics()`: Métricas completas de performance
+- `GetDashboardSummary()`: Resumo executivo para dashboard
+- `GetROICalculator()`: Cálculos de projeção de ROI
+- `GetNumberFrequencyAnalysis()`: Análise de frequência de números
+- `GetNotifications()`: Sistema de notificações
+- `MarkNotificationAsRead()`: Gerenciamento de notificações
+- `ClearOldNotifications()`: Limpeza de notificações antigas
+
+### 🐛 BUG FIXES
+- **TypeScript Compilation**: Correção de erros de funções não utilizadas
+- **Global Window Functions**: Exposição correta de funções para onclick handlers
+- **Parameter Usage**: Marcação adequada de parâmetros não utilizados
+- **Build Process**: Correção de problemas de compilação Wails
+- **Code Formatting**: Aplicação consistente de gofmt em todo o código
+
+### 🔄 CI/CD COMPLIANCE
+- ✅ **Go Formatting**: Código 100% formatado com gofmt
+- ✅ **Go Vet**: Passou em todas as verificações de qualidade
+- ✅ **Tests**: Todas as verificações de teste passando
+- ✅ **Build Verification**: Compilação bem-sucedida
+- ✅ **Security Checks**: Verificações de segurança implementadas
+
+### 📱 USER EXPERIENCE
+- **Dashboard v2.0.0 Button**: Botão prominente na tela principal
+- **Navigation**: Navegação intuitiva entre todas as funcionalidades
+- **Loading States**: Indicadores visuais durante carregamento
+- **Error Messages**: Mensagens de erro informativas e acionáveis
+- **Responsive Layout**: Interface otimizada para diferentes resoluções
+- **Modern UI**: Design atualizado com gradientes e animações
+
+### 🗂️ PHASE 1 COMPLETE
+Esta release completa a **FASE 1** do Dashboard de Performance, incluindo:
+- ✅ Analytics Module completo
+- ✅ Sistema de Notificações
+- ✅ Dashboard UI responsivo
+- ✅ Calculadora ROI
+- ✅ Análise de números
+- ✅ Integração com backend
+- ✅ CI compliance 100%
+
+**PRÓXIMA FASE**: Mobile integration e recursos avançados
+
 ---
 
 ## Types of Changes

@@ -4,23 +4,11 @@ import {updater} from '../models';
 import {main} from '../models';
 import {models} from '../models';
 
-export function CheckAllPendingResults():Promise<Record<string, any>>;
-
 export function CheckForUpdates():Promise<updater.UpdateInfo>;
 
-export function CheckGameResult(arg1:string):Promise<Record<string, any>>;
-
-export function ClearOldLogs():Promise<Record<string, any>>;
-
-export function DebugConfig():Promise<Record<string, any>>;
-
-export function DebugConfigPath():Promise<Record<string, any>>;
-
-export function DebugSavedGamesDB():Promise<Record<string, any>>;
+export function ClearOldNotifications(arg1:number):Promise<Record<string, any>>;
 
 export function DeleteSavedGame(arg1:string):Promise<Record<string, any>>;
-
-export function DownloadUpdate(arg1:updater.UpdateInfo):Promise<void>;
 
 export function GenerateStrategy(arg1:main.UserPreferences):Promise<main.StrategyResponse>;
 
@@ -30,35 +18,31 @@ export function GetCurrentConfig():Promise<Record<string, any>>;
 
 export function GetCurrentVersion():Promise<string>;
 
+export function GetDashboardSummary():Promise<Record<string, any>>;
+
 export function GetDefaultConfig():Promise<main.ConfigData>;
-
-export function GetLogContent(arg1:string):Promise<Record<string, any>>;
-
-export function GetLogFiles():Promise<Record<string, any>>;
 
 export function GetNextDraws():Promise<Record<string, any>>;
 
-export function GetSavedGames(arg1:models.SavedGamesFilter):Promise<Record<string, any>>;
+export function GetNotifications(arg1:number,arg2:boolean):Promise<Record<string, any>>;
 
-export function GetSavedGamesStats():Promise<Record<string, any>>;
+export function GetNumberFrequencyAnalysis(arg1:string):Promise<Record<string, any>>;
+
+export function GetPerformanceMetrics():Promise<Record<string, any>>;
+
+export function GetROICalculator(arg1:number,arg2:string):Promise<Record<string, any>>;
+
+export function GetSavedGames(arg1:models.SavedGamesFilter):Promise<Record<string, any>>;
 
 export function GetStatistics():Promise<Record<string, any>>;
 
-export function GetTodayLogContent():Promise<Record<string, any>>;
-
-export function GetUpdateStatus():Promise<main.UpdateStatus>;
-
 export function Greet(arg1:string):Promise<string>;
 
-export function InstallUpdate(arg1:updater.UpdateInfo):Promise<void>;
-
-export function OpenLogDirectory():Promise<Record<string, any>>;
+export function MarkNotificationAsRead(arg1:string):Promise<Record<string, any>>;
 
 export function SaveConfig(arg1:main.ConfigData):Promise<Record<string, any>>;
 
 export function SaveGame(arg1:models.SaveGameRequest):Promise<Record<string, any>>;
-
-export function ScheduleUpdateCheck():Promise<void>;
 
 export function TestConnections():Promise<main.ConnectionStatus>;
 
