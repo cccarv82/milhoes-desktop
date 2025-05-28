@@ -11,6 +11,7 @@ import (
 // ValidateAndAdjustStrategy valida e ajusta uma estratégia gerada pela IA
 func ValidateAndAdjustStrategy(strategy *lottery.Strategy, prefs lottery.UserPreferences) *lottery.Strategy {
 	if strategy == nil {
+		fmt.Println("❌ Estratégia é nil, gerando fallback")
 		strategy = generateFallbackStrategy(prefs)
 	}
 
@@ -18,26 +19,41 @@ func ValidateAndAdjustStrategy(strategy *lottery.Strategy, prefs lottery.UserPre
 	validGames := []lottery.Game{}
 	totalCost := 0.0
 
-	for _, game := range strategy.Games {
+	fmt.Printf("🔍 Validando %d jogos da estratégia original...\n", len(strategy.Games))
+
+	for i, game := range strategy.Games {
+		fmt.Printf("🎲 Validando jogo %d: %s com %d números\n", i+1, game.Type, len(game.Numbers))
+
+		// VALIDAÇÃO RIGOROSA PRIMEIRO
 		if err := lottery.ValidateGame(game); err != nil {
+			fmt.Printf("❌ Jogo %d inválido: %v\n", i+1, err)
+
 			// Tentar corrigir o jogo
 			if correctedGame := fixGame(game, prefs); correctedGame != nil {
+				fmt.Printf("✅ Jogo %d corrigido com sucesso\n", i+1)
 				validGames = append(validGames, *correctedGame)
 				totalCost += correctedGame.Cost
+			} else {
+				fmt.Printf("❌ Jogo %d não pôde ser corrigido - DESCARTADO\n", i+1)
 			}
 		} else {
+			fmt.Printf("✅ Jogo %d válido\n", i+1)
 			validGames = append(validGames, game)
 			totalCost += game.Cost
 		}
 
 		// Parar se exceder o orçamento
 		if totalCost > prefs.Budget {
+			fmt.Printf("💰 Orçamento excedido em R$ %.2f, parando validação\n", totalCost-prefs.Budget)
 			break
 		}
 	}
 
+	fmt.Printf("📊 Resultado da validação: %d jogos válidos de %d originais\n", len(validGames), len(strategy.Games))
+
 	// Se não temos jogos válidos ou estamos muito abaixo do orçamento, gerar mais
 	if len(validGames) == 0 {
+		fmt.Println("🆘 NENHUM jogo válido! Gerando jogos de fallback...")
 		// Só gerar jogos de fallback se não temos NENHUM jogo válido
 		additionalGames := generateAdditionalGames(prefs, totalCost)
 		validGames = append(validGames, additionalGames...)
@@ -47,10 +63,15 @@ func ValidateAndAdjustStrategy(strategy *lottery.Strategy, prefs lottery.UserPre
 		for _, game := range validGames {
 			totalCost += game.Cost
 		}
+		fmt.Printf("🎲 Gerados %d jogos de fallback, custo total: R$ %.2f\n", len(additionalGames), totalCost)
 	}
 
 	// Remover duplicatas
+	originalCount := len(validGames)
 	validGames = removeDuplicateGames(validGames)
+	if len(validGames) < originalCount {
+		fmt.Printf("🔄 Removidas %d duplicatas\n", originalCount-len(validGames))
+	}
 
 	// Atualizar estratégia
 	strategy.Games = validGames
@@ -72,6 +93,8 @@ func ValidateAndAdjustStrategy(strategy *lottery.Strategy, prefs lottery.UserPre
 		strategy.Reasoning = generateReasoningText(strategy, prefs)
 	}
 
+	fmt.Printf("🏁 Estratégia final: %d jogos, custo R$ %.2f\n", len(strategy.Games), strategy.TotalCost)
+
 	return strategy
 }
 
@@ -79,39 +102,66 @@ func ValidateAndAdjustStrategy(strategy *lottery.Strategy, prefs lottery.UserPre
 func fixGame(game lottery.Game, prefs lottery.UserPreferences) *lottery.Game {
 	rules := lottery.GetRules(game.Type)
 
+	// Log detalhado do problema
+	fmt.Printf("🔧 Corrigindo jogo inválido: %s com %d números: %v\n",
+		game.Type, len(game.Numbers), game.Numbers)
+
+	// VALIDAÇÃO CRÍTICA: Verificar se tem números suficientes
+	if len(game.Numbers) < rules.MinNumbers {
+		fmt.Printf("❌ ERRO CRÍTICO: %s tem apenas %d números, mínimo é %d\n",
+			game.Type, len(game.Numbers), rules.MinNumbers)
+	}
+
 	// Corrigir números fora do range
 	validNumbers := []int{}
 	for _, num := range game.Numbers {
 		if num >= 1 && num <= rules.NumberRange {
 			validNumbers = append(validNumbers, num)
+		} else {
+			fmt.Printf("⚠️ Número %d fora do range (1-%d) removido\n", num, rules.NumberRange)
 		}
 	}
 
 	// Remover duplicatas
 	validNumbers = removeDuplicates(validNumbers)
 
-	// Completar números se necessário
+	// FORÇA NÚMERO MÍNIMO OBRIGATÓRIO
 	for len(validNumbers) < rules.MinNumbers {
 		newNum := generateRandomNumber(rules.NumberRange, validNumbers, prefs)
 		if newNum > 0 {
 			validNumbers = append(validNumbers, newNum)
+			fmt.Printf("➕ Adicionado número %d para completar mínimo de %d\n", newNum, rules.MinNumbers)
+		} else {
+			// Fallback: adicionar números sequenciais se necessário
+			for num := 1; num <= rules.NumberRange && len(validNumbers) < rules.MinNumbers; num++ {
+				if !contains(validNumbers, num) {
+					validNumbers = append(validNumbers, num)
+					fmt.Printf("🆘 Fallback: adicionado número %d\n", num)
+				}
+			}
 		}
 	}
 
 	// Ordenar números
 	sort.Ints(validNumbers)
 
-	// Se ainda não temos números suficientes, retornar nil
+	// VALIDAÇÃO FINAL RIGOROSA
 	if len(validNumbers) < rules.MinNumbers {
+		fmt.Printf("❌ FALHA TOTAL: Não foi possível gerar %d números para %s\n",
+			rules.MinNumbers, game.Type)
 		return nil
 	}
 
 	// Limitar ao máximo permitido
 	if len(validNumbers) > rules.MaxNumbers {
 		validNumbers = validNumbers[:rules.MaxNumbers]
+		fmt.Printf("✂️ Limitado a %d números (máximo permitido)\n", rules.MaxNumbers)
 	}
 
 	cost := lottery.CalculateGameCost(game.Type, len(validNumbers))
+
+	fmt.Printf("✅ Jogo corrigido: %s com %d números: %v (R$ %.2f)\n",
+		game.Type, len(validNumbers), validNumbers, cost)
 
 	return &lottery.Game{
 		Type:           game.Type,

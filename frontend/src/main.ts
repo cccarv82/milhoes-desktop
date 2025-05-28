@@ -732,7 +732,7 @@ function renderWelcome() {
                     <div class="feature-card">
                         <span class="feature-icon">🧠</span>
                         <h3>IA Nível Mundial</h3>
-                        <p>Claude Opus 4 analisa 250+ sorteios históricos com sistemas de Wheeling profissionais e 12 filtros matemáticos avançados.</p>
+                        <p>Claude Opus 4 analisa 250+ sorteios históricos com sistemas de Wheeling profissionais e 6 filtros matemáticos obrigatórios.</p>
                     </div>
                     
                     <div class="feature-card">
@@ -1236,6 +1236,30 @@ function renderStrategyResult(response: StrategyResponse) {
         renderError('Erro: Nenhum jogo foi gerado');
         return;
     }
+
+    // 🚨 VALIDAÇÃO CRÍTICA: Verificar números mínimos
+    for (let i = 0; i < strategy.games.length; i++) {
+        const game = strategy.games[i];
+        const minNumbers = (game.type === 'lotofacil') ? 15 : 6;
+        const maxNumbers = (game.type === 'lotofacil') ? 25 : 60;
+        
+        if (!game.numbers || game.numbers.length < minNumbers) {
+            console.error(`❌ ERRO CRÍTICO: Jogo ${i+1} (${game.type}) tem apenas ${game.numbers?.length || 0} números, mínimo é ${minNumbers}`);
+            renderError(`Erro crítico: Jogo ${i+1} da ${game.type === 'lotofacil' ? 'Lotofácil' : 'Mega-Sena'} tem apenas ${game.numbers?.length || 0} números. Mínimo obrigatório: ${minNumbers} números.`);
+            return;
+        }
+
+        // Verificar se os números estão no range correto
+        for (const num of game.numbers) {
+            if (num < 1 || num > maxNumbers) {
+                console.error(`❌ ERRO: Número ${num} fora do range (1-${maxNumbers}) no jogo ${i+1}`);
+                renderError(`Erro: Número ${num} inválido no jogo ${i+1}. Deve estar entre 1 e ${maxNumbers}.`);
+                return;
+            }
+        }
+
+        console.log(`✅ Jogo ${i+1} validado: ${game.type} com ${game.numbers.length} números`);
+    }
     
     // Salvar estratégia globalmente para impressão
     (window as any).currentStrategy = strategy;
@@ -1456,7 +1480,7 @@ function renderStrategyResult(response: StrategyResponse) {
                                 <span class="strategy-icon">🎯</span>
                                 <div class="strategy-content">
                                     <h6>Filtros Matemáticos</h6>
-                                    <p>Todos os jogos passaram por 12 filtros avançados: soma balanceada, paridade, distribuição por quadrantes, 
+                                    <p>Todos os jogos passaram por 6 filtros matemáticos obrigatórios: soma balanceada, paridade, distribuição por quadrantes, 
                                     máximo 2 consecutivos, diversificação de terminações e distância de Hamming entre jogos.</p>
                                 </div>
                             </div>

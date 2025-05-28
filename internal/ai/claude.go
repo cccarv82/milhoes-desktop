@@ -486,6 +486,10 @@ MEGA-SENA - SISTEMAS DE GARANTIA:
 
 === FILTROS MATEMÁTICOS AVANÇADOS (OBRIGATÓRIOS) ===
 
+🚨 NÚMEROS MÍNIMOS OBRIGATÓRIOS (CRÍTICO):
+• LOTOFÁCIL: SEMPRE 15, 16, 17, 18, 19 ou 20 números (NUNCA MENOS QUE 15!)
+• MEGA-SENA: SEMPRE 6, 7, 8, 9, 10, 11 ou 12 números (NUNCA MENOS QUE 6!)
+
 1. **FILTRO DE SOMA INTELIGENTE:**
    - Lotofácil: somas entre 170-210 (80%% dos sorteios históricos)
    - Mega-Sena: somas entre 140-200 (75%% dos sorteios históricos)
@@ -565,8 +569,8 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
     "games": [
       {
         "type": "lotofacil",
-        "numbers": [EXATAMENTE 15/16/17 NÚMEROS ÚNICOS QUE PASSARAM EM TODOS OS FILTROS],
-        "cost": [CUSTO OFICIAL EXATO],
+        "numbers": [EXATAMENTE 15/16/17/18/19/20 NÚMEROS ÚNICOS - NUNCA MENOS QUE 15!],
+        "cost": [CUSTO OFICIAL EXATO: 15números=R$3,00 | 16números=R$48,00 | 17números=R$408,00],
         "filters": {
           "sum": [SOMA DOS NÚMEROS],
           "evenOdd": "8p8i",
@@ -592,12 +596,14 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
 
 🚨 VALIDAÇÕES CRÍTICAS OBRIGATÓRIAS:
 1. CADA número deve aparecer APENAS UMA VEZ por jogo
-2. TODOS os filtros matemáticos devem ser aplicados
-3. Valor esperado deve ser calculado corretamente
-4. Sistema de redução deve ser identificado
-5. Distância de Hamming entre jogos ≥8
-6. Soma de cada jogo dentro da faixa histórica
-7. Distribuição balanceada por quadrantes/décadas
+2. LOTOFÁCIL: MÍNIMO 15 NÚMEROS OBRIGATÓRIO - NUNCA MENOS!
+3. MEGA-SENA: MÍNIMO 6 NÚMEROS OBRIGATÓRIO - NUNCA MENOS!
+4. TODOS os filtros matemáticos devem ser aplicados
+5. Valor esperado deve ser calculado corretamente
+6. Sistema de redução deve ser identificado
+7. Distância de Hamming entre jogos ≥8
+8. Soma de cada jogo dentro da faixa histórica
+9. Distribuição balanceada por quadrantes/décadas
 
 Use SOMENTE os dados estatísticos fornecidos + filtros matemáticos avançados. Esta é a estratégia de ESPECIALISTAS MUNDIAIS!`,
 		budget, statisticalAnalysis, budget, len(request.Draws))

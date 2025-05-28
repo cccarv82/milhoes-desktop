@@ -46,4 +46,3 @@
 ├─ ⚖️ Risk Assessment
 ├─ 💰 Profit Taking Automático
 └─ 🛡️ Loss Prevention System
-
