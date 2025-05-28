@@ -795,6 +795,18 @@ function renderWelcome() {
                             <h4>100% Privado</h4>
                             <p>Todos os cálculos são locais, seus dados não saem do computador</p>
                         </div>
+                        
+                        <div class="feature-compact">
+                            <span class="feature-compact-icon">🔍</span>
+                            <h4>Verificação Automática</h4>
+                            <p>Sistema inteligente que verifica seus jogos automaticamente</p>
+                        </div>
+                        
+                        <div class="feature-compact">
+                            <span class="feature-compact-icon">🔄</span>
+                            <h4>Auto-Update</h4>
+                            <p>Sempre na versão mais recente com atualizações automáticas</p>
+                        </div>
                     </div>
                 </div>
                 
@@ -2582,147 +2594,166 @@ function renderDashboardContent(summary: DashboardSummary, _metrics: Performance
                 </div>
             </header>
             
-            <div class="main-content" style="padding: 1rem;">
+            <div class="main-content">
                 <!-- Resumo Executivo -->
-                <div class="welcome-section" style="margin-bottom: 2rem;">
-                    <h2 style="color: var(--accent-primary); margin-bottom: 1rem;">
+                <div class="executive-summary">
+                    <h2 style="color: var(--accent-primary); margin-bottom: var(--spacing-4); display: flex; align-items: center; gap: var(--spacing-2);">
                         ${getPerformanceIcon(summary.performance.level)} Resumo Executivo
                     </h2>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-                        
-                        <div class="feature-card" style="background: linear-gradient(135deg, #059669, #10b981);">
-                            <h3 style="color: white; margin-bottom: 0.5rem;">ROI Atual</h3>
-                            <div style="font-size: 2rem; color: white; font-weight: bold;">
+                    
+                    <!-- Grid de Métricas Principais -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <h3>ROI Atual</h3>
+                            <div class="metric-value">
                                 ${summary.currentROI.toFixed(2)}%
                             </div>
-                            <p style="color: #d1fae5; margin: 0;">${getTrendIcon(summary.trend)} ${getTrendText(summary.trend)}</p>
+                            <p class="metric-description">
+                                ${getTrendIcon(summary.trend)} ${getTrendText(summary.trend)}
+                            </p>
                         </div>
 
-                        <div class="feature-card">
+                        <div class="metric-card">
                             <h3>Jogos Realizados</h3>
-                            <div style="font-size: 2rem; color: var(--accent-primary); font-weight: bold;">
+                            <div class="metric-value neutral">
                                 ${summary.totalGames}
                             </div>
-                            <p style="color: var(--text-secondary); margin: 0;">Total de apostas</p>
+                            <p class="metric-description">Total de apostas</p>
                         </div>
 
-                        <div class="feature-card">
+                        <div class="metric-card">
                             <h3>Investimento Total</h3>
-                            <div style="font-size: 2rem; color: var(--accent-primary); font-weight: bold;">
+                            <div class="metric-value neutral">
                                 R$ ${summary.totalInvestment.toFixed(2)}
                             </div>
-                            <p style="color: var(--text-secondary); margin: 0;">Valor investido</p>
+                            <p class="metric-description">Valor investido</p>
                         </div>
 
-                        <div class="feature-card">
+                        <div class="metric-card">
                             <h3>Retorno Total</h3>
-                            <div style="font-size: 2rem; color: ${summary.totalWinnings >= summary.totalInvestment ? '#059669' : '#dc2626'}; font-weight: bold;">
+                            <div class="metric-value ${summary.totalWinnings >= summary.totalInvestment ? 'positive' : 'negative'}">
                                 R$ ${summary.totalWinnings.toFixed(2)}
                             </div>
-                            <p style="color: var(--text-secondary); margin: 0;">
+                            <p class="metric-description">
                                 ${summary.totalWinnings >= summary.totalInvestment ? '📈 Lucro' : '📉 Prejuízo'}: 
                                 R$ ${(summary.totalWinnings - summary.totalInvestment).toFixed(2)}
                             </p>
                         </div>
 
-                        <div class="feature-card">
+                        <div class="metric-card">
                             <h3>Taxa de Acerto</h3>
-                            <div style="font-size: 2rem; color: var(--accent-primary); font-weight: bold;">
+                            <div class="metric-value neutral">
                                 ${summary.winRate.toFixed(1)}%
                             </div>
-                            <p style="color: var(--text-secondary); margin: 0;">Jogos premiados</p>
+                            <p class="metric-description">Jogos premiados</p>
                         </div>
 
-                        <div class="feature-card">
+                        <div class="metric-card">
                             <h3>Maior Prêmio</h3>
-                            <div style="font-size: 2rem; color: #f59e0b; font-weight: bold;">
+                            <div class="metric-value warning">
                                 R$ ${summary.biggestWin.toFixed(2)}
                             </div>
-                            <p style="color: var(--text-secondary); margin: 0;">Seu melhor resultado</p>
+                            <p class="metric-description">Seu melhor resultado</p>
                         </div>
                     </div>
 
                     <!-- Performance Level -->
-                    <div class="feature-card" style="background: ${getPerformanceBgColor(summary.performance.level)}; color: white; text-align: center;">
-                        <h3 style="color: white; margin-bottom: 1rem;">Nível de Performance</h3>
-                        <div style="font-size: 2.5rem; margin-bottom: 1rem;">
+                    <div class="performance-card ${getPerformanceClass(summary.performance.level)}">
+                        <div class="performance-icon">
                             ${getPerformanceIcon(summary.performance.level)}
                         </div>
-                        <h2 style="color: white; margin-bottom: 1rem;">${summary.performance.level}</h2>
-                        <p style="margin: 0; font-size: 1.1rem; opacity: 0.9;">${summary.performance.description}</p>
+                        <h2 class="performance-level">${summary.performance.level}</h2>
+                        <p class="performance-description">${summary.performance.description}</p>
                     </div>
                 </div>
 
                 <!-- Ações Rápidas -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-                    <button onclick="renderDetailedAnalytics()" class="feature-card" style="border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                        <span style="font-size: 2rem;">📈</span>
-                        <h3>Análise Detalhada</h3>
-                        <p>Métricas completas e trends</p>
-                    </button>
+                <div class="quick-actions">
+                    <div onclick="renderDetailedAnalytics()" class="action-card">
+                        <span class="action-icon">📈</span>
+                        <h3 class="action-title">Análise Detalhada</h3>
+                        <p class="action-description">Métricas completas e trends</p>
+                    </div>
 
-                    <button onclick="renderNumberAnalysis()" class="feature-card" style="border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                        <span style="font-size: 2rem;">🔢</span>
-                        <h3>Análise de Números</h3>
-                        <p>Frequência e padrões</p>
-                    </button>
+                    <div onclick="renderNumberAnalysis()" class="action-card">
+                        <span class="action-icon">🔢</span>
+                        <h3 class="action-title">Análise de Números</h3>
+                        <p class="action-description">Frequência e padrões</p>
+                    </div>
 
-                    <button onclick="renderROICalculator()" class="feature-card" style="border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                        <span style="font-size: 2rem;">💰</span>
-                        <h3>Calculadora ROI</h3>
-                        <p>Projeções de investimento</p>
-                    </button>
+                    <div onclick="renderROICalculator()" class="action-card">
+                        <span class="action-icon">💰</span>
+                        <h3 class="action-title">Calculadora ROI</h3>
+                        <p class="action-description">Projeções de investimento</p>
+                    </div>
 
-                    <button onclick="startStrategyWizard()" class="feature-card" style="border: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                        <span style="font-size: 2rem;">🧠</span>
-                        <h3>Nova Estratégia</h3>
-                        <p>Baseada nos dados</p>
-                    </button>
+                    <div onclick="startStrategyWizard()" class="action-card">
+                        <span class="action-icon">🧠</span>
+                        <h3 class="action-title">Nova Estratégia</h3>
+                        <p class="action-description">Baseada nos dados</p>
+                    </div>
+                    
+                    <div onclick="renderSavedGamesScreen()" class="action-card">
+                        <span class="action-icon">💾</span>
+                        <h3 class="action-title">Jogos Salvos</h3>
+                        <p class="action-description">Histórico e resultados</p>
+                    </div>
+                    
+                    <div onclick="renderNotificationsCenter()" class="action-card">
+                        <span class="action-icon">🔔</span>
+                        <h3 class="action-title">Notificações</h3>
+                        <p class="action-description">Alertas e lembretes</p>
+                    </div>
                 </div>
 
                 <!-- Últimos 30 Dias -->
-                <div class="feature-card" style="margin-bottom: 2rem;">
-                    <h3 style="margin-bottom: 1rem;">📅 Últimos 30 Dias</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5rem; color: var(--accent-primary); font-weight: bold;">
+                <div class="period-section">
+                    <h3 class="period-title">📅 Últimos 30 Dias</h3>
+                    <div class="period-stats">
+                        <div class="period-stat">
+                            <div class="period-stat-value">
                                 ${summary.last30Days.games}
                             </div>
-                            <p style="margin: 0; color: var(--text-secondary);">Jogos</p>
+                            <p class="period-stat-label">Jogos</p>
                         </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5rem; color: var(--accent-primary); font-weight: bold;">
+                        <div class="period-stat">
+                            <div class="period-stat-value">
                                 R$ ${summary.last30Days.investment.toFixed(2)}
                             </div>
-                            <p style="margin: 0; color: var(--text-secondary);">Investido</p>
+                            <p class="period-stat-label">Investido</p>
                         </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5rem; color: var(--accent-primary); font-weight: bold;">
+                        <div class="period-stat">
+                            <div class="period-stat-value">
                                 R$ ${summary.last30Days.winnings.toFixed(2)}
                             </div>
-                            <p style="margin: 0; color: var(--text-secondary);">Retorno</p>
+                            <p class="period-stat-label">Retorno</p>
                         </div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 1.5rem; color: ${summary.last30Days.roi >= 0 ? '#059669' : '#dc2626'}; font-weight: bold;">
+                        <div class="period-stat">
+                            <div class="period-stat-value" style="color: ${summary.last30Days.roi >= 0 ? 'var(--accent-success)' : 'var(--accent-error)'};">
                                 ${summary.last30Days.roi.toFixed(2)}%
                             </div>
-                            <p style="margin: 0; color: var(--text-secondary);">ROI</p>
+                            <p class="period-stat-label">ROI</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Current Streak -->
-                ${summary.currentStreak.type !== 'none' ? `
-                <div class="feature-card" style="background: ${summary.currentStreak.type === 'win' ? 'linear-gradient(135deg, #a7f3d0, #d1fae5)' : 'linear-gradient(135deg, #fecaca, #fee2e2)'}; color: ${summary.currentStreak.type === 'win' ? '#065f46' : '#7f1d1d'}; text-align: center; margin-top: 2rem;">
-                    <h3 style="color: ${summary.currentStreak.type === 'win' ? '#065f46' : '#7f1d1d'};">
-                        ${summary.currentStreak.type === 'win' ? '🔥 Sequência de Vitórias' : '❄️ Sequência de Derrotas'}
-                    </h3>
-                    <div style="font-size: 3rem; font-weight: bold; margin: 1rem 0;">
-                        ${summary.currentStreak.count}
+                ${summary.currentStreak.count > 0 ? `
+                <div class="streak-section">
+                    <div class="streak-card ${summary.currentStreak.type}">
+                        <div class="streak-icon">
+                            ${summary.currentStreak.type === 'win' ? '🔥' : '❄️'}
+                        </div>
+                        <h3>
+                            ${summary.currentStreak.type === 'win' ? 'Sequência de Vitórias' : 'Sequência de Derrotas'}
+                        </h3>
+                        <div class="streak-count">
+                            ${summary.currentStreak.count}
+                        </div>
+                        <p class="streak-description">
+                            ${summary.currentStreak.type === 'win' ? 'Jogos consecutivos com prêmio!' : 'Jogos consecutivos sem prêmio'}
+                        </p>
                     </div>
-                    <p style="margin: 0; opacity: 0.8;">
-                        ${summary.currentStreak.type === 'win' ? 'Jogos consecutivos com prêmio!' : 'Jogos consecutivos sem prêmio'}
-                    </p>
                 </div>
                 ` : ''}
             </div>
@@ -2741,15 +2772,15 @@ function renderDashboardError(_error: string) {
                     <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
                 </div>
             </header>
-            <div class="main-content" style="padding: 2rem;">
-                <div class="feature-card" style="text-align: center; background: #fef2f2; border: 1px solid #fecaca;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                    <h2 style="color: #dc2626;">Dados Insuficientes</h2>
-                    <p style="color: #7f1d1d; margin-bottom: 2rem;">
+            <div class="main-content">
+                <div class="dashboard-error">
+                    <div class="dashboard-error-icon">📊</div>
+                    <h2>Dados Insuficientes</h2>
+                    <p>
                         Você ainda não possui jogos salvos para gerar métricas de performance.
                         <br>Comece criando e salvando suas estratégias!
                     </p>
-                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <div class="dashboard-error-actions">
                         <button onclick="startStrategyWizard()" class="btn-primary">
                             🎲 Gerar Primeira Estratégia
                         </button>
@@ -2774,15 +2805,6 @@ function getPerformanceIcon(level: string): string {
     }
 }
 
-function getPerformanceBgColor(level: string): string {
-    switch (level) {
-        case 'Excelente': return 'linear-gradient(135deg, #a7f3d0, #d1fae5)'; // Verde pastel
-        case 'Boa': return 'linear-gradient(135deg, #bfdbfe, #dbeafe)'; // Azul pastel  
-        case 'Regular': return 'linear-gradient(135deg, #fed7aa, #fef3c7)'; // Laranja pastel
-        case 'Baixa': return 'linear-gradient(135deg, #fecaca, #fee2e2)'; // Vermelho pastel
-        default: return 'linear-gradient(135deg, #e5e7eb, #f3f4f6)'; // Cinza pastel
-    }
-}
 
 function getTrendIcon(trend: string): string {
     switch (trend) {
@@ -2817,50 +2839,73 @@ async function renderROICalculator() {
                 </div>
             </header>
             
-            <div class="main-content" style="padding: 1rem;">
-                <div class="welcome-section" style="margin-bottom: 2rem;">
-                    <h2 style="color: var(--accent-primary); margin-bottom: 1rem;">
-                        💡 Projeção de Investimentos
-                    </h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 2rem;">
-                        Calcule projeções de ROI baseadas no seu histórico de performance
-                    </p>
+            <div class="main-content">
+                <!-- Hero Section -->
+                <div class="roi-hero">
+                    <div class="roi-hero-content">
+                        <h2 class="roi-hero-title">
+                            <span class="roi-icon">📈</span>
+                            Calculadora de ROI Inteligente
+                        </h2>
+                        <p class="roi-hero-description">
+                            Projete seus investimentos com base no histórico de performance e análise estatística avançada
+                        </p>
+                    </div>
                 </div>
 
-                <!-- Formulário de Cálculo -->
-                <div class="feature-card" style="margin-bottom: 2rem;">
-                    <h3 style="margin-bottom: 1rem;">📊 Parâmetros de Cálculo</h3>
-                    <form id="roiCalculatorForm" style="display: grid; gap: 1rem;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div>
-                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                                    💵 Valor do Investimento (R$)
-                                </label>
-                                <input type="number" id="investmentAmount" min="1" step="0.01" value="100" 
-                                       style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
-                            </div>
-                            
-                            <div>
-                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                                    📅 Período de Análise
-                                </label>
-                                <select id="timeframe" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 1rem;">
-                                    <option value="30">30 dias</option>
-                                    <option value="90">90 dias</option>
-                                    <option value="180">6 meses</option>
-                                    <option value="365">1 ano</option>
-                                </select>
-                            </div>
+                <!-- Calculator Form -->
+                <div class="roi-calculator-section">
+                    <div class="roi-form-card">
+                        <div class="roi-form-header">
+                            <h3>🎯 Parâmetros de Projeção</h3>
+                            <p>Configure os valores para calcular sua projeção de ROI personalizada</p>
                         </div>
                         
-                        <button type="submit" class="btn-primary" style="margin-top: 1rem;">
-                            🧮 Calcular Projeção
-                        </button>
-                    </form>
+                        <form id="roiCalculatorForm" class="roi-form">
+                            <div class="roi-form-grid">
+                                <div class="roi-input-group">
+                                    <label class="roi-label">
+                                        <span class="roi-label-icon">💵</span>
+                                        <span class="roi-label-text">Valor do Investimento</span>
+                                    </label>
+                                    <div class="roi-input-wrapper">
+                                        <span class="roi-input-prefix">R$</span>
+                                        <input 
+                                            type="number" 
+                                            id="investmentAmount" 
+                                            min="1" 
+                                            step="0.01" 
+                                            value="100" 
+                                            class="roi-input"
+                                            placeholder="0,00"
+                                        >
+                                    </div>
+                                </div>
+                                
+                                <div class="roi-input-group">
+                                    <label class="roi-label">
+                                        <span class="roi-label-icon">📅</span>
+                                        <span class="roi-label-text">Período de Análise</span>
+                                    </label>
+                                    <select id="timeframe" class="roi-select">
+                                        <option value="30">30 dias</option>
+                                        <option value="90">90 dias</option>
+                                        <option value="180">6 meses</option>
+                                        <option value="365">1 ano</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="roi-calculate-btn">
+                                <span class="roi-btn-icon">🧮</span>
+                                <span class="roi-btn-text">Calcular Projeção de ROI</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
-                <!-- Resultado do Cálculo -->
-                <div id="roiResults" style="display: none;">
+                <!-- Results Section -->
+                <div id="roiResults" class="roi-results-section" style="display: none;">
                     <!-- Será preenchido dinamicamente -->
                 </div>
             </div>
@@ -2926,130 +2971,125 @@ function renderROIResults(calculation: ROICalculation) {
     
     resultsDiv.innerHTML = `
         <!-- Resumo da Projeção -->
-        <div class="feature-card" style="background: linear-gradient(135deg, #059669, #10b981); color: white; margin-bottom: 1rem;">
-            <h3 style="color: white; margin-bottom: 1rem;">🎯 Projeção de ROI</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">
-                        R$ ${calculation.investment.toFixed(2)}
-                    </div>
-                    <p style="margin: 0; opacity: 0.9;">Investimento</p>
+        <div class="roi-summary-card">
+            <div class="roi-summary-header">
+                <span class="roi-summary-icon">🎯</span>
+                <h3 class="roi-summary-title">Projeção de ROI</h3>
+            </div>
+            <div class="roi-metrics-grid">
+                <div class="roi-metric">
+                    <div class="roi-metric-value">R$ ${calculation.investment.toFixed(2)}</div>
+                    <div class="roi-metric-label">Investimento</div>
                 </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">
-                        R$ ${calculation.projectedWinnings.toFixed(2)}
-                    </div>
-                    <p style="margin: 0; opacity: 0.9;">Retorno Projetado</p>
+                <div class="roi-metric">
+                    <div class="roi-metric-value">R$ ${calculation.projectedWinnings.toFixed(2)}</div>
+                    <div class="roi-metric-label">Retorno Projetado</div>
                 </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">
-                        ${calculation.projectedROI.toFixed(2)}%
-                    </div>
-                    <p style="margin: 0; opacity: 0.9;">ROI Projetado</p>
+                <div class="roi-metric">
+                    <div class="roi-metric-value">${calculation.projectedROI.toFixed(2)}%</div>
+                    <div class="roi-metric-label">ROI Projetado</div>
                 </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; color: ${calculation.projectedProfit >= 0 ? '#d1fae5' : '#fecaca'};">
+                <div class="roi-metric">
+                    <div class="roi-metric-value ${calculation.projectedProfit >= 0 ? 'positive' : 'negative'}">
                         R$ ${calculation.projectedProfit.toFixed(2)}
                     </div>
-                    <p style="margin: 0; opacity: 0.9;">
+                    <div class="roi-metric-label">
                         ${calculation.projectedProfit >= 0 ? 'Lucro' : 'Prejuízo'} Projetado
-                    </p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Detalhes da Análise -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            <div class="feature-card">
-                <h3 style="margin-bottom: 1rem;">📈 Dados Históricos</h3>
-                <div style="space-y: 0.5rem;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span>ROI Histórico:</span>
-                        <strong style="color: ${calculation.historicalROI >= 0 ? '#059669' : '#dc2626'};">
+        <!-- Análise Detalhada -->
+        <div class="roi-analysis-grid">
+            <div class="roi-analysis-card">
+                <div class="roi-analysis-header">
+                    <span class="roi-analysis-icon">📈</span>
+                    <h4>Dados Históricos</h4>
+                </div>
+                <div class="roi-analysis-content">
+                    <div class="roi-data-row">
+                        <span class="roi-data-label">ROI Histórico:</span>
+                        <span class="roi-data-value ${calculation.historicalROI >= 0 ? 'positive' : 'negative'}">
                             ${calculation.historicalROI.toFixed(2)}%
-                        </strong>
+                        </span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span>Taxa de Acerto:</span>
-                        <strong>${calculation.historicalWinRate.toFixed(2)}%</strong>
+                    <div class="roi-data-row">
+                        <span class="roi-data-label">Taxa de Acerto:</span>
+                        <span class="roi-data-value">${calculation.historicalWinRate.toFixed(2)}%</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span>Jogos Analisados:</span>
-                        <strong>${calculation.basedOnGames}</strong>
+                    <div class="roi-data-row">
+                        <span class="roi-data-label">Jogos Analisados:</span>
+                        <span class="roi-data-value">${calculation.basedOnGames}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>Período:</span>
-                        <strong>${calculation.timeframe}</strong>
+                    <div class="roi-data-row">
+                        <span class="roi-data-label">Período:</span>
+                        <span class="roi-data-value">${calculation.timeframe}</span>
                     </div>
                 </div>
             </div>
 
-            <div class="feature-card">
-                <h3 style="margin-bottom: 1rem;">🎯 Análise de Confiança</h3>
-                <div style="text-align: center; margin-bottom: 1rem;">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">
-                        ${getConfidenceIcon(calculation.confidence)}
-                    </div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--accent-primary);">
+            <div class="roi-analysis-card">
+                <div class="roi-analysis-header">
+                    <span class="roi-analysis-icon">${getConfidenceIcon(calculation.confidence)}</span>
+                    <h4>Análise de Confiança</h4>
+                </div>
+                <div class="roi-analysis-content">
+                    <div class="roi-confidence-badge ${calculation.confidence.toLowerCase()}">
                         ${calculation.confidence}
                     </div>
-                </div>
-                <div style="background: #f3f4f6; padding: 1rem; border-radius: 0.5rem;">
-                    <p style="margin: 0; color: #374151; font-style: italic;">
+                    <div class="roi-recommendation">
                         "${calculation.recommendation}"
-                    </p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Ações Recomendadas -->
-        <div class="feature-card">
-            <h3 style="margin-bottom: 1.5rem; color: var(--accent-primary);">💡 Próximos Passos Recomendados</h3>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+        <!-- Próximos Passos -->
+        <div class="roi-next-steps">
+            <div class="roi-next-steps-header">
+                <span class="roi-steps-icon">💡</span>
+                <h4>Próximos Passos Recomendados</h4>
+            </div>
+            <p class="roi-steps-description">
                 Com base na sua projeção, recomendamos as seguintes ações para otimizar seus resultados:
             </p>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                <div onclick="startStrategyWizard()" 
-                     style="background: linear-gradient(135deg, #a7f3d0, #d1fae5); border: 1px solid #34d399; border-radius: 0.75rem; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center;"
-                     onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(52, 211, 153, 0.25)'" 
-                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">🧠</div>
-                    <h4 style="color: #065f46; margin-bottom: 0.75rem; font-weight: 600;">Gerar Nova Estratégia</h4>
-                    <p style="margin: 0; color: #047857; opacity: 0.9; font-size: 0.9rem;">
+            <div class="roi-steps-grid">
+                <div class="roi-step-card" onclick="startStrategyWizard()">
+                    <div class="roi-step-icon">🧠</div>
+                    <h5 class="roi-step-title">Gerar Nova Estratégia</h5>
+                    <p class="roi-step-description">
                         Crie uma estratégia inteligente baseada na sua projeção de ROI e dados históricos
                     </p>
                 </div>
 
-                <div onclick="renderPerformanceDashboard()" 
-                     style="background: linear-gradient(135deg, #bfdbfe, #dbeafe); border: 1px solid #60a5fa; border-radius: 0.75rem; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center;"
-                     onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(96, 165, 250, 0.25)'" 
-                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                    <h4 style="color: #1e40af; margin-bottom: 0.75rem; font-weight: 600;">Análise Completa</h4>
-                    <p style="margin: 0; color: #1d4ed8; opacity: 0.9; font-size: 0.9rem;">
+                <div class="roi-step-card" onclick="renderPerformanceDashboard()">
+                    <div class="roi-step-icon">📊</div>
+                    <h5 class="roi-step-title">Análise Completa</h5>
+                    <p class="roi-step-description">
                         Veja todas as métricas detalhadas no dashboard de performance executivo
                     </p>
                 </div>
 
-                <div onclick="renderSavedGamesScreen()" 
-                     style="background: linear-gradient(135deg, #fed7aa, #fef3c7); border: 1px solid #fbbf24; border-radius: 0.75rem; padding: 1.5rem; cursor: pointer; transition: all 0.3s ease; text-align: center;"
-                     onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 25px rgba(251, 191, 36, 0.25)'" 
-                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">💾</div>
-                    <h4 style="color: #92400e; margin-bottom: 0.75rem; font-weight: 600;">Revisar Histórico</h4>
-                    <p style="margin: 0; color: #b45309; opacity: 0.9; font-size: 0.9rem;">
+                <div class="roi-step-card" onclick="renderSavedGamesScreen()">
+                    <div class="roi-step-icon">💾</div>
+                    <h5 class="roi-step-title">Revisar Histórico</h5>
+                    <p class="roi-step-description">
                         Confira seus jogos salvos e verifique resultados pendentes
                     </p>
                 </div>
             </div>
             
-            <div style="margin-top: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 0.75rem; border-left: 4px solid var(--accent-primary);">
-                <h4 style="color: var(--accent-primary); margin-bottom: 0.75rem;">🎯 Dica Profissional</h4>
-                <p style="margin: 0; color: #4b5563; line-height: 1.6;">
-                    Para melhores resultados, mantenha um histórico consistente de jogos e revise suas estratégias 
-                    regularmente com base nas análises de performance. Lembre-se: disciplina e análise de dados 
-                    são fundamentais para o sucesso a longo prazo.
-                </p>
+            <div class="roi-pro-tip">
+                <div class="roi-tip-icon">🎯</div>
+                <div class="roi-tip-content">
+                    <h5>Dica Profissional</h5>
+                    <p>
+                        Para melhores resultados, mantenha um histórico consistente de jogos e revise suas estratégias 
+                        regularmente com base nas análises de performance. Lembre-se: disciplina e análise de dados 
+                        são fundamentais para o sucesso a longo prazo.
+                    </p>
+                </div>
             </div>
         </div>
     `;
@@ -4157,5 +4197,15 @@ async function confirmAddManualGame() {
     } catch (error) {
         console.error('❌ Erro ao adicionar jogo manual:', error);
         alert('❌ Erro ao adicionar jogo. Tente novamente.');
+    }
+}
+
+function getPerformanceClass(level: string): string {
+    switch (level) {
+        case 'Excelente': return 'excellent';
+        case 'Boa': return 'good';
+        case 'Regular': return 'regular';
+        case 'Baixa': return 'low';
+        default: return 'regular';
     }
 }
