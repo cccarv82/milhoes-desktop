@@ -768,34 +768,40 @@ function renderWelcome() {
                 </div>
                 
                 <div class="cta-section">
-                    <!-- V2.0.0 - Dashboard Analytics Button (DESTAQUE) -->
-                    <button class="btn-primary" onclick="renderPerformanceDashboard()" style="background: linear-gradient(135deg, #059669, #10b981); margin-bottom: 16px; width: 100%; max-width: 400px;">
-                        <span class="btn-icon">📊</span>
-                        Dashboard de Performance v2.0.0
+                    <!-- Botão Principal: Gerar Estratégia -->
+                    <button class="btn-primary main-cta" onclick="startStrategyWizard()">
+                        <span class="btn-icon">🎯</span>
+                        Gerar Estratégia
                     </button>
                     
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
-                        <button class="btn-primary" onclick="startStrategyWizard()">
-                            <span class="btn-icon">🎲</span>
-                            Gerar Estratégia
-                        </button>
-                        <button class="btn-secondary" onclick="renderSavedGamesScreen()">
-                            <span class="btn-icon">💾</span>
-                            Jogos Salvos
-                        </button>
-                        <button class="btn-secondary" onclick="renderROICalculator()">
-                            <span class="btn-icon">💰</span>
-                            Calc. ROI
-                        </button>
-                        <button class="btn-secondary" onclick="renderNotificationsCenter()">
-                            <span class="btn-icon">🔔</span>
-                            Notificações
-                        </button>
-                        <button class="btn-secondary" onclick="renderConfigurationScreen()">
-                            <span class="btn-icon">⚙️</span>
-                            Configurações
-                        </button>
-                    </div>
+                    <!-- Botão Dashboard -->
+                    <button class="btn-primary dashboard-btn" onclick="renderPerformanceDashboard()">
+                        <span class="btn-icon">📊</span>
+                        Dashboard de Performance
+                    </button>
+                </div>
+                
+                <!-- Menu de Navegação -->
+                <div class="main-nav-grid">
+                    <button class="main-nav-btn" onclick="renderSavedGamesScreen()">
+                        <span class="btn-icon">💾</span>
+                        Jogos Salvos
+                    </button>
+                    
+                    <button class="main-nav-btn" onclick="renderROICalculator()">
+                        <span class="btn-icon">🔒</span>
+                        Calc. ROI
+                    </button>
+                    
+                    <button class="main-nav-btn" onclick="renderNotificationsCenter()">
+                        <span class="btn-icon">🔔</span>
+                        Notificações
+                    </button>
+                    
+                    <button class="main-nav-btn" onclick="renderConfigurationScreen()">
+                        <span class="btn-icon">⚙️</span>
+                        Configurações
+                    </button>
                 </div>
                 
                 <!-- Informações dos próximos sorteios -->
@@ -2184,28 +2190,35 @@ async function checkSingleGame(gameId: string) {
 
 // Verificar todos os jogos pendentes
 async function checkAllPendingGames() {
-    const button = document.querySelector('.check-all-button') as HTMLButtonElement;
-    if (!button) return;
+    // Procurar pelo botão que chama esta função
+    const button = document.querySelector('button[onclick="checkAllPendingGames()"]') as HTMLButtonElement;
+    if (!button) {
+        console.warn('Botão de verificar resultados não encontrado');
+        // Executar mesmo sem encontrar o botão
+    }
 
-    const originalText = button.innerHTML;
-    button.innerHTML = '⏳ Verificando todos...';
-    button.disabled = true;
+    if (button) {
+        button.innerHTML = '<span class="btn-icon">⏳</span> Verificando...';
+        button.disabled = true;
+    }
 
     try {
         const results = await CheckAllPendingResults();
         
         if (results.success) {
-            showNotification(`Verificados ${results.checked} de ${results.total} jogos!`, 'success');
+            showNotification(`✅ Verificados ${results.checked} de ${results.total} jogos!`, 'success');
             await renderSavedGamesScreen(); // Recarregar a lista
         } else {
-            showNotification('Erro ao verificar jogos: ' + (results.error || 'Erro desconhecido'), 'error');
+            showNotification('❌ Erro ao verificar jogos: ' + (results.error || 'Erro desconhecido'), 'error');
         }
     } catch (error) {
         console.error('❌ Erro ao verificar jogos:', error);
-        showNotification('Erro ao verificar jogos: ' + String(error), 'error');
+        showNotification('❌ Erro ao verificar jogos: ' + String(error), 'error');
     } finally {
-        button.innerHTML = originalText;
-        button.disabled = false;
+        if (button) {
+            button.innerHTML = '<span class="btn-icon">🔄</span> Verificar Resultados';
+            button.disabled = false;
+        }
     }
 }
 
