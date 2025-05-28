@@ -90,6 +90,10 @@ export function SaveGame(arg1) {
   return window['go']['main']['App']['SaveGame'](arg1);
 }
 
+export function SaveManualGame(arg1) {
+  return window['go']['main']['App']['SaveManualGame'](arg1);
+}
+
 export function TestConnections() {
   return window['go']['main']['App']['TestConnections']();
 }

@@ -48,6 +48,8 @@ export function SaveConfig(arg1:main.ConfigData):Promise<Record<string, any>>;
 
 export function SaveGame(arg1:models.SaveGameRequest):Promise<Record<string, any>>;
 
+export function SaveManualGame(arg1:models.SaveGameRequest):Promise<Record<string, any>>;
+
 export function TestConnections():Promise<main.ConnectionStatus>;
 
 export function TestConnectionsWithConfig(arg1:main.ConfigData):Promise<main.ConnectionStatus>;

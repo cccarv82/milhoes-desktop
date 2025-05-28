@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"lottery-optimizer-gui/internal/logs"
 	"lottery-optimizer-gui/internal/models"
 
 	"github.com/google/uuid"
@@ -63,6 +64,9 @@ func (sg *SavedGamesDB) createTables() error {
 
 // SaveGame salva um novo jogo para verificação posterior
 func (sg *SavedGamesDB) SaveGame(request models.SaveGameRequest) (*models.SavedGame, error) {
+	logs.LogDatabase("🚀 Iniciando salvamento no banco de dados")
+	logs.LogDatabase("📋 Request: %+v", request)
+
 	game := &models.SavedGame{
 		ID:            uuid.New().String(),
 		LotteryType:   request.LotteryType,
@@ -73,10 +77,16 @@ func (sg *SavedGamesDB) SaveGame(request models.SaveGameRequest) (*models.SavedG
 		CreatedAt:     time.Now(),
 	}
 
+	logs.LogDatabase("🎲 Objeto do jogo criado: ID=%s, Tipo=%s, Números=%v", game.ID, game.LotteryType, game.Numbers)
+
 	query := `
 		INSERT INTO saved_games (id, lottery_type, numbers, expected_draw, contest_number, status, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
+
+	logs.LogDatabase("📝 Executando query: %s", query)
+	logs.LogDatabase("🔧 Parâmetros: ID=%s, Type=%s, Numbers=%v, Date=%s, Contest=%d, Status=%s",
+		game.ID, game.LotteryType, game.Numbers, game.ExpectedDraw, game.ContestNumber, game.Status)
 
 	_, err := sg.db.Exec(query,
 		game.ID,
@@ -89,8 +99,11 @@ func (sg *SavedGamesDB) SaveGame(request models.SaveGameRequest) (*models.SavedG
 	)
 
 	if err != nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Erro no Exec da query: %v", err)
 		return nil, fmt.Errorf("erro ao salvar jogo: %w", err)
 	}
+
+	logs.LogDatabase("✅ Jogo salvo com sucesso no banco! ID: %s", game.ID)
 
 	return game, nil
 }

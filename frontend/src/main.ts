@@ -10,6 +10,7 @@ import {
     GetDefaultConfig, 
     TestConnectionsWithConfig, 
     SaveGame,
+    SaveManualGame,
     GetSavedGames,
     DeleteSavedGame,
     GetAppInfo,
@@ -1870,10 +1871,20 @@ async function renderSavedGamesScreen() {
                     <h1 class="logo">🎰 Lottery Optimizer</h1>
                     <p class="tagline">Jogos Salvos</p>
                 </div>
-                <button class="btn-back" onclick="renderWelcome()">
-                    <span class="btn-icon">🏠</span>
-                    Início
-                </button>
+                <div class="header-actions">
+                    <button class="btn-back" onclick="renderWelcome()">
+                        <span class="btn-icon">🏠</span>
+                        Início
+                    </button>
+                    <button class="btn-secondary" onclick="checkAllPendingGames()">
+                        <span class="btn-icon">🔄</span>
+                        Verificar Resultados
+                    </button>
+                    <button class="btn-primary" onclick="showAddManualGameModal()">
+                        <span class="btn-icon">➕</span>
+                        Adicionar Jogo Manual
+                    </button>
+                </div>
             </header>
             
             <div class="main-content">
@@ -1909,6 +1920,10 @@ async function renderSavedGamesScreen() {
                         <button class="btn-secondary" onclick="checkAllPendingGames()">
                             <span class="btn-icon">🔄</span>
                             Verificar Resultados
+                        </button>
+                        <button class="btn-primary" onclick="showAddManualGameModal()">
+                            <span class="btn-icon">➕</span>
+                            Adicionar Jogo Manual
                         </button>
                     </div>
                 </header>
@@ -2256,6 +2271,17 @@ async function deleteSavedGame(gameId: string) {
 // Adicionando funções ao objeto global window para acessibilidade
 (window as any).loadAppInfo = loadAppInfo;
 (window as any).checkForUpdatesManually = checkForUpdatesManually;
+
+// Funcionalidades de Jogo Manual
+(window as any).showAddManualGameModal = showAddManualGameModal;
+(window as any).updateNumberLimits = updateNumberLimits;
+(window as any).createNumbersGrid = createNumbersGrid;
+(window as any).toggleNumber = toggleNumber;
+(window as any).updateSelectedDisplay = updateSelectedDisplay;
+(window as any).updateManualInput = updateManualInput;
+(window as any).updateNumbersFromText = updateNumbersFromText;
+(window as any).validateNumberSelection = validateNumberSelection;
+(window as any).confirmAddManualGame = confirmAddManualGame;
 
 // ===============================
 // FUNÇÕES AUXILIARES PARA ESTATÍSTICAS
@@ -3808,4 +3834,321 @@ function renderAnalyticsError(error: string) {
             </div>
         </div>
     `;
+}
+
+// ===============================
+// ADICIONAR JOGO MANUAL
+// ===============================
+
+// Mostrar modal para adicionar jogo manual
+function showAddManualGameModal() {
+    // Criar modal
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>➕ Adicionar Jogo Manual</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="manualGameForm" class="add-game-form">
+                    <!-- Seleção da Loteria -->
+                    <div class="form-section">
+                        <h4>🎯 Tipo de Loteria</h4>
+                        <div class="lottery-options">
+                            <label class="lottery-option">
+                                <input type="radio" name="lotteryType" value="mega-sena" onchange="updateNumberLimits()" checked>
+                                <div class="option-card">
+                                    <span class="option-icon">🔥</span>
+                                    <div class="option-content">
+                                        <h4>Mega-Sena</h4>
+                                        <p>6 a 15 números de 1 a 60</p>
+                                    </div>
+                                </div>
+                            </label>
+                            
+                            <label class="lottery-option">
+                                <input type="radio" name="lotteryType" value="lotofacil" onchange="updateNumberLimits()">
+                                <div class="option-card">
+                                    <span class="option-icon">⭐</span>
+                                    <div class="option-content">
+                                        <h4>Lotofácil</h4>
+                                        <p>15 a 20 números de 1 a 25</p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Números -->
+                    <div class="form-section">
+                        <h4>🔢 Números Jogados</h4>
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;" id="numberLimitsText">
+                            Selecione entre 6 e 15 números de 1 a 60
+                        </p>
+                        
+                        <!-- Grid de números -->
+                        <div id="numbersGrid" class="numbers-grid">
+                            <!-- Será preenchido dinamicamente -->
+                        </div>
+                        
+                        <!-- Entrada manual -->
+                        <div style="margin-top: 1rem;">
+                            <label for="manualNumbers">Ou digite os números separados por vírgula:</label>
+                            <input type="text" id="manualNumbers" placeholder="Ex: 1, 7, 15, 23, 35, 42" 
+                                   style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; margin-top: 0.5rem;"
+                                   onchange="updateNumbersFromText()">
+                        </div>
+                        
+                        <!-- Números selecionados -->
+                        <div style="margin-top: 1rem;">
+                            <h5>Números selecionados (<span id="selectedCount">0</span>):</h5>
+                            <div id="selectedNumbers" class="selected-numbers-display">
+                                <!-- Será preenchido dinamicamente -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações do Sorteio -->
+                    <div class="form-section">
+                        <h4>📅 Informações do Sorteio</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label for="manualDate">Data do Sorteio</label>
+                                <input type="date" id="manualDate" required 
+                                       style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                            </div>
+                            
+                            <div>
+                                <label for="manualContest">Número do Concurso</label>
+                                <input type="number" id="manualContest" min="1" required 
+                                       style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem;">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn-primary" onclick="confirmAddManualGame()">
+                    <span>💾</span>
+                    Adicionar Jogo
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Inicializar grid de números
+    updateNumberLimits();
+}
+
+// Atualizar limites de números baseado na loteria selecionada
+function updateNumberLimits() {
+    const lotteryType = (document.querySelector('input[name="lotteryType"]:checked') as HTMLInputElement)?.value;
+    const limitsText = document.getElementById('numberLimitsText')!;
+    
+    if (lotteryType === 'mega-sena') {
+        limitsText.textContent = 'Selecione entre 6 e 15 números de 1 a 60';
+        createNumbersGrid(1, 60);
+    } else if (lotteryType === 'lotofacil') {
+        limitsText.textContent = 'Selecione entre 15 e 20 números de 1 a 25';
+        createNumbersGrid(1, 25);
+    }
+}
+
+// Criar grid de números para seleção
+function createNumbersGrid(min: number, max: number) {
+    const numbersGrid = document.getElementById('numbersGrid')!;
+    
+    let html = '';
+    for (let i = min; i <= max; i++) {
+        html += `
+            <button type="button" class="number-btn" data-number="${i}" onclick="toggleNumber(${i})">
+                ${i.toString().padStart(2, '0')}
+            </button>
+        `;
+    }
+    
+    numbersGrid.innerHTML = html;
+}
+
+// Alternar seleção de um número
+function toggleNumber(number: number) {
+    const btn = document.querySelector(`[data-number="${number}"]`) as HTMLButtonElement;
+    
+    if (btn.classList.contains('selected')) {
+        btn.classList.remove('selected');
+    } else {
+        btn.classList.add('selected');
+    }
+    
+    updateSelectedDisplay();
+    updateManualInput();
+}
+
+// Atualizar exibição dos números selecionados
+function updateSelectedDisplay() {
+    const selectedBtns = document.querySelectorAll('.number-btn.selected');
+    const selectedNumbers = Array.from(selectedBtns).map(btn => parseInt((btn as HTMLElement).dataset.number!));
+    selectedNumbers.sort((a, b) => a - b);
+    
+    const countElement = document.getElementById('selectedCount')!;
+    const displayElement = document.getElementById('selectedNumbers')!;
+    
+    countElement.textContent = selectedNumbers.length.toString();
+    
+    if (selectedNumbers.length === 0) {
+        displayElement.innerHTML = '<span style="color: var(--text-secondary);">Nenhum número selecionado</span>';
+    } else {
+        displayElement.innerHTML = selectedNumbers.map(num => 
+            `<span class="number">${num.toString().padStart(2, '0')}</span>`
+        ).join('');
+    }
+    
+    // Validar limites
+    const lotteryType = (document.querySelector('input[name="lotteryType"]:checked') as HTMLInputElement)?.value;
+    validateNumberSelection(lotteryType, selectedNumbers.length);
+}
+
+// Atualizar input manual com números selecionados
+function updateManualInput() {
+    const selectedBtns = document.querySelectorAll('.number-btn.selected');
+    const selectedNumbers = Array.from(selectedBtns).map(btn => parseInt((btn as HTMLElement).dataset.number!));
+    selectedNumbers.sort((a, b) => a - b);
+    
+    const manualInput = document.getElementById('manualNumbers') as HTMLInputElement;
+    manualInput.value = selectedNumbers.join(', ');
+}
+
+// Atualizar seleção a partir do texto
+function updateNumbersFromText() {
+    const manualInput = document.getElementById('manualNumbers') as HTMLInputElement;
+    const text = manualInput.value.trim();
+    
+    // Limpar seleções anteriores
+    document.querySelectorAll('.number-btn.selected').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    
+    if (text) {
+        const numbers = text.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+        
+        numbers.forEach(num => {
+            const btn = document.querySelector(`[data-number="${num}"]`) as HTMLButtonElement;
+            if (btn) {
+                btn.classList.add('selected');
+            }
+        });
+    }
+    
+    updateSelectedDisplay();
+}
+
+// Validar seleção de números
+function validateNumberSelection(lotteryType: string, count: number): boolean {
+    const errorElement = document.getElementById('selectionError');
+    
+    // Remover erro anterior
+    if (errorElement) {
+        errorElement.remove();
+    }
+    
+    let isValid = true;
+    let errorMessage = '';
+    
+    if (lotteryType === 'mega-sena') {
+        if (count < 6) {
+            isValid = false;
+            errorMessage = 'Mega-Sena precisa de pelo menos 6 números';
+        } else if (count > 15) {
+            isValid = false;
+            errorMessage = 'Mega-Sena aceita no máximo 15 números';
+        }
+    } else if (lotteryType === 'lotofacil') {
+        if (count < 15) {
+            isValid = false;
+            errorMessage = 'Lotofácil precisa de pelo menos 15 números';
+        } else if (count > 20) {
+            isValid = false;
+            errorMessage = 'Lotofácil aceita no máximo 20 números';
+        }
+    }
+    
+    if (!isValid) {
+        const selectedNumbersDiv = document.getElementById('selectedNumbers')!;
+        const errorDiv = document.createElement('div');
+        errorDiv.id = 'selectionError';
+        errorDiv.style.cssText = 'color: #ef4444; font-size: 0.9rem; margin-top: 0.5rem; font-weight: 600;';
+        errorDiv.textContent = errorMessage;
+        selectedNumbersDiv.parentNode!.appendChild(errorDiv);
+    }
+    
+    return isValid;
+}
+
+// Confirmar adição do jogo manual
+async function confirmAddManualGame() {
+    const lotteryType = (document.querySelector('input[name="lotteryType"]:checked') as HTMLInputElement)?.value;
+    const manualDate = (document.getElementById('manualDate') as HTMLInputElement).value;
+    const manualContest = parseInt((document.getElementById('manualContest') as HTMLInputElement).value);
+    
+    // Obter números selecionados
+    const selectedBtns = document.querySelectorAll('.number-btn.selected');
+    const selectedNumbers = Array.from(selectedBtns).map(btn => parseInt((btn as HTMLElement).dataset.number!));
+    
+    // Validações
+    if (!lotteryType) {
+        alert('❌ Selecione o tipo de loteria');
+        return;
+    }
+    
+    if (selectedNumbers.length === 0) {
+        alert('❌ Selecione pelo menos um número');
+        return;
+    }
+    
+    if (!validateNumberSelection(lotteryType, selectedNumbers.length)) {
+        return; // Erro já mostrado na tela
+    }
+    
+    if (!manualDate) {
+        alert('❌ Informe a data do sorteio');
+        return;
+    }
+    
+    if (!manualContest || manualContest <= 0) {
+        alert('❌ Informe um número de concurso válido');
+        return;
+    }
+    
+    try {
+        // Preparar dados
+        const request = new models.SaveGameRequest({
+            lottery_type: lotteryType,
+            numbers: selectedNumbers,
+            expected_draw: manualDate, // Já está no formato YYYY-MM-DD
+            contest_number: manualContest
+        });
+        
+        console.log('🎲 Enviando jogo manual:', request);
+        
+        // Chamar função específica para jogos manuais
+        const response = await SaveManualGame(request);
+        
+        console.log('📝 Resposta do backend:', response);
+        
+        if (response.success) {
+            closeModal();
+            showNotification('✅ Jogo adicionado manualmente com sucesso!', 'success');
+            renderSavedGamesScreen(); // Recarregar a tela
+        } else {
+            alert('❌ Erro ao adicionar jogo: ' + (response.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('❌ Erro ao adicionar jogo manual:', error);
+        alert('❌ Erro ao adicionar jogo. Tente novamente.');
+    }
 }

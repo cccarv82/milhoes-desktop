@@ -986,25 +986,194 @@ func (a *App) GetCurrentVersion() string {
 
 // SaveGame salva um jogo para verificação posterior
 func (a *App) SaveGame(request models.SaveGameRequest) map[string]interface{} {
+	logs.LogDatabase("🎯 Tentativa de salvar jogo: %s com %d números", request.LotteryType, len(request.Numbers))
+	logs.LogDatabase("📊 Detalhes: Data=%s, Concurso=%d, Números=%v", request.ExpectedDraw, request.ContestNumber, request.Numbers)
+
 	if a.savedGamesDB == nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Banco de dados de jogos salvos não disponível")
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Banco de dados de jogos salvos não disponível",
 		}
 	}
 
+	// Validações básicas
+	if request.LotteryType == "" {
+		logs.LogError(logs.CategoryDatabase, "❌ Tipo de loteria não informado")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Tipo de loteria não informado",
+		}
+	}
+
+	if len(request.Numbers) == 0 {
+		logs.LogError(logs.CategoryDatabase, "❌ Nenhum número informado")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Nenhum número informado",
+		}
+	}
+
+	if request.ExpectedDraw == "" {
+		logs.LogError(logs.CategoryDatabase, "❌ Data do sorteio não informada")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Data do sorteio não informada",
+		}
+	}
+
+	if request.ContestNumber <= 0 {
+		logs.LogError(logs.CategoryDatabase, "❌ Número do concurso inválido: %d", request.ContestNumber)
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Número do concurso inválido",
+		}
+	}
+
+	// Tentar salvar no banco
+	logs.LogDatabase("💾 Salvando no banco de dados...")
 	game, err := a.savedGamesDB.SaveGame(request)
 	if err != nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Erro ao salvar jogo no banco: %v", err)
 		return map[string]interface{}{
 			"success": false,
 			"error":   fmt.Sprintf("Erro ao salvar jogo: %v", err),
 		}
 	}
 
+	logs.LogDatabase("✅ Jogo salvo com sucesso! ID: %s", game.ID)
+
 	return map[string]interface{}{
 		"success": true,
 		"game":    game,
 		"message": "Jogo salvo com sucesso!",
+	}
+}
+
+// SaveManualGame salva um jogo adicionado manualmente pelo usuário
+func (a *App) SaveManualGame(request models.SaveGameRequest) map[string]interface{} {
+	logs.LogDatabase("🖐️ Tentativa de salvar jogo MANUAL: %s com %d números", request.LotteryType, len(request.Numbers))
+	logs.LogDatabase("📊 Detalhes manuais: Data=%s, Concurso=%d, Números=%v", request.ExpectedDraw, request.ContestNumber, request.Numbers)
+
+	if a.savedGamesDB == nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Banco de dados de jogos salvos não disponível")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Banco de dados de jogos salvos não disponível",
+		}
+	}
+
+	// Validações específicas para jogos manuais
+	if request.LotteryType == "" {
+		logs.LogError(logs.CategoryDatabase, "❌ Tipo de loteria não informado")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Tipo de loteria é obrigatório",
+		}
+	}
+
+	// Validar tipo de loteria
+	if request.LotteryType != "mega-sena" && request.LotteryType != "lotofacil" {
+		logs.LogError(logs.CategoryDatabase, "❌ Tipo de loteria inválido: %s", request.LotteryType)
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Tipo de loteria deve ser 'mega-sena' ou 'lotofacil'",
+		}
+	}
+
+	if len(request.Numbers) == 0 {
+		logs.LogError(logs.CategoryDatabase, "❌ Nenhum número informado")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Pelo menos um número deve ser informado",
+		}
+	}
+
+	// Validações específicas por loteria
+	if request.LotteryType == "mega-sena" {
+		if len(request.Numbers) < 6 || len(request.Numbers) > 15 {
+			logs.LogError(logs.CategoryDatabase, "❌ Mega-Sena: números inválidos (%d), deve ter entre 6 e 15", len(request.Numbers))
+			return map[string]interface{}{
+				"success": false,
+				"error":   "Mega-Sena deve ter entre 6 e 15 números",
+			}
+		}
+		// Verificar se números estão no range 1-60
+		for _, num := range request.Numbers {
+			if num < 1 || num > 60 {
+				logs.LogError(logs.CategoryDatabase, "❌ Mega-Sena: número %d fora do range (1-60)", num)
+				return map[string]interface{}{
+					"success": false,
+					"error":   fmt.Sprintf("Mega-Sena: número %d deve estar entre 1 e 60", num),
+				}
+			}
+		}
+	} else if request.LotteryType == "lotofacil" {
+		if len(request.Numbers) < 15 || len(request.Numbers) > 20 {
+			logs.LogError(logs.CategoryDatabase, "❌ Lotofácil: números inválidos (%d), deve ter entre 15 e 20", len(request.Numbers))
+			return map[string]interface{}{
+				"success": false,
+				"error":   "Lotofácil deve ter entre 15 e 20 números",
+			}
+		}
+		// Verificar se números estão no range 1-25
+		for _, num := range request.Numbers {
+			if num < 1 || num > 25 {
+				logs.LogError(logs.CategoryDatabase, "❌ Lotofácil: número %d fora do range (1-25)", num)
+				return map[string]interface{}{
+					"success": false,
+					"error":   fmt.Sprintf("Lotofácil: número %d deve estar entre 1 e 25", num),
+				}
+			}
+		}
+	}
+
+	// Verificar duplicatas
+	seen := make(map[int]bool)
+	for _, num := range request.Numbers {
+		if seen[num] {
+			logs.LogError(logs.CategoryDatabase, "❌ Número duplicado: %d", num)
+			return map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("Número %d está duplicado", num),
+			}
+		}
+		seen[num] = true
+	}
+
+	if request.ExpectedDraw == "" {
+		logs.LogError(logs.CategoryDatabase, "❌ Data do sorteio não informada")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Data do sorteio é obrigatória",
+		}
+	}
+
+	if request.ContestNumber <= 0 {
+		logs.LogError(logs.CategoryDatabase, "❌ Número do concurso inválido: %d", request.ContestNumber)
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Número do concurso deve ser maior que zero",
+		}
+	}
+
+	// Tentar salvar no banco
+	logs.LogDatabase("💾 Salvando jogo manual no banco de dados...")
+	game, err := a.savedGamesDB.SaveGame(request)
+	if err != nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Erro ao salvar jogo manual no banco: %v", err)
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao salvar jogo: %v", err),
+		}
+	}
+
+	logs.LogDatabase("✅ Jogo manual salvo com sucesso! ID: %s", game.ID)
+
+	return map[string]interface{}{
+		"success": true,
+		"game":    game,
+		"message": "Jogo adicionado manualmente com sucesso!",
 	}
 }
 
