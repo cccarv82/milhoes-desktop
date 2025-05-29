@@ -1659,7 +1659,10 @@ func loadExistingConfig() {
 
 // CheckGameResult verifica o resultado de um jogo específico
 func (a *App) CheckGameResult(gameID string) map[string]interface{} {
+	logs.LogDatabase("🎯 Verificando resultado do jogo %s", gameID)
+
 	if a.savedGamesDB == nil || a.resultChecker == nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Sistema de verificação não disponível")
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Sistema de verificação não disponível",
@@ -1670,6 +1673,7 @@ func (a *App) CheckGameResult(gameID string) map[string]interface{} {
 	filter := models.SavedGamesFilter{}
 	games, err := a.savedGamesDB.GetSavedGames(filter)
 	if err != nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Erro ao buscar jogos: %v", err)
 		return map[string]interface{}{
 			"success": false,
 			"error":   fmt.Sprintf("Erro ao buscar jogos: %v", err),
@@ -1688,6 +1692,7 @@ func (a *App) CheckGameResult(gameID string) map[string]interface{} {
 	}
 
 	if !found {
+		logs.LogError(logs.CategoryDatabase, "❌ Jogo não encontrado: %s", gameID)
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Jogo não encontrado",
@@ -1696,6 +1701,7 @@ func (a *App) CheckGameResult(gameID string) map[string]interface{} {
 
 	// Verificar se já foi checado
 	if game.Status == "checked" {
+		logs.LogDatabase("ℹ️ Jogo já foi verificado anteriormente")
 		return map[string]interface{}{
 			"success": true,
 			"message": "Jogo já foi verificado",
@@ -1703,14 +1709,46 @@ func (a *App) CheckGameResult(gameID string) map[string]interface{} {
 		}
 	}
 
+	logs.LogDatabase("🔍 Verificando resultado para: %s - Concurso %d", game.LotteryType, game.ContestNumber)
+
 	// Verificar resultado
 	result, err := a.resultChecker.CheckGameResult(game)
 	if err != nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Erro ao verificar resultado: %v", err)
+		// Marcar como erro
+		a.savedGamesDB.UpdateGameStatus(gameID, "error")
 		return map[string]interface{}{
 			"success": false,
 			"error":   fmt.Sprintf("Erro ao verificar resultado: %v", err),
 		}
 	}
+
+	if result == nil {
+		logs.LogDatabase("⏳ Sorteio ainda não aconteceu")
+		return map[string]interface{}{
+			"success": true,
+			"message": "Sorteio ainda não aconteceu",
+			"result":  nil,
+		}
+	}
+
+	logs.LogDatabase("✅ Resultado encontrado: %d acertos, prêmio: %s", result.HitCount, result.Prize)
+
+	// Persistir o resultado no banco de dados
+	err = a.savedGamesDB.UpdateGameResult(gameID, result)
+	if err != nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Erro ao salvar resultado no banco: %v", err)
+		// Marcar como erro mas retornar o resultado mesmo assim
+		a.savedGamesDB.UpdateGameStatus(gameID, "error")
+		return map[string]interface{}{
+			"success": true,
+			"result":  result,
+			"message": "Resultado verificado, mas houve erro ao salvar no banco",
+			"warning": fmt.Sprintf("Erro ao salvar: %v", err),
+		}
+	}
+
+	logs.LogDatabase("🎉 Resultado verificado e salvo com sucesso!")
 
 	return map[string]interface{}{
 		"success": true,
@@ -1721,7 +1759,10 @@ func (a *App) CheckGameResult(gameID string) map[string]interface{} {
 
 // CheckAllPendingResults verifica todos os jogos pendentes
 func (a *App) CheckAllPendingResults() map[string]interface{} {
+	logs.LogDatabase("🔄 Iniciando verificação de todos os jogos pendentes")
+
 	if a.savedGamesDB == nil || a.resultChecker == nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Sistema de verificação não disponível")
 		return map[string]interface{}{
 			"success": false,
 			"error":   "Sistema de verificação não disponível",
@@ -1732,6 +1773,7 @@ func (a *App) CheckAllPendingResults() map[string]interface{} {
 	filter := models.SavedGamesFilter{Status: "pending"}
 	games, err := a.savedGamesDB.GetSavedGames(filter)
 	if err != nil {
+		logs.LogError(logs.CategoryDatabase, "❌ Erro ao buscar jogos pendentes: %v", err)
 		return map[string]interface{}{
 			"success": false,
 			"error":   fmt.Sprintf("Erro ao buscar jogos pendentes: %v", err),
@@ -1739,6 +1781,7 @@ func (a *App) CheckAllPendingResults() map[string]interface{} {
 	}
 
 	if len(games) == 0 {
+		logs.LogDatabase("ℹ️ Nenhum jogo pendente para verificar")
 		return map[string]interface{}{
 			"success": true,
 			"message": "Nenhum jogo pendente para verificar",
@@ -1746,27 +1789,58 @@ func (a *App) CheckAllPendingResults() map[string]interface{} {
 		}
 	}
 
+	logs.LogDatabase("📊 Encontrados %d jogos pendentes para verificar", len(games))
+
 	checked := 0
 	errors := []string{}
+	sorteiosNaoAconteceram := 0
 
 	for _, game := range games {
-		_, err := a.resultChecker.CheckGameResult(game)
+		logs.LogDatabase("🎯 Verificando jogo %s (%s - Concurso %d)", game.ID, game.LotteryType, game.ContestNumber)
+
+		result, err := a.resultChecker.CheckGameResult(game)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("Jogo %s: %v", game.ID, err))
-		} else {
-			checked++
+			errorMsg := fmt.Sprintf("Jogo %s: %v", game.ID, err)
+			logs.LogError(logs.CategoryDatabase, "❌ %s", errorMsg)
+			errors = append(errors, errorMsg)
+			a.savedGamesDB.UpdateGameStatus(game.ID, "error")
+			continue
 		}
+
+		if result == nil {
+			// Sorteio ainda não aconteceu
+			logs.LogDatabase("⏳ Jogo %s: sorteio ainda não aconteceu", game.ID)
+			sorteiosNaoAconteceram++
+			continue
+		}
+
+		// Persistir o resultado no banco
+		err = a.savedGamesDB.UpdateGameResult(game.ID, result)
+		if err != nil {
+			errorMsg := fmt.Sprintf("Jogo %s: erro ao salvar resultado - %v", game.ID, err)
+			logs.LogError(logs.CategoryDatabase, "❌ %s", errorMsg)
+			errors = append(errors, errorMsg)
+			a.savedGamesDB.UpdateGameStatus(game.ID, "error")
+			continue
+		}
+
+		logs.LogDatabase("✅ Jogo %s verificado: %d acertos, prêmio: %s", game.ID, result.HitCount, result.Prize)
+		checked++
 	}
+
+	logs.LogDatabase("🎉 Verificação concluída: %d verificados, %d sorteios pendentes, %d erros", checked, sorteiosNaoAconteceram, len(errors))
 
 	result := map[string]interface{}{
 		"success": true,
 		"checked": checked,
 		"total":   len(games),
-		"message": fmt.Sprintf("Verificados %d de %d jogos", checked, len(games)),
+		"pending": sorteiosNaoAconteceram,
+		"message": fmt.Sprintf("Verificados %d de %d jogos (%d ainda pendentes)", checked, len(games), sorteiosNaoAconteceram),
 	}
 
 	if len(errors) > 0 {
 		result["errors"] = errors
+		result["error_count"] = len(errors)
 	}
 
 	return result

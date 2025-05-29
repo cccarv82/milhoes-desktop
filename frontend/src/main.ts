@@ -2081,12 +2081,12 @@ function renderGameResult(result: GameResult): string {
             <div class="result-header">
                 <span class="result-icon">${isWinner ? '🏆' : '📊'}</span>
                 <span class="result-text">${result.prize}</span>
-                ${isWinner ? `<span class="prize-amount">R$ ${result.prize_amount.toFixed(2)}</span>` : ''}
+                ${isWinner ? `<span class="prize-amount">R$ ${result.prize_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>` : ''}
             </div>
             
             <div class="result-details">
                 <div class="result-info">
-                    <small>Sorteio ${result.contest_number} • ${result.draw_date}</small>
+                    <small>Sorteio ${result.contest_number} • ${formatDrawDate(result.draw_date)}</small>
                 </div>
                 
                 <div class="numbers-comparison">
@@ -2107,6 +2107,24 @@ function renderGameResult(result: GameResult): string {
             </div>
         </div>
     `;
+}
+
+// Formatar data do sorteio
+function formatDrawDate(dateStr: string): string {
+    try {
+        // Se a data já está no formato brasileiro
+        if (dateStr.includes('/')) {
+            return dateStr;
+        }
+        // Se a data está no formato ISO ou outro formato
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+            return date.toLocaleDateString('pt-BR');
+        }
+        return dateStr;
+    } catch {
+        return dateStr;
+    }
 }
 
 // Funções auxiliares para status
