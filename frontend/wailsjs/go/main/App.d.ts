@@ -18,6 +18,8 @@ export function GenerateStrategy(arg1:main.UserPreferences):Promise<main.Strateg
 
 export function GetAppInfo():Promise<Record<string, any>>;
 
+export function GetContestTemperatureAnalysis():Promise<Record<string, any>>;
+
 export function GetCurrentConfig():Promise<Record<string, any>>;
 
 export function GetCurrentVersion():Promise<string>;
@@ -33,6 +35,8 @@ export function GetNotifications(arg1:number,arg2:boolean):Promise<Record<string
 export function GetNumberFrequencyAnalysis(arg1:string):Promise<Record<string, any>>;
 
 export function GetPerformanceMetrics():Promise<Record<string, any>>;
+
+export function GetPredictorMetrics():Promise<Record<string, any>>;
 
 export function GetROICalculator(arg1:number,arg2:string):Promise<Record<string, any>>;
 

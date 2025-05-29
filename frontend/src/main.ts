@@ -25,7 +25,10 @@ import {
     MarkNotificationAsRead,
     ClearOldNotifications,
     CheckGameResult,
-    CheckAllPendingResults
+    CheckAllPendingResults,
+    // V2.1.0 - PREDITOR DE CONCURSOS QUENTES
+    GetContestTemperatureAnalysis,
+    GetPredictorMetrics
 } from '../wailsjs/go/main/App';
 
 import { models } from '../wailsjs/go/models';
@@ -748,6 +751,11 @@ function renderWelcome() {
                     <button class="main-nav-btn" onclick="renderSavedGamesScreen()">
                         <span class="btn-icon">💾</span>
                         Jogos Salvos
+                    </button>
+                    
+                    <button class="main-nav-btn" onclick="renderContestPredictor()">
+                        <span class="btn-icon">🔮</span>
+                        Preditor Quente
                     </button>
                     
                     <button class="main-nav-btn" onclick="renderIntelligenceEngine()">
@@ -5913,3 +5921,373 @@ function calculateAdaptation(games: any[]): number {
     
     return Math.min(100, (lotteryTypes * 25) + Math.min(50, investmentVariation));
 }
+
+// ===============================
+// V2.1.0 - PREDITOR DE CONCURSOS QUENTES - INTERFACES
+// ===============================
+
+// Interface para análise de temperatura de concursos
+interface TemperatureAnalysis {
+    lotteryType: string;
+    lotteryName: string;
+    temperatureScore: number; // 0-100
+    temperatureLevel: string; // "FRIO", "MORNO", "QUENTE", "MUITO_QUENTE", "EXPLOSIVO"
+    temperatureAdvice: string;
+    cycleAnalysis: CycleInfo;
+    accumulationInfo: AccumInfo;
+    frequencyAnalysis: FreqInfo;
+    lastUpdate: string;
+    nextDrawPrediction: DrawPred;
+}
+
+interface CycleInfo {
+    daysSinceLastBigPrize: number;
+    averageCycleDays: number;
+    cycleProgressPercentage: number;
+    isInHotZone: boolean;
+}
+
+interface AccumInfo {
+    consecutiveAccumulations: number;
+    currentAccumulatedValue: number;
+    averageBeforeExplosion: number;
+    explosionProbability: number;
+}
+
+interface FreqInfo {
+    daysSinceLastPrize: number;
+    averageFrequencyDays: number;
+    frequencyScore: number;
+    isOverdue: boolean;
+}
+
+interface DrawPred {
+    expectedBigPrizeProbability: number;
+    recommendedAction: string;
+    optimalPlayWindow: string;
+    confidenceLevel: number;
+}
+
+// Interface utilizada por renderPredictorContent e renderContestPredictor
+interface PredictorSummary {
+    hottestLottery: string;
+    coldestLottery: string;
+    analyses: TemperatureAnalysis[];
+    generalAdvice: string;
+    lastUpdate: string;
+    overallConfidence: number;
+}
+
+// Interface utilizada por renderMetricsCards e renderPredictorContent
+interface PredictorMetrics {
+    totalPredictions: number;
+    correctPredictions: number;
+    accuracyPercentage: number;
+    lastWeekAccuracy: number;
+    lastMonthAccuracy: number;
+    userEngagementBoost: number;
+    userROIImprovement: number;
+}
+
+async function renderContestPredictor() {
+    console.log('🔮 Renderizando Preditor de Concursos Quentes...');
+    
+    const app = document.getElementById('app');
+    if (!app) return;
+
+    // Mostrar loading inicial
+    app.innerHTML = `
+        <div class="predictor-container">
+            <div class="predictor-header">
+                <h1>🔮 Preditor de Concursos Quentes</h1>
+                <p class="predictor-subtitle">Sistema revolucionário de análise de padrões para maximizar suas chances</p>
+            </div>
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Analisando padrões dos concursos...</p>
+            </div>
+        </div>
+    `;
+
+    try {
+        // Carregar dados do preditor
+        const [temperatureResponse, metricsResponse] = await Promise.all([
+            GetContestTemperatureAnalysis(),
+            GetPredictorMetrics()
+        ]);
+
+        if (!temperatureResponse.success) {
+            throw new Error(temperatureResponse.error || 'Erro ao carregar análise de temperatura');
+        }
+
+        if (!metricsResponse.success) {
+            throw new Error(metricsResponse.error || 'Erro ao carregar métricas');
+        }
+
+        const summary: PredictorSummary = temperatureResponse.data;
+        const metrics: PredictorMetrics = metricsResponse.data;
+
+        renderPredictorContent(summary, metrics);
+
+    } catch (error) {
+        console.error('Erro ao carregar preditor:', error);
+        renderPredictorError(error instanceof Error ? error.message : 'Erro desconhecido');
+    }
+}
+
+function renderPredictorContent(summary: PredictorSummary, metrics: PredictorMetrics) {
+    const app = document.getElementById('app');
+    if (!app) return;
+
+    app.innerHTML = `
+        <div class="predictor-container">
+            <div class="predictor-header">
+                <h1>🔮 Preditor de Concursos Quentes</h1>
+                <p class="predictor-subtitle">Sistema revolucionário de análise de padrões para maximizar suas chances</p>
+                <div class="predictor-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">${metrics.accuracyPercentage.toFixed(1)}%</span>
+                        <span class="stat-label">Precisão</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${summary.overallConfidence.toFixed(0)}%</span>
+                        <span class="stat-label">Confiança</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${metrics.totalPredictions}</span>
+                        <span class="stat-label">Predições</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="predictor-main">
+                <!-- Conselho Geral -->
+                <div class="general-advice-card">
+                    <h2>💡 Conselho Geral</h2>
+                    <p class="advice-text">${summary.generalAdvice}</p>
+                    <div class="advice-meta">
+                        <span>🏆 Mais Quente: <strong>${summary.hottestLottery}</strong></span>
+                        <span>❄️ Mais Frio: <strong>${summary.coldestLottery}</strong></span>
+                    </div>
+                </div>
+
+                <!-- Análises de Temperatura -->
+                <div class="temperature-analyses">
+                    <h2>🌡️ Temperatura dos Concursos</h2>
+                    <div class="analyses-grid">
+                        ${summary.analyses.map(analysis => renderTemperatureCard(analysis)).join('')}
+                    </div>
+                </div>
+
+                <!-- Métricas de Performance -->
+                <div class="predictor-metrics">
+                    <h2>📊 Performance do Preditor</h2>
+                    <div class="metrics-grid">
+                        ${renderMetricsCards(metrics)}
+                    </div>
+                </div>
+            </div>
+
+            <div class="predictor-footer">
+                <button onclick="renderWelcome()" class="btn-secondary">
+                    ← Voltar ao Dashboard
+                </button>
+                <button onclick="renderContestPredictor()" class="btn-primary">
+                    🔄 Atualizar Análise
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderTemperatureCard(analysis: TemperatureAnalysis): string {
+    const tempClass = getTemperatureClass(analysis.temperatureLevel);
+    const tempIcon = getTemperatureIcon(analysis.temperatureLevel);
+    const tempBars = generateTemperatureBars(analysis.temperatureScore);
+
+    return `
+        <div class="temperature-card ${tempClass}">
+            <div class="card-header">
+                <h3>${tempIcon} ${analysis.lotteryName}</h3>
+                <div class="temperature-score">
+                    <span class="score-value">${analysis.temperatureScore}</span>
+                    <span class="score-max">/100</span>
+                </div>
+            </div>
+            
+            <div class="temperature-bar-container">
+                <div class="temperature-bars">
+                    ${tempBars}
+                </div>
+                <span class="temperature-level">${getTemperatureLevelText(analysis.temperatureLevel)}</span>
+            </div>
+
+            <div class="temperature-advice">
+                <p>${analysis.temperatureAdvice}</p>
+            </div>
+
+            <div class="analysis-details">
+                <div class="detail-row">
+                    <span class="detail-label">🔄 Ciclo:</span>
+                    <span class="detail-value">${analysis.cycleAnalysis.cycleProgressPercentage.toFixed(1)}%</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">📈 Acumulação:</span>
+                    <span class="detail-value">${analysis.accumulationInfo.explosionProbability.toFixed(1)}%</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">📊 Frequência:</span>
+                    <span class="detail-value">${analysis.frequencyAnalysis.frequencyScore.toFixed(1)}%</span>
+                </div>
+            </div>
+
+            <div class="next-draw-prediction">
+                <h4>🎯 Próximo Sorteio</h4>
+                <p class="prediction-action">${getActionText(analysis.nextDrawPrediction.recommendedAction)}</p>
+                <p class="prediction-probability">Probabilidade de grande prêmio: ${analysis.nextDrawPrediction.expectedBigPrizeProbability.toFixed(1)}%</p>
+            </div>
+        </div>
+    `;
+}
+
+function renderMetricsCards(metrics: PredictorMetrics): string {
+    return `
+        <div class="metric-card">
+            <div class="metric-icon">🎯</div>
+            <div class="metric-content">
+                <h4>Precisão Geral</h4>
+                <div class="metric-value">${metrics.accuracyPercentage.toFixed(1)}%</div>
+                <div class="metric-detail">${metrics.correctPredictions}/${metrics.totalPredictions} predições corretas</div>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">📅</div>
+            <div class="metric-content">
+                <h4>Última Semana</h4>
+                <div class="metric-value">${metrics.lastWeekAccuracy.toFixed(1)}%</div>
+                <div class="metric-detail">Precisão recente</div>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">📈</div>
+            <div class="metric-content">
+                <h4>Engagement</h4>
+                <div class="metric-value">+${metrics.userEngagementBoost.toFixed(1)}%</div>
+                <div class="metric-detail">Aumento no uso</div>
+            </div>
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-icon">💰</div>
+            <div class="metric-content">
+                <h4>ROI dos Usuários</h4>
+                <div class="metric-value">+${metrics.userROIImprovement.toFixed(1)}%</div>
+                <div class="metric-detail">Melhoria no retorno</div>
+            </div>
+        </div>
+    `;
+}
+
+function getTemperatureClass(level: string): string {
+    switch (level) {
+        case 'EXPLOSIVO': return 'temp-explosive';
+        case 'MUITO_QUENTE': return 'temp-very-hot';
+        case 'QUENTE': return 'temp-hot';
+        case 'MORNO': return 'temp-warm';
+        case 'FRIO': return 'temp-cold';
+        default: return 'temp-neutral';
+    }
+}
+
+function getTemperatureIcon(level: string): string {
+    switch (level) {
+        case 'EXPLOSIVO': return '🚀';
+        case 'MUITO_QUENTE': return '🔥';
+        case 'QUENTE': return '🌡️';
+        case 'MORNO': return '🟡';
+        case 'FRIO': return '❄️';
+        default: return '⚪';
+    }
+}
+
+function getTemperatureLevelText(level: string): string {
+    switch (level) {
+        case 'EXPLOSIVO': return 'EXPLOSIVO!';
+        case 'MUITO_QUENTE': return 'MUITO QUENTE';
+        case 'QUENTE': return 'QUENTE';
+        case 'MORNO': return 'MORNO';
+        case 'FRIO': return 'FRIO';
+        default: return 'NEUTRO';
+    }
+}
+
+function generateTemperatureBars(score: number): string {
+    const bars = [];
+    const fullBars = Math.floor(score / 20);
+    const hasPartialBar = (score % 20) > 0;
+    
+    // Barras cheias
+    for (let i = 0; i < fullBars; i++) {
+        bars.push('<div class="temp-bar filled"></div>');
+    }
+    
+    // Barra parcial
+    if (hasPartialBar && fullBars < 5) {
+        bars.push('<div class="temp-bar partial"></div>');
+    }
+    
+    // Barras vazias
+    const remainingBars = 5 - bars.length;
+    for (let i = 0; i < remainingBars; i++) {
+        bars.push('<div class="temp-bar empty"></div>');
+    }
+    
+    return bars.join('');
+}
+
+function getActionText(action: string): string {
+    switch (action) {
+        case 'APOSTAR_AGORA': return '🎯 APOSTAR AGORA!';
+        case 'CONSIDERAR_APOSTAR': return '🤔 Considerar apostar';
+        case 'OBSERVAR': return '👀 Observar tendências';
+        case 'AGUARDAR': return '⏳ Aguardar momento melhor';
+        default: return '❓ Analisar situação';
+    }
+}
+
+function renderPredictorError(error: string) {
+    const app = document.getElementById('app');
+    if (!app) return;
+
+    app.innerHTML = `
+        <div class="predictor-container">
+            <div class="predictor-header">
+                <h1>🔮 Preditor de Concursos Quentes</h1>
+                <p class="predictor-subtitle">Sistema revolucionário de análise de padrões</p>
+            </div>
+            
+            <div class="error-container">
+                <div class="error-icon">⚠️</div>
+                <h2>Erro ao Carregar Preditor</h2>
+                <p class="error-message">${error}</p>
+                <div class="error-actions">
+                    <button onclick="renderContestPredictor()" class="btn-primary">
+                        🔄 Tentar Novamente
+                    </button>
+                    <button onclick="renderWelcome()" class="btn-secondary">
+                        ← Voltar ao Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ===============================
+// GLOBAL FUNCTIONS EXPORT
+// ===============================
+
+// Expose functions to window object for HTML onclick handlers
+(window as any).renderContestPredictor = renderContestPredictor;

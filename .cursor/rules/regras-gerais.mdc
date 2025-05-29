@@ -9,3 +9,8 @@ sempre garanta que o código está nos conformes para que o [ci.yml](mdc:.github
 
 
 lembre-se que temos launcher e app principal, ambos deve funcionar 100% e lindamente!
+
+não suba o código pro repositório github nem crie nenhuma tag a menos que seja solicitado explicitamente! Devemos testar em ambiente dev antes (wails dev)
+
+repositório privado do codigo fonte: https://github.com/cccarv82/milhoes-desktop/
+repositorio publico de releases: https://github.com/cccarv82/milhoes-releases/

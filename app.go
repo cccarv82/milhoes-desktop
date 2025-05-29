@@ -68,14 +68,15 @@ func (cl *CustomLogger) Close() {
 
 // App struct - Bridge entre Frontend e Backend
 type App struct {
-	ctx           context.Context
-	dataClient    *data.Client
-	aiClient      *ai.ClaudeClient
-	updater       *updater.Updater
-	savedGamesDB  *database.SavedGamesDB
-	resultChecker *services.ResultChecker
-	updateStatus  *UpdateStatus       // Status de atualização para o frontend
-	pendingUpdate *updater.UpdateInfo // Informações da atualização pendente
+	ctx              context.Context
+	dataClient       *data.Client
+	aiClient         *ai.ClaudeClient
+	updater          *updater.Updater
+	savedGamesDB     *database.SavedGamesDB
+	resultChecker    *services.ResultChecker
+	contestPredictor *services.ContestPredictor // Nova feature: Preditor de Concursos Quentes
+	updateStatus     *UpdateStatus              // Status de atualização para o frontend
+	pendingUpdate    *updater.UpdateInfo        // Informações da atualização pendente
 }
 
 // UpdateStatus representa o status atual da atualização
@@ -154,16 +155,21 @@ func NewApp() *App {
 	// Carregar configuração existente
 	loadExistingConfig()
 
+	// Inicializar preditor de concursos quentes
+	contestPredictor := services.NewContestPredictor(dataClient)
+	customLogger.Printf("🔮 Preditor de Concursos Quentes inicializado")
+
 	customLogger.Printf("✅ App inicializado com sucesso - Versão %s", version)
 
 	return &App{
-		dataClient:    dataClient,
-		aiClient:      ai.NewClaudeClient(),
-		updater:       updater.NewUpdater(version, githubRepo),
-		savedGamesDB:  savedGamesDB,
-		resultChecker: resultChecker,
-		updateStatus:  &UpdateStatus{},
-		pendingUpdate: nil,
+		dataClient:       dataClient,
+		aiClient:         ai.NewClaudeClient(),
+		updater:          updater.NewUpdater(version, githubRepo),
+		savedGamesDB:     savedGamesDB,
+		resultChecker:    resultChecker,
+		contestPredictor: contestPredictor,
+		updateStatus:     &UpdateStatus{},
+		pendingUpdate:    nil,
 	}
 }
 
@@ -1844,4 +1850,66 @@ func (a *App) CheckAllPendingResults() map[string]interface{} {
 	}
 
 	return result
+}
+
+// ===============================
+// PREDITOR DE CONCURSOS QUENTES - FASE 1
+// ===============================
+
+// GetContestTemperatureAnalysis retorna análise de temperatura de todos os concursos
+func (a *App) GetContestTemperatureAnalysis() map[string]interface{} {
+	customLogger.Printf("🌡️ Frontend solicitou análise de temperatura dos concursos")
+
+	if a.contestPredictor == nil {
+		customLogger.Printf("❌ Preditor não inicializado")
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Preditor de concursos não disponível",
+		}
+	}
+
+	summary, err := a.contestPredictor.GetTemperatureAnalysis()
+	if err != nil {
+		customLogger.Printf("❌ Erro ao obter análise de temperatura: %v", err)
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao obter análise: %v", err),
+		}
+	}
+
+	customLogger.Printf("✅ Análise de temperatura obtida: %s mais quente (%d%% confiança)",
+		summary.HottestLottery, int(summary.OverallConfidence))
+
+	return map[string]interface{}{
+		"success": true,
+		"data":    summary,
+	}
+}
+
+// GetPredictorMetrics retorna métricas de performance do preditor
+func (a *App) GetPredictorMetrics() map[string]interface{} {
+	customLogger.Printf("📊 Frontend solicitou métricas do preditor")
+
+	if a.contestPredictor == nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "Preditor de concursos não disponível",
+		}
+	}
+
+	metrics, err := a.contestPredictor.GetPredictorMetrics()
+	if err != nil {
+		customLogger.Printf("❌ Erro ao obter métricas: %v", err)
+		return map[string]interface{}{
+			"success": false,
+			"error":   fmt.Sprintf("Erro ao obter métricas: %v", err),
+		}
+	}
+
+	customLogger.Printf("✅ Métricas obtidas: %.1f%% precisão", metrics.AccuracyPercentage)
+
+	return map[string]interface{}{
+		"success": true,
+		"data":    metrics,
+	}
 }

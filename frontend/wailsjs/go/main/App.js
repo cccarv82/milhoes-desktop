@@ -30,6 +30,10 @@ export function GetAppInfo() {
   return window['go']['main']['App']['GetAppInfo']();
 }
 
+export function GetContestTemperatureAnalysis() {
+  return window['go']['main']['App']['GetContestTemperatureAnalysis']();
+}
+
 export function GetCurrentConfig() {
   return window['go']['main']['App']['GetCurrentConfig']();
 }
@@ -60,6 +64,10 @@ export function GetNumberFrequencyAnalysis(arg1) {
 
 export function GetPerformanceMetrics() {
   return window['go']['main']['App']['GetPerformanceMetrics']();
+}
+
+export function GetPredictorMetrics() {
+  return window['go']['main']['App']['GetPredictorMetrics']();
 }
 
 export function GetROICalculator(arg1, arg2) {

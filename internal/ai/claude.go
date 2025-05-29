@@ -659,14 +659,15 @@ func (c *ClaudeClient) TestConnection() error {
 	return nil
 }
 
-// analyzeHistoricalData realiza análise estatística rigorosa dos dados históricos REAIS
+// analyzeHistoricalData realiza análise estatística otimizada dos dados históricos REAIS
 func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes []lottery.LotteryType) string {
 	if len(draws) == 0 {
 		return "ERRO: Nenhum dado histórico disponível para análise."
 	}
 
-	analysis := strings.Builder{}
-	analysis.WriteString(fmt.Sprintf("📊 ANÁLISE DE %d SORTEIOS REAIS:\n\n", len(draws)))
+	// OTIMIZAÇÃO: Limites ajustados para melhor base estatística
+	const maxMegaSenaDraws = 100  // ~1 ano de dados (2x por semana)
+	const maxLotofacilDraws = 250 // ~8 meses de dados (diário)
 
 	// Separar dados por tipo de loteria
 	megaDraws := []lottery.Draw{}
@@ -674,29 +675,37 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 
 	for _, draw := range draws {
 		numbers := draw.Numbers.ToIntSlice()
-		if len(numbers) == 6 { // Mega-Sena
+		if len(numbers) == 6 && len(megaDraws) < maxMegaSenaDraws { // Mega-Sena
 			megaDraws = append(megaDraws, draw)
-		} else if len(numbers) >= 15 { // Lotofácil
+		} else if len(numbers) >= 15 && len(lotoDraws) < maxLotofacilDraws { // Lotofácil
 			lotoDraws = append(lotoDraws, draw)
+		}
+
+		// Parar se já temos amostras suficientes de ambas
+		if len(megaDraws) >= maxMegaSenaDraws && len(lotoDraws) >= maxLotofacilDraws {
+			break
 		}
 	}
 
+	analysis := strings.Builder{}
+	analysis.WriteString(fmt.Sprintf("📊 ANÁLISE ESTATÍSTICA ROBUSTA:\n\n"))
+
 	// Analisar Mega-Sena
 	if len(megaDraws) > 0 {
-		analysis.WriteString("🎰 MEGA-SENA - FREQUÊNCIAS REAIS:\n")
+		analysis.WriteString("🎰 MEGA-SENA - ANÁLISE PROFUNDA:\n")
 		megaFreq := calculateNumberFrequency(megaDraws, 60)
-		megaHot, megaCold := getHotColdNumbers(megaFreq, 10)
+		megaHot, megaCold := getHotColdNumbers(megaFreq, 10) // Voltou para 10 com mais dados
 		megaSums := calculateSumDistribution(megaDraws)
 		megaPairs := calculatePairImparDistribution(megaDraws)
 		megaSumMin, megaSumMax := getMostCommonSumRange(megaSums)
 
-		analysis.WriteString(fmt.Sprintf("• Sorteios analisados: %d\n", len(megaDraws)))
-		analysis.WriteString(fmt.Sprintf("• Números MAIS frequentes: %v\n", megaHot))
-		analysis.WriteString(fmt.Sprintf("• Números MENOS frequentes: %v\n", megaCold))
-		analysis.WriteString(fmt.Sprintf("• Soma mais comum: %d-%d\n", megaSumMin, megaSumMax))
-		analysis.WriteString(fmt.Sprintf("• Distribuição Par/Ímpar: %.1f%% pares\n", megaPairs))
-		analysis.WriteString(fmt.Sprintf("• Faixas por frequência:\n"))
-		analysis.WriteString(fmt.Sprintf("  - 1-15: %v\n", getNumbersInRange(megaHot, 1, 15)))
+		analysis.WriteString(fmt.Sprintf("• Base estatística: %d sorteios (~1 ano)\n", len(megaDraws)))
+		analysis.WriteString(fmt.Sprintf("• Números quentes: %v\n", megaHot))
+		analysis.WriteString(fmt.Sprintf("• Números frios: %v\n", megaCold))
+		analysis.WriteString(fmt.Sprintf("• Faixa de soma ótima: %d-%d\n", megaSumMin, megaSumMax))
+		analysis.WriteString(fmt.Sprintf("• Distribuição pares: %.1f%%\n", megaPairs))
+		analysis.WriteString(fmt.Sprintf("• Dezenas por faixa:\n"))
+		analysis.WriteString(fmt.Sprintf("  - 01-15: %v\n", getNumbersInRange(megaHot, 1, 15)))
 		analysis.WriteString(fmt.Sprintf("  - 16-30: %v\n", getNumbersInRange(megaHot, 16, 30)))
 		analysis.WriteString(fmt.Sprintf("  - 31-45: %v\n", getNumbersInRange(megaHot, 31, 45)))
 		analysis.WriteString(fmt.Sprintf("  - 46-60: %v\n", getNumbersInRange(megaHot, 46, 60)))
@@ -705,31 +714,31 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 
 	// Analisar Lotofácil
 	if len(lotoDraws) > 0 {
-		analysis.WriteString("🍀 LOTOFÁCIL - FREQUÊNCIAS REAIS:\n")
+		analysis.WriteString("🍀 LOTOFÁCIL - ANÁLISE PROFUNDA:\n")
 		lotoFreq := calculateNumberFrequency(lotoDraws, 25)
-		lotoHot, lotoCold := getHotColdNumbers(lotoFreq, 8)
+		lotoHot, lotoCold := getHotColdNumbers(lotoFreq, 8) // Voltou para 8 com mais dados
 		lotoSums := calculateSumDistribution(lotoDraws)
 		lotoPairs := calculatePairImparDistribution(lotoDraws)
 		lotoSumMin, lotoSumMax := getMostCommonSumRange(lotoSums)
 
-		analysis.WriteString(fmt.Sprintf("• Sorteios analisados: %d\n", len(lotoDraws)))
-		analysis.WriteString(fmt.Sprintf("• Números MAIS frequentes: %v\n", lotoHot))
-		analysis.WriteString(fmt.Sprintf("• Números MENOS frequentes: %v\n", lotoCold))
-		analysis.WriteString(fmt.Sprintf("• Soma mais comum: %d-%d\n", lotoSumMin, lotoSumMax))
-		analysis.WriteString(fmt.Sprintf("• Distribuição Par/Ímpar: %.1f%% pares\n", lotoPairs))
+		analysis.WriteString(fmt.Sprintf("• Base estatística: %d sorteios (~8 meses)\n", len(lotoDraws)))
+		analysis.WriteString(fmt.Sprintf("• Números quentes: %v\n", lotoHot))
+		analysis.WriteString(fmt.Sprintf("• Números frios: %v\n", lotoCold))
+		analysis.WriteString(fmt.Sprintf("• Faixa de soma ótima: %d-%d\n", lotoSumMin, lotoSumMax))
+		analysis.WriteString(fmt.Sprintf("• Distribuição pares: %.1f%%\n", lotoPairs))
 		analysis.WriteString(fmt.Sprintf("• Quadrantes por frequência:\n"))
-		analysis.WriteString(fmt.Sprintf("  - Q1 (1-6): %v\n", getNumbersInRange(lotoHot, 1, 6)))
-		analysis.WriteString(fmt.Sprintf("  - Q2 (7-12): %v\n", getNumbersInRange(lotoHot, 7, 12)))
+		analysis.WriteString(fmt.Sprintf("  - Q1 (01-06): %v\n", getNumbersInRange(lotoHot, 1, 6)))
+		analysis.WriteString(fmt.Sprintf("  - Q2 (07-12): %v\n", getNumbersInRange(lotoHot, 7, 12)))
 		analysis.WriteString(fmt.Sprintf("  - Q3 (13-18): %v\n", getNumbersInRange(lotoHot, 13, 18)))
 		analysis.WriteString(fmt.Sprintf("  - Q4 (19-25): %v\n", getNumbersInRange(lotoHot, 19, 25)))
 		analysis.WriteString("\n")
 	}
 
-	analysis.WriteString("⚡ OTIMIZAÇÃO MATEMÁTICA:\n")
-	analysis.WriteString("• Lotofácil 16 números = 8.008 combinações por R$48 = 166.8 comb/real\n")
-	analysis.WriteString("• Mega-Sena 8 números = 28 combinações por R$140 = 0.2 comb/real\n")
-	analysis.WriteString("• ROI Lotofácil é 834x superior!\n")
-	analysis.WriteString("• ESTRATÉGIA ÓTIMA: Priorizar Lotofácil 16+ números\n\n")
+	analysis.WriteString("⚡ ESTRATÉGIA OTIMIZADA BASEADA EM DADOS REAIS:\n")
+	analysis.WriteString("• Lotofácil: Priorizar sistema 16 números para melhor ROI\n")
+	analysis.WriteString("• Mega-Sena: Balancear números quentes e frios para cobertura\n")
+	analysis.WriteString("• Aplicar filtros matemáticos rigorosos em todas as combinações\n")
+	analysis.WriteString("• Usar distribuição por quadrantes/décadas conforme padrões históricos\n\n")
 
 	return analysis.String()
 }
