@@ -2843,15 +2843,6 @@ function getTrendIcon(trend: string): string {
     }
 }
 
-function getTrendText(trend: string): string {
-    switch (trend) {
-        case 'up': return 'Tendência de alta';
-        case 'down': return 'Tendência de baixa'; 
-        default: return 'Tendência estável';
-    }
-}
-
-// ===============================
 // CALCULADORA ROI
 // ===============================
 
@@ -4824,11 +4815,11 @@ function getTimingInsight(preferredDay: string, weekendGames: number, weekdayGam
     const weekendPercentage = (weekendGames / total) * 100;
     
     if (weekendPercentage > 70) {
-        return '🏖️ Você prefere jogar no fim de semana!';
+        return `🏖️ Você prefere jogar no fim de semana! Seu dia favorito é ${preferredDay}`;
     } else if (weekendPercentage < 30) {
-        return '💼 Você joga mais durante a semana';
+        return `💼 Você joga mais durante a semana, especialmente ${preferredDay}`;
     } else {
-        return '⚖️ Você distribui bem seus jogos na semana';
+        return `⚖️ Você distribui bem seus jogos na semana, com preferência por ${preferredDay}`;
     }
 }
 
