@@ -2634,14 +2634,14 @@ async function renderPerformanceDashboard() {
             console.log('📊 DEBUG: Erro do backend (ignorando):', backendError);
         }
         
-        // Usar dados manuais como primários, backend como fallback
-        const finalSummary = backendSummary || manualSummary;
-        const finalMetrics = backendMetrics || calculateManualMetrics(gamesWithResults);
+        // Usar dados manuais como primários, backend como fallback APENAS se manuais falharam
+        const finalSummary = manualSummary; // SEMPRE usar manual primeiro
+        const finalMetrics = calculateManualMetrics(gamesWithResults); // SEMPRE usar manual primeiro
         
-        console.log('📊 DEBUG: Dados finais - Summary:', finalSummary);
-        console.log('📊 DEBUG: Dados finais - Metrics:', finalMetrics);
+        console.log('📊 DEBUG: Dados finais (MANUAIS) - Summary:', finalSummary);
+        console.log('📊 DEBUG: Dados finais (MANUAIS) - Metrics:', finalMetrics);
         
-        // Renderizar dashboard com dados calculados
+        // Renderizar dashboard com dados calculados MANUAIS
         renderDashboardContent(finalSummary, finalMetrics);
         
     } catch (error) {
@@ -2653,6 +2653,7 @@ async function renderPerformanceDashboard() {
 // Nova função para calcular métricas manualmente
 function calculateManualSummary(gamesWithResults: any[]): any {
     console.log('📊 Calculando summary manual com', gamesWithResults.length, 'jogos');
+    console.log('📊 DEBUG: Jogos recebidos:', gamesWithResults);
     
     const totalGames = gamesWithResults.length;
     let totalInvestment = 0;
@@ -2660,24 +2661,38 @@ function calculateManualSummary(gamesWithResults: any[]): any {
     let winningGames = 0;
     let biggestWin = 0;
     
-    gamesWithResults.forEach((game: any) => {
+    gamesWithResults.forEach((game: any, index: number) => {
+        console.log(`📊 DEBUG: Processando jogo ${index}:`, game);
+        
         // Calcular custo do jogo
         const cost = getCostForGame(game.lottery_type, game.numbers.length);
+        console.log(`📊 DEBUG: Custo calculado para jogo ${index}: R$ ${cost} (tipo: ${game.lottery_type}, números: ${game.numbers.length})`);
         totalInvestment += cost;
         
         // Somar ganhos
         const winnings = game.result?.prize_amount || 0;
+        console.log(`📊 DEBUG: Ganhos do jogo ${index}: R$ ${winnings} (result:`, game.result, ')')
         totalWinnings += winnings;
         
         if (winnings > 0) {
             winningGames++;
             biggestWin = Math.max(biggestWin, winnings);
+            console.log(`📊 DEBUG: Jogo ${index} é um GANHADOR! Total de ganhos agora: R$ ${totalWinnings}`);
         }
     });
+    
+    console.log('📊 DEBUG: Totais calculados:');
+    console.log(`📊 DEBUG: - Total Investment: R$ ${totalInvestment}`);
+    console.log(`📊 DEBUG: - Total Winnings: R$ ${totalWinnings}`);
+    console.log(`📊 DEBUG: - Winning Games: ${winningGames}/${totalGames}`);
+    console.log(`📊 DEBUG: - Biggest Win: R$ ${biggestWin}`);
     
     const currentROI = totalInvestment > 0 ? ((totalWinnings - totalInvestment) / totalInvestment) * 100 : 0;
     const winRate = totalGames > 0 ? (winningGames / totalGames) * 100 : 0;
     const averageWin = winningGames > 0 ? totalWinnings / winningGames : 0;
+    
+    console.log(`📊 DEBUG: - ROI Calculado: ${currentROI}%`);
+    console.log(`📊 DEBUG: - Win Rate Calculado: ${winRate}%`);
     
     // Últimos 30 dias (simulado)
     const last30Days = {
@@ -2721,7 +2736,7 @@ function calculateManualSummary(gamesWithResults: any[]): any {
         }
     }
     
-    return {
+    const finalResult = {
         totalGames,
         totalInvestment,
         totalWinnings,
@@ -2737,6 +2752,9 @@ function calculateManualSummary(gamesWithResults: any[]): any {
             description: performanceDescription
         }
     };
+    
+    console.log('📊 DEBUG: Resultado final do calculateManualSummary:', finalResult);
+    return finalResult;
 }
 
 // Nova função para calcular métricas detalhadas manualmente
@@ -3085,6 +3103,14 @@ function getTrendIcon(trend: string): string {
         case 'up': return '📈';
         case 'down': return '📉';
         default: return '➡️';
+    }
+}
+
+function getTrendText(trend: string): string {
+    switch (trend) {
+        case 'up': return 'Sorte está melhorando';
+        case 'down': return 'Momento de paciência';
+        default: return 'Sorte estável';
     }
 }
 
