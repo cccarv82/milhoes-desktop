@@ -4242,16 +4242,138 @@ function getPerformanceClass(level: string): string {
 // 🧠 FASE 2: INTELLIGENCE ENGINE - IA COMPORTAMENTAL AVANÇADA
 // @ts-ignore - Função usada no HTML onclick
 function renderIntelligenceEngine() {
-    try {
-        const games = JSON.parse(localStorage.getItem('games') || '[]');
-        
-        const iaAnalysis = generateBehavioralAnalysis(games);
-        const heatmapData = generateHeatmapData(games);
-        const predictions = generateAIPredictions(games);
-        const suggestions = generatePersonalizedSuggestions(games, iaAnalysis);
-        const timing = calculateOptimalTiming(games);
+    console.log('🧠 Intelligence Engine iniciado...');
+    
+    const app = document.getElementById('app')!;
+    
+    // Mostrar loading primeiro
+    app.innerHTML = `
+        <div class="container">
+            <header class="header">
+                <h1 class="logo">🧠 Intelligence Engine</h1>
+                <div class="header-actions">
+                    <button onclick="renderPerformanceDashboard()" class="btn-secondary">📊 Dashboard</button>
+                    <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
+                </div>
+            </header>
+            
+            <div class="main-content">
+                <div class="intelligence-hero">
+                    <h1 class="intelligence-title">
+                        <span class="intelligence-brain">🧠</span>
+                        Intelligence Engine
+                        <span class="intelligence-brain">🚀</span>
+                    </h1>
+                    <p style="font-size: var(--font-size-lg); color: var(--text-secondary); margin: 0;">
+                        IA comportamental avançada para maximizar sua performance
+                    </p>
+                </div>
+                
+                <div class="loading" style="text-align: center; padding: 2rem;">
+                    Carregando dados dos jogos salvos...
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Chamar função para carregar dados
+    loadIntelligenceData();
+}
 
-        const app = document.getElementById('app')!;
+// Função auxiliar para carregar dados do Intelligence Engine
+async function loadIntelligenceData() {
+    const app = document.getElementById('app')!;
+    
+    try {
+        console.log('🧠 Buscando jogos salvos do banco de dados...');
+        
+        // Buscar jogos salvos do banco de dados
+        const filter = new models.SavedGamesFilter({});
+        const response = await GetSavedGames(filter);
+        
+        if (!response.success) {
+            throw new Error(response.error || 'Erro ao carregar jogos salvos');
+        }
+        
+        const savedGames: SavedGame[] = response.games || [];
+        console.log('🧠 Jogos carregados:', savedGames.length);
+        
+        // Verificar se há jogos suficientes
+        if (savedGames.length === 0) {
+            app.innerHTML = `
+                <div class="container">
+                    <header class="header">
+                        <h1 class="logo">🧠 Intelligence Engine</h1>
+                        <div class="header-actions">
+                            <button onclick="renderPerformanceDashboard()" class="btn-secondary">📊 Dashboard</button>
+                            <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
+                        </div>
+                    </header>
+                    
+                    <div class="main-content">
+                        <div class="intelligence-hero">
+                            <h1 class="intelligence-title">
+                                <span class="intelligence-brain">🧠</span>
+                                Intelligence Engine
+                                <span class="intelligence-brain">🚀</span>
+                            </h1>
+                            <p style="font-size: var(--font-size-lg); color: var(--text-secondary); margin: 0;">
+                                IA comportamental avançada para maximizar sua performance
+                            </p>
+                        </div>
+                        
+                        <div class="feature-card" style="background: #fef3cd; border: 1px solid #fcd34d; text-align: center;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">🎯</div>
+                            <h2 style="color: #92400e;">Dados Insuficientes</h2>
+                            <p style="color: #92400e; margin-bottom: 2rem;">
+                                Para usar o Intelligence Engine, você precisa ter jogos salvos.
+                                <br><br>
+                                Comece gerando uma estratégia e salvando alguns jogos!
+                            </p>
+                            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                                <button onclick="startStrategyWizard()" class="btn-primary">
+                                    🎲 Gerar Estratégia
+                                </button>
+                                <button onclick="renderSavedGamesScreen()" class="btn-secondary">
+                                    💾 Ver Jogos Salvos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        console.log('🧠 Gerando análise comportamental...');
+        
+        // Converter dados para formato usado pelas funções de análise
+        const gamesForAnalysis = savedGames.map(game => ({
+            id: game.id,
+            lottery_type: game.lottery_type,
+            numbers: game.numbers,
+            expected_draw: game.expected_draw,
+            contest_number: game.contest_number,
+            status: game.status,
+            created_at: game.created_at,
+            checked_at: game.checked_at,
+            result: game.result,
+            // Campos derivados para análise
+            cost: getCostForGame(game.lottery_type, game.numbers.length),
+            investment: getCostForGame(game.lottery_type, game.numbers.length),
+            winnings: game.result?.prize_amount || 0,
+            isWinner: game.result?.is_winner || false
+        }));
+        
+        console.log('🧠 Dados convertidos:', gamesForAnalysis.length, 'jogos');
+        
+        const iaAnalysis = generateBehavioralAnalysis(gamesForAnalysis);
+        const heatmapData = generateHeatmapData(gamesForAnalysis);
+        const predictions = generateAIPredictions(gamesForAnalysis);
+        const suggestions = generatePersonalizedSuggestions(gamesForAnalysis, iaAnalysis);
+        const timing = calculateOptimalTiming(gamesForAnalysis);
+
+        console.log('🧠 Análise concluída, renderizando interface...');
         
         app.innerHTML = `
             <div class="container">
@@ -4321,11 +4443,12 @@ function renderIntelligenceEngine() {
             </div>
         `;
         
+        console.log('🧠 Intelligence Engine renderizado com sucesso!');
+        
     } catch (error) {
-        console.error('🧠 ERROR: Erro em renderIntelligenceEngine:', (error as Error).message);
+        console.error('🧠 ERROR: Erro em loadIntelligenceData:', (error as Error).message);
         console.error('🧠 ERROR: Stack trace:', (error as Error).stack);
         
-        const app = document.getElementById('app')!;
         app.innerHTML = `
             <div class="container">
                 <header class="header">
@@ -4339,7 +4462,9 @@ function renderIntelligenceEngine() {
                     <div class="feature-card" style="background: #fef2f2; border: 1px solid #fecaca;">
                         <h2 style="color: #dc2626;">❌ Erro no Intelligence Engine</h2>
                         <p style="color: #7f1d1d;">
-                            Ocorreu um erro inesperado. Por favor, tente novamente ou entre em contato com o suporte.
+                            Erro: ${(error as Error).message}
+                            <br><br>
+                            Tente recarregar a página ou entre em contato com o suporte.
                         </p>
                         <button onclick="renderWelcome()" class="btn-primary" style="margin-top: 1rem;">
                             ⬅️ Voltar ao Início
@@ -4351,954 +4476,21 @@ function renderIntelligenceEngine() {
     }
 }
 
-// Análise Comportamental IA
-function generateBehavioralAnalysis(games: any[]): any {
-    console.log('🔍 DEBUG: generateBehavioralAnalysis iniciado com', games.length, 'games');
-    
-    try {
-        console.log('🔍 DEBUG: Calculando favoriteNumbers...');
-        const favoriteNumbers = calculateFavoriteNumbers(games);
-        console.log('🔍 DEBUG: favoriteNumbers:', favoriteNumbers);
-        
-        console.log('🔍 DEBUG: Analisando playingPatterns...');
-        const playingPatterns = analyzePlayingPatterns(games);
-        console.log('🔍 DEBUG: playingPatterns:', playingPatterns);
-        
-        console.log('🔍 DEBUG: Calculando riskProfile...');
-        const riskProfile = calculateRiskProfile(games);
-        console.log('🔍 DEBUG: riskProfile:', riskProfile);
-        
-        console.log('🔍 DEBUG: Analisando performanceTraits...');
-        const performanceTraits = analyzePerformanceTraits(games);
-        console.log('🔍 DEBUG: performanceTraits:', performanceTraits);
-        
-        console.log('🔍 DEBUG: Analisando timePatterns...');
-        const timePatterns = analyzeTimePatterns(games);
-        console.log('🔍 DEBUG: timePatterns:', timePatterns);
-
-        const analysis = {
-            favoriteNumbers,
-            playingPatterns,
-            riskProfile,
-            performanceTraits,
-            timePatterns
+// Função auxiliar para calcular custo do jogo
+function getCostForGame(lotteryType: string, numbersCount: number): number {
+    if (lotteryType === 'mega-sena') {
+        // Preços oficiais Mega-Sena
+        const prices: { [key: number]: number } = {
+            6: 5.00, 7: 35.00, 8: 140.00, 9: 420.00, 10: 1050.00,
+            11: 2310.00, 12: 4620.00, 13: 8580.00, 14: 15015.00, 15: 25025.00
         };
-
-        console.log('🔍 DEBUG: generateBehavioralAnalysis concluído:', analysis);
-        return analysis;
-        
-    } catch (error) {
-        console.error('🔍 ERROR: Erro em generateBehavioralAnalysis:', error);
-        return {
-            favoriteNumbers: { top5: [], avgFrequency: 0, diversity: 0, consistency: 0 },
-            playingPatterns: { preferredGame: 'N/A', gamesPerWeek: 0, avgInvestment: 0, consistency: 0 },
-            riskProfile: { level: 'N/A', avgInvestment: 0, maxInvestment: 0, roi: 0, volatility: 0 },
-            performanceTraits: { winRate: 0, avgROI: 0, bestStreak: 0, patience: 0, adaptation: 0 },
-            timePatterns: { preferredDay: 'N/A', preferredHour: 0, weekendGames: 0, weekdayGames: 0 }
+        return prices[numbersCount] || 5.00;
+    } else if (lotteryType === 'lotofacil') {
+        // Preços oficiais Lotofácil
+        const prices: { [key: number]: number } = {
+            15: 3.00, 16: 48.00, 17: 408.00, 18: 2448.00, 19: 11628.00, 20: 46512.00
         };
+        return prices[numbersCount] || 3.00;
     }
+    return 0;
 }
-
-// Calcula números favoritos do usuário
-function calculateFavoriteNumbers(games: any[]): any {
-    console.log('📊 DEBUG: calculateFavoriteNumbers iniciado com', games.length, 'games');
-    
-    try {
-        const numberFreq: { [key: number]: number } = {};
-        let totalNumbers = 0;
-
-        games.forEach((game, index) => {
-            console.log(`📊 DEBUG: Processando game ${index}:`, game);
-            if (game.numbers && Array.isArray(game.numbers)) {
-                game.numbers.forEach((num: number) => {
-                    numberFreq[num] = (numberFreq[num] || 0) + 1;
-                    totalNumbers++;
-                });
-            } else {
-                console.warn(`📊 WARNING: Game ${index} não tem números válidos:`, game.numbers);
-            }
-        });
-
-        console.log('📊 DEBUG: numberFreq final:', numberFreq);
-        console.log('📊 DEBUG: totalNumbers:', totalNumbers);
-
-        const sortedNumbers = Object.entries(numberFreq)
-            .map(([num, freq]) => ({
-                number: parseInt(num),
-                frequency: freq,
-                percentage: (freq / totalNumbers * 100)
-            }))
-            .sort((a, b) => b.frequency - a.frequency);
-
-        console.log('📊 DEBUG: sortedNumbers:', sortedNumbers);
-
-        const result = {
-            top5: sortedNumbers.slice(0, 5),
-            avgFrequency: totalNumbers / Object.keys(numberFreq).length,
-            diversity: Object.keys(numberFreq).length,
-            consistency: sortedNumbers[0]?.frequency / (totalNumbers / Object.keys(numberFreq).length) || 0
-        };
-
-        console.log('📊 DEBUG: calculateFavoriteNumbers result:', result);
-        return result;
-        
-    } catch (error) {
-        console.error('📊 ERROR: Erro em calculateFavoriteNumbers:', error);
-        return {
-            top5: [],
-            avgFrequency: 0,
-            diversity: 0,
-            consistency: 0
-        };
-    }
-}
-
-// Analisa padrões de jogo
-function analyzePlayingPatterns(games: any[]): any {
-    console.log('🎯 DEBUG: analyzePlayingPatterns iniciado');
-    
-    try {
-        const gameTypes = games.reduce((acc: any, game) => {
-            acc[game.type] = (acc[game.type] || 0) + 1;
-            return acc;
-        }, {});
-
-        const avgInvestment = games.length > 0 ? games.reduce((sum, game) => sum + (game.investment || 0), 0) / games.length : 0;
-        
-        const result = {
-            preferredGame: Object.entries(gameTypes).length > 0 ? Object.entries(gameTypes).reduce((a: any, b: any) => a[1] > b[1] ? a : b)[0] : 'N/A',
-            gamesPerWeek: games.length / 4, // Assumindo 4 semanas de dados
-            avgInvestment: avgInvestment,
-            consistency: calculateConsistency(games)
-        };
-        
-        console.log('🎯 DEBUG: analyzePlayingPatterns result:', result);
-        return result;
-    } catch (error) {
-        console.error('🎯 ERROR: Erro em analyzePlayingPatterns:', error);
-        return {
-            preferredGame: 'N/A',
-            gamesPerWeek: 0,
-            avgInvestment: 0,
-            consistency: 0
-        };
-    }
-}
-
-// Calcula perfil de risco
-function calculateRiskProfile(games: any[]): any {
-    console.log('⚡ DEBUG: calculateRiskProfile iniciado');
-    
-    try {
-        const totalInvestment = games.reduce((sum, game) => sum + (game.investment || 0), 0);
-        const totalWinnings = games.reduce((sum, game) => sum + (game.winnings || 0), 0);
-        const roi = totalInvestment > 0 ? ((totalWinnings - totalInvestment) / totalInvestment) * 100 : 0;
-        
-        const avgInvestment = games.length > 0 ? totalInvestment / games.length : 0;
-        const maxInvestment = games.length > 0 ? Math.max(...games.map(g => g.investment || 0)) : 0;
-        
-        let riskLevel = 'Conservador';
-        if (avgInvestment > 50) riskLevel = 'Moderado';
-        if (avgInvestment > 100) riskLevel = 'Agressivo';
-        if (maxInvestment > avgInvestment * 3) riskLevel = 'Alto Risco';
-
-        const result = {
-            level: riskLevel,
-            avgInvestment,
-            maxInvestment,
-            roi,
-            volatility: calculateVolatility(games)
-        };
-        
-        console.log('⚡ DEBUG: calculateRiskProfile result:', result);
-        return result;
-    } catch (error) {
-        console.error('⚡ ERROR: Erro em calculateRiskProfile:', error);
-        return {
-            level: 'N/A',
-            avgInvestment: 0,
-            maxInvestment: 0,
-            roi: 0,
-            volatility: 0
-        };
-    }
-}
-
-// Analisa traços de performance
-function analyzePerformanceTraits(games: any[]): any {
-    console.log('🏆 DEBUG: analyzePerformanceTraits iniciado');
-    
-    try {
-        const winningGames = games.filter(g => (g.winnings || 0) > (g.investment || 0));
-        const winRate = games.length > 0 ? (winningGames.length / games.length) * 100 : 0;
-        
-        const result = {
-            winRate,
-            avgROI: calculateAverageROI(games),
-            bestStreak: calculateBestStreak(games),
-            patience: calculatePatience(games),
-            adaptation: calculateAdaptation(games)
-        };
-        
-        console.log('🏆 DEBUG: analyzePerformanceTraits result:', result);
-        return result;
-    } catch (error) {
-        console.error('🏆 ERROR: Erro em analyzePerformanceTraits:', error);
-        return {
-            winRate: 0,
-            avgROI: 0,
-            bestStreak: 0,
-            patience: 0,
-            adaptation: 0
-        };
-    }
-}
-
-// Analisa padrões temporais
-function analyzeTimePatterns(games: any[]): any {
-    console.log('⏰ DEBUG: analyzeTimePatterns iniciado');
-    
-    try {
-        const dayOfWeek: { [key: string]: number } = {};
-        const hourOfDay: { [key: number]: number } = {};
-        
-        games.forEach(game => {
-            if (game.date) {
-                const date = new Date(game.date);
-                const day = date.toLocaleDateString('pt-BR', { weekday: 'long' });
-                const hour = date.getHours();
-                
-                dayOfWeek[day] = (dayOfWeek[day] || 0) + 1;
-                hourOfDay[hour] = (hourOfDay[hour] || 0) + 1;
-            }
-        });
-
-        const preferredDay = Object.entries(dayOfWeek).length > 0 ? Object.entries(dayOfWeek).reduce((a, b) => a[1] > b[1] ? a : b)[0] : 'N/A';
-        const preferredHour = Object.entries(hourOfDay).length > 0 ? Object.entries(hourOfDay).reduce((a, b) => a[1] > b[1] ? a : b)[0] : '0';
-
-        const result = {
-            preferredDay,
-            preferredHour: parseInt(preferredHour as string),
-            weekendGames: (dayOfWeek['sábado'] || 0) + (dayOfWeek['domingo'] || 0),
-            weekdayGames: games.length - ((dayOfWeek['sábado'] || 0) + (dayOfWeek['domingo'] || 0))
-        };
-        
-        console.log('⏰ DEBUG: analyzeTimePatterns result:', result);
-        return result;
-    } catch (error) {
-        console.error('⏰ ERROR: Erro em analyzeTimePatterns:', error);
-        return {
-            preferredDay: 'N/A',
-            preferredHour: 0,
-            weekendGames: 0,
-            weekdayGames: 0
-        };
-    }
-}
-
-// Gera cards de comportamento
-function generateBehaviorCards(analysis: any): string {
-    console.log('💳 DEBUG: generateBehaviorCards iniciado');
-    
-    try {
-        return `
-            <div class="behavior-card">
-                <div class="behavior-header">
-                    <span class="behavior-icon">🎯</span>
-                    <h3 class="behavior-title">Números Favoritos</h3>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Top 3 números</span>
-                    <span class="behavior-value">${analysis.favoriteNumbers.top5.slice(0, 3).map((n: any) => n.number).join(', ') || 'N/A'}</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Diversidade</span>
-                    <span class="behavior-value">${analysis.favoriteNumbers.diversity} números únicos</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Consistência</span>
-                    <span class="behavior-value">${(analysis.favoriteNumbers.consistency * 100).toFixed(1)}%</span>
-                </div>
-            </div>
-
-            <div class="behavior-card">
-                <div class="behavior-header">
-                    <span class="behavior-icon">🎲</span>
-                    <h3 class="behavior-title">Padrões de Jogo</h3>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Jogo Preferido</span>
-                    <span class="behavior-value">${analysis.playingPatterns.preferredGame}</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Jogos/Semana</span>
-                    <span class="behavior-value">${analysis.playingPatterns.gamesPerWeek.toFixed(1)}</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Investimento Médio</span>
-                    <span class="behavior-value">R$ ${analysis.playingPatterns.avgInvestment.toFixed(2)}</span>
-                </div>
-            </div>
-
-            <div class="behavior-card">
-                <div class="behavior-header">
-                    <span class="behavior-icon">⚡</span>
-                    <h3 class="behavior-title">Perfil de Risco</h3>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Nível</span>
-                    <span class="behavior-value">${analysis.riskProfile.level}</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">ROI Atual</span>
-                    <span class="behavior-value">${analysis.riskProfile.roi.toFixed(2)}%</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Volatilidade</span>
-                    <span class="behavior-value">${(analysis.riskProfile.volatility * 100).toFixed(1)}%</span>
-                </div>
-            </div>
-
-            <div class="behavior-card">
-                <div class="behavior-header">
-                    <span class="behavior-icon">🏆</span>
-                    <h3 class="behavior-title">Performance</h3>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Taxa de Vitória</span>
-                    <span class="behavior-value">${analysis.performanceTraits.winRate.toFixed(1)}%</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Melhor Sequência</span>
-                    <span class="behavior-value">${analysis.performanceTraits.bestStreak} acertos</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Paciência</span>
-                    <span class="behavior-value">${(analysis.performanceTraits.patience * 100).toFixed(0)}%</span>
-                </div>
-            </div>
-
-            <div class="behavior-card">
-                <div class="behavior-header">
-                    <span class="behavior-icon">⏰</span>
-                    <h3 class="behavior-title">Padrões Temporais</h3>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Dia Preferido</span>
-                    <span class="behavior-value">${analysis.timePatterns.preferredDay}</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Horário Favorito</span>
-                    <span class="behavior-value">${analysis.timePatterns.preferredHour}:00</span>
-                </div>
-                <div class="behavior-metric">
-                    <span class="behavior-label">Jogos Weekend</span>
-                    <span class="behavior-value">${analysis.timePatterns.weekendGames}</span>
-                </div>
-            </div>
-        `;
-    } catch (error) {
-        console.error('💳 ERROR: Erro em generateBehaviorCards:', error);
-        return '<div class="behavior-card">Erro ao gerar análise comportamental</div>';
-    }
-}
-
-// Gera dados do heatmap
-function generateHeatmapData(games: any[]): any {
-    console.log('🔥 DEBUG: generateHeatmapData iniciado');
-    
-    try {
-        const megasenaFreq: { [key: number]: number } = {};
-        const lotofacilFreq: { [key: number]: number } = {};
-
-        games.forEach(game => {
-            if (game.numbers && Array.isArray(game.numbers)) {
-                const freq = game.type === 'megasena' || game.type === 'mega-sena' ? megasenaFreq : lotofacilFreq;
-                game.numbers.forEach((num: number) => {
-                    freq[num] = (freq[num] || 0) + 1;
-                });
-            }
-        });
-
-        const result = {
-            megasena: calculateHeatLevels(megasenaFreq, 60),
-            lotofacil: calculateHeatLevels(lotofacilFreq, 25)
-        };
-        
-        console.log('🔥 DEBUG: generateHeatmapData result:', result);
-        return result;
-    } catch (error) {
-        console.error('🔥 ERROR: Erro em generateHeatmapData:', error);
-        return {
-            megasena: [],
-            lotofacil: []
-        };
-    }
-}
-
-// Calcula níveis de calor
-function calculateHeatLevels(freq: { [key: number]: number }, maxNumber: number): any[] {
-    console.log('🌡️ DEBUG: calculateHeatLevels iniciado para', maxNumber, 'números');
-    
-    try {
-        const values = Object.values(freq);
-        if (values.length === 0) {
-            // Se não há dados, retornar todos como nível 1
-            const result = [];
-            for (let i = 1; i <= maxNumber; i++) {
-                result.push({ number: i, frequency: 0, level: 1 });
-            }
-            return result;
-        }
-        
-        const max = Math.max(...values);
-        const min = Math.min(...values);
-        
-        const result = [];
-        for (let i = 1; i <= maxNumber; i++) {
-            const frequency = freq[i] || 0;
-            let level = 1;
-            
-            if (max > min) {
-                const normalized = (frequency - min) / (max - min);
-                level = Math.ceil(normalized * 5) || 1;
-            }
-            
-            result.push({
-                number: i,
-                frequency,
-                level
-            });
-        }
-        
-        console.log('🌡️ DEBUG: calculateHeatLevels result:', result.length, 'números processados');
-        return result;
-    } catch (error) {
-        console.error('🌡️ ERROR: Erro em calculateHeatLevels:', error);
-        return [];
-    }
-}
-
-// Gera heatmaps visuais
-function generateHeatmaps(data: any): string {
-    console.log('🖼️ DEBUG: generateHeatmaps iniciado');
-    
-    try {
-        return `
-            <div class="heatmap-container">
-                <h3 class="heatmap-title">🔥 Mega-Sena - Frequência de Números</h3>
-                <div class="heatmap-grid heatmap-megasena">
-                    ${data.megasena.map((item: any) => `
-                        <div class="heatmap-number heat-level-${item.level}" 
-                             title="Número ${item.number}: ${item.frequency} vezes (${item.level}/5)">
-                            ${item.number}
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="heatmap-legend">
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-5"></div>
-                        <span class="legend-label">Muito Quente</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-4"></div>
-                        <span class="legend-label">Quente</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-3"></div>
-                        <span class="legend-label">Morno</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-2"></div>
-                        <span class="legend-label">Frio</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-1"></div>
-                        <span class="legend-label">Muito Frio</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="heatmap-container">
-                <h3 class="heatmap-title">🍀 Lotofácil - Frequência de Números</h3>
-                <div class="heatmap-grid heatmap-lotofacil">
-                    ${data.lotofacil.map((item: any) => `
-                        <div class="heatmap-number heat-level-${item.level}" 
-                             title="Número ${item.number}: ${item.frequency} vezes (${item.level}/5)">
-                            ${item.number}
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="heatmap-legend">
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-5"></div>
-                        <span class="legend-label">Muito Quente</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-4"></div>
-                        <span class="legend-label">Quente</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-3"></div>
-                        <span class="legend-label">Morno</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-2"></div>
-                        <span class="legend-label">Frio</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color heat-level-1"></div>
-                        <span class="legend-label">Muito Frio</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    } catch (error) {
-        console.error('🖼️ ERROR: Erro em generateHeatmaps:', error);
-        return '<div class="heatmap-container">Erro ao gerar heatmaps</div>';
-    }
-}
-
-// Gera predições da IA
-function generateAIPredictions(games: any[]): any {
-    console.log('📊 DEBUG: generateAIPredictions iniciado');
-    
-    try {
-        const recentGames = games.slice(-10);
-        
-        const result = {
-            performanceTrend: calculatePerformanceTrend(recentGames),
-            optimalMoment: calculateOptimalMoment(games),
-            roiPrediction: predictROI(games),
-            numberRecommendations: generateNumberRecommendations(games)
-        };
-        
-        console.log('📊 DEBUG: generateAIPredictions result:', result);
-        return result;
-    } catch (error) {
-        console.error('📊 ERROR: Erro em generateAIPredictions:', error);
-        return {
-            performanceTrend: { score: 50, trend: 'Neutro' },
-            optimalMoment: { score: 50, recommendation: 'Momento regular' },
-            roiPrediction: { predicted: 0, confidence: 0 },
-            numberRecommendations: { hot: [], cold: [], balanced: [] }
-        };
-    }
-}
-
-// Calcula tendência de performance
-function calculatePerformanceTrend(recentGames: any[]): any {
-    console.log('📈 DEBUG: calculatePerformanceTrend iniciado');
-    
-    try {
-        if (recentGames.length === 0) {
-            return { score: 50, trend: 'Neutro' };
-        }
-        
-        const roiTrend = recentGames.map(game => {
-            return (game.investment || 0) > 0 ? (((game.winnings || 0) - (game.investment || 0)) / (game.investment || 1)) * 100 : 0;
-        });
-        
-        const avgROI = roiTrend.reduce((sum, roi) => sum + roi, 0) / roiTrend.length;
-        
-        let score = 50;
-        if (avgROI > 10) score = 85;
-        else if (avgROI > 0) score = 70;
-        else if (avgROI > -10) score = 40;
-        else score = 20;
-        
-        return { score, trend: avgROI > 0 ? 'Positiva' : 'Negativa' };
-    } catch (error) {
-        console.error('📈 ERROR: Erro em calculatePerformanceTrend:', error);
-        return { score: 50, trend: 'Neutro' };
-    }
-}
-
-// Calcula momento ótimo
-function calculateOptimalMoment(games: any[]): any {
-    console.log('⭐ DEBUG: calculateOptimalMoment iniciado');
-    
-    try {
-        if (games.length === 0) {
-            return { score: 50, recommendation: 'Momento regular' };
-        }
-        
-        const winningGames = games.filter(g => (g.winnings || 0) > (g.investment || 0));
-        const winRate = (winningGames.length / games.length) * 100;
-        
-        let score = 65;
-        if (winRate > 30) score += 15;
-        if (winRate > 15) score += 10;
-        
-        return { 
-            score: Math.min(score, 95), 
-            recommendation: score > 75 ? 'Excelente momento!' : score > 50 ? 'Momento favorável' : 'Aguarde melhor momento'
-        };
-    } catch (error) {
-        console.error('⭐ ERROR: Erro em calculateOptimalMoment:', error);
-        return { score: 50, recommendation: 'Momento regular' };
-    }
-}
-
-// Prediz ROI futuro
-function predictROI(games: any[]): any {
-    console.log('💰 DEBUG: predictROI iniciado');
-    
-    try {
-        if (games.length === 0) {
-            return { predicted: 0, confidence: 0 };
-        }
-        
-        const historical = calculateAverageROI(games);
-        const trend = calculatePerformanceTrend(games.slice(-5));
-        
-        const predicted = historical + (trend.score - 50) * 0.1;
-        
-        return {
-            predicted: Math.max(-50, Math.min(50, predicted)),
-            confidence: Math.min(85, 60 + Math.abs(trend.score - 50) * 0.5)
-        };
-    } catch (error) {
-        console.error('💰 ERROR: Erro em predictROI:', error);
-        return { predicted: 0, confidence: 0 };
-    }
-}
-
-// Gera recomendações de números
-function generateNumberRecommendations(games: any[]): any {
-    console.log('🔢 DEBUG: generateNumberRecommendations iniciado');
-    
-    try {
-        if (games.length === 0) {
-            return { hot: [], cold: [], balanced: [] };
-        }
-        
-        const numberFreq: { [key: number]: number } = {};
-        games.forEach(game => {
-            if (game.numbers && Array.isArray(game.numbers)) {
-                game.numbers.forEach((num: number) => {
-                    numberFreq[num] = (numberFreq[num] || 0) + 1;
-                });
-            }
-        });
-        
-        const sortedNumbers = Object.entries(numberFreq)
-            .map(([num, freq]) => ({ number: parseInt(num), frequency: freq }))
-            .sort((a, b) => b.frequency - a.frequency);
-            
-        const hotNumbers = sortedNumbers.slice(0, 3).map(n => n.number);
-        const coldNumbers = [7, 13, 23, 31, 42]; // Números simulados
-        
-        return {
-            hot: hotNumbers,
-            cold: coldNumbers,
-            balanced: [...hotNumbers.slice(0, 2), ...coldNumbers.slice(0, 2)]
-        };
-    } catch (error) {
-        console.error('🔢 ERROR: Erro em generateNumberRecommendations:', error);
-        return { hot: [], cold: [], balanced: [] };
-    }
-}
-
-// Gera cards de predição
-function generatePredictionCards(predictions: any): string {
-    console.log('🎯 DEBUG: generatePredictionCards iniciado');
-    
-    try {
-        return `
-            <div class="prediction-card">
-                <div class="prediction-header">
-                    <span class="prediction-icon">📈</span>
-                    <h3 class="prediction-title">Tendência de Performance</h3>
-                </div>
-                <div class="prediction-score">
-                    <div class="score-circle ${getScoreClass(predictions.performanceTrend.score)}">
-                        ${predictions.performanceTrend.score}
-                    </div>
-                    <p class="score-label">${predictions.performanceTrend.trend}</p>
-                </div>
-            </div>
-
-            <div class="prediction-card">
-                <div class="prediction-header">
-                    <span class="prediction-icon">⭐</span>
-                    <h3 class="prediction-title">Momento Ideal</h3>
-                </div>
-                <div class="prediction-score">
-                    <div class="score-circle ${getScoreClass(predictions.optimalMoment.score)}">
-                        ${predictions.optimalMoment.score}
-                    </div>
-                    <p class="score-label">${predictions.optimalMoment.recommendation}</p>
-                </div>
-            </div>
-
-            <div class="prediction-card">
-                <div class="prediction-header">
-                    <span class="prediction-icon">💰</span>
-                    <h3 class="prediction-title">Predição de ROI</h3>
-                </div>
-                <div class="prediction-score">
-                    <div class="score-circle ${getScoreClass(predictions.roiPrediction.confidence)}">
-                        ${predictions.roiPrediction.predicted.toFixed(1)}%
-                    </div>
-                    <p class="score-label">${predictions.roiPrediction.confidence.toFixed(0)}% confiança</p>
-                </div>
-            </div>
-        `;
-    } catch (error) {
-        console.error('🎯 ERROR: Erro em generatePredictionCards:', (error as Error).message);
-        return '<div class="prediction-card">Erro ao gerar predições</div>';
-    }
-}
-
-// Gera sugestões personalizadas
-function generatePersonalizedSuggestions(_games: any[], analysis: any): any[] {
-    console.log('💡 DEBUG: generatePersonalizedSuggestions iniciado');
-    
-    try {
-        const suggestions = [];
-        
-        // Sugestão baseada em ROI
-        if (analysis.riskProfile && analysis.riskProfile.roi < 0) {
-            suggestions.push({
-                icon: '💡',
-                title: 'Otimize sua Estratégia',
-                description: 'Seu ROI está negativo. Considere reduzir investimentos e focar em jogos com melhor histórico.',
-                priority: 'high',
-                action: 'Ver Estratégias'
-            });
-        }
-        
-        // Sugestão baseada em consistência
-        if (analysis.favoriteNumbers && analysis.favoriteNumbers.consistency < 1.5) {
-            suggestions.push({
-                icon: '🎯',
-                title: 'Melhore a Consistência',
-                description: 'Seus números variam muito. Considere manter alguns números fixos entre os jogos.',
-                priority: 'medium',
-                action: 'Ver Números'
-            });
-        }
-        
-        // Sugestão padrão se não há dados suficientes
-        if (suggestions.length === 0) {
-            suggestions.push({
-                icon: '🚀',
-                title: 'Continue Jogando',
-                description: 'Continue salvando seus jogos para receber sugestões mais precisas!',
-                priority: 'low',
-                action: 'Continuar'
-            });
-        }
-        
-        console.log('💡 DEBUG: generatePersonalizedSuggestions result:', suggestions);
-        return suggestions;
-    } catch (error) {
-        console.error('💡 ERROR: Erro em generatePersonalizedSuggestions:', (error as Error).message);
-        return [{
-            icon: '🚀',
-            title: 'Continue Jogando',
-            description: 'Continue salvando seus jogos para receber sugestões personalizadas!',
-            priority: 'low',
-            action: 'Continuar'
-        }];
-    }
-}
-
-// Gera cards de sugestões
-function generateSuggestionCards(suggestions: any[]): string {
-    console.log('💳 DEBUG: generateSuggestionCards iniciado');
-    
-    try {
-        return suggestions.map(suggestion => `
-            <div class="suggestion-card priority-${suggestion.priority}">
-                <div class="suggestion-header">
-                    <span class="suggestion-icon">${suggestion.icon}</span>
-                    <h3 class="suggestion-title">${suggestion.title}</h3>
-                </div>
-                <p class="suggestion-description">${suggestion.description}</p>
-                <button class="suggestion-action" onclick="alert('Feature em desenvolvimento!')">
-                    ${suggestion.action} →
-                </button>
-            </div>
-        `).join('');
-    } catch (error) {
-        console.error('💳 ERROR: Erro em generateSuggestionCards:', (error as Error).message);
-        return '<div class="suggestion-card">Erro ao gerar sugestões</div>';
-    }
-}
-
-// Calcula timing ótimo
-function calculateOptimalTiming(games: any[]): any {
-    console.log('⏰ DEBUG: calculateOptimalTiming iniciado');
-    
-    try {
-        if (games.length === 0) {
-            return {
-                bestDay: 'N/A',
-                bestHour: '12:00',
-                frequency: '0 jogos/semana',
-                momentum: 'Baixo'
-            };
-        }
-        
-        const timeAnalysis = analyzeTimePatterns(games);
-        const winningGames = games.filter(g => (g.winnings || 0) > (g.investment || 0));
-        const winRate = (winningGames.length / games.length) * 100;
-        
-        return {
-            bestDay: timeAnalysis.preferredDay,
-            bestHour: `${timeAnalysis.preferredHour}:00`,
-            frequency: `${Math.round(games.length / 4)} jogos/semana`,
-            momentum: winRate > 25 ? 'Alto' : winRate > 15 ? 'Médio' : 'Baixo'
-        };
-    } catch (error) {
-        console.error('⏰ ERROR: Erro em calculateOptimalTiming:', (error as Error).message);
-        return {
-            bestDay: 'N/A',
-            bestHour: '12:00',
-            frequency: '0 jogos/semana',
-            momentum: 'Baixo'
-        };
-    }
-}
-
-// Gera cards de timing
-function generateTimingCards(timing: any): string {
-    console.log('⏰ DEBUG: generateTimingCards iniciado');
-    
-    try {
-        return `
-            <div class="timing-card">
-                <div class="timing-value">${timing.bestDay}</div>
-                <p class="timing-label">Melhor Dia</p>
-            </div>
-            <div class="timing-card">
-                <div class="timing-value">${timing.bestHour}</div>
-                <p class="timing-label">Horário Ideal</p>
-            </div>
-            <div class="timing-card">
-                <div class="timing-value">${timing.frequency}</div>
-                <p class="timing-label">Frequência Ótima</p>
-            </div>
-            <div class="timing-card">
-                <div class="timing-value">${timing.momentum}</div>
-                <p class="timing-label">Momentum Atual</p>
-            </div>
-        `;
-    } catch (error) {
-        console.error('⏰ ERROR: Erro em generateTimingCards:', (error as Error).message);
-        return '<div class="timing-card">Erro ao gerar timing</div>';
-    }
-}
-
-// Funções auxiliares para análise
-function calculateConsistency(games: any[]): number {
-    try {
-        if (games.length === 0) return 0;
-        
-        const investments = games.map(g => g.investment || 0);
-        const avg = investments.reduce((sum, inv) => sum + inv, 0) / investments.length;
-        
-        if (avg === 0) return 0;
-        
-        const variance = investments.reduce((sum, inv) => sum + Math.pow(inv - avg, 2), 0) / investments.length;
-        return 1 / (1 + Math.sqrt(variance) / avg);
-    } catch (error) {
-        console.error('🔧 ERROR: Erro em calculateConsistency:', (error as Error).message);
-        return 0;
-    }
-}
-
-function calculateVolatility(games: any[]): number {
-    try {
-        if (games.length === 0) return 0;
-        
-        const rois = games.map(game => {
-            const investment = game.investment || 0;
-            const winnings = game.winnings || 0;
-            return investment > 0 ? ((winnings - investment) / investment) : 0;
-        });
-        
-        const avgROI = rois.reduce((sum, roi) => sum + roi, 0) / rois.length;
-        const variance = rois.reduce((sum, roi) => sum + Math.pow(roi - avgROI, 2), 0) / rois.length;
-        return Math.sqrt(variance);
-    } catch (error) {
-        console.error('📊 ERROR: Erro em calculateVolatility:', (error as Error).message);
-        return 0;
-    }
-}
-
-function calculateAverageROI(games: any[]): number {
-    try {
-        if (games.length === 0) return 0;
-        
-        const totalInvestment = games.reduce((sum, game) => sum + (game.investment || 0), 0);
-        const totalWinnings = games.reduce((sum, game) => sum + (game.winnings || 0), 0);
-        return totalInvestment > 0 ? ((totalWinnings - totalInvestment) / totalInvestment) * 100 : 0;
-    } catch (error) {
-        console.error('💹 ERROR: Erro em calculateAverageROI:', (error as Error).message);
-        return 0;
-    }
-}
-
-function calculateBestStreak(games: any[]): number {
-    try {
-        if (games.length === 0) return 0;
-        
-        let currentStreak = 0;
-        let bestStreak = 0;
-        
-        games.forEach(game => {
-            if ((game.winnings || 0) > 0) {
-                currentStreak++;
-                bestStreak = Math.max(bestStreak, currentStreak);
-            } else {
-                currentStreak = 0;
-            }
-        });
-        
-        return bestStreak;
-    } catch (error) {
-        console.error('🏆 ERROR: Erro em calculateBestStreak:', (error as Error).message);
-        return 0;
-    }
-}
-
-function calculatePatience(games: any[]): number {
-    try {
-        if (games.length === 0) return 0;
-        
-        // Simula paciência baseada na consistência de investimentos
-        const consistency = calculateConsistency(games);
-        return Math.min(1, consistency + 0.2);
-    } catch (error) {
-        console.error('🧘 ERROR: Erro em calculatePatience:', (error as Error).message);
-        return 0;
-    }
-}
-
-function calculateAdaptation(games: any[]): number {
-    try {
-        if (games.length === 0) return 0;
-        
-        // Simula adaptação baseada na variedade de números
-        const allNumbers = games.flatMap(g => g.numbers || []);
-        const uniqueNumbers = new Set(allNumbers).size;
-        return Math.min(1, uniqueNumbers / (games.length * 6));
-    } catch (error) {
-        console.error('🎯 ERROR: Erro em calculateAdaptation:', (error as Error).message);
-        return 0;
-    }
-}
-
-// Determina classe do score
-function getScoreClass(score: number): string {
-    if (score >= 80) return 'score-excellent';
-    if (score >= 65) return 'score-good';
-    if (score >= 45) return 'score-average';
-    return 'score-poor';
-}
-
-(window as any).loadNotifications = loadNotifications;
-(window as any).renderIntelligenceEngine = renderIntelligenceEngine;
