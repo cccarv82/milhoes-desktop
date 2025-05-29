@@ -4282,90 +4282,107 @@ function renderIntelligenceEngine() {
 
 // Função auxiliar para carregar dados do Intelligence Engine
 async function loadIntelligenceData() {
-    const app = document.getElementById('app')!;
-    
     try {
+        console.log('🧠 === INTELLIGENCE ENGINE DEBUG ===');
         console.log('🧠 Buscando jogos salvos do banco de dados...');
         
         // Buscar jogos salvos do banco de dados
         const filter = new models.SavedGamesFilter({});
         const response = await GetSavedGames(filter);
         
+        console.log('🧠 Resposta do GetSavedGames:', response);
+        
         if (!response.success) {
             throw new Error(response.error || 'Erro ao carregar jogos salvos');
         }
         
         const savedGames: SavedGame[] = response.games || [];
-        console.log('🧠 Jogos carregados:', savedGames.length);
+        console.log('🧠 Total de jogos carregados:', savedGames.length);
+        console.log('🧠 Jogos detalhados:', savedGames);
+        
+        // Debug detalhado de cada jogo
+        savedGames.forEach((game, index) => {
+            console.log(`🧠 Game ${index}:`, {
+                id: game.id,
+                lottery_type: game.lottery_type,
+                numbers: game.numbers,
+                status: game.status,
+                hasResult: !!game.result,
+                result: game.result
+            });
+        });
         
         // Verificar se há jogos suficientes
         if (savedGames.length === 0) {
-            app.innerHTML = `
-                <div class="container">
-                    <header class="header">
-                        <h1 class="logo">🧠 Intelligence Engine</h1>
-                        <div class="header-actions">
-                            <button onclick="renderPerformanceDashboard()" class="btn-secondary">📊 Dashboard</button>
-                            <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
-                        </div>
-                    </header>
-                    
-                    <div class="main-content">
-                        <div class="intelligence-hero">
-                            <h1 class="intelligence-title">
-                                <span class="intelligence-brain">🧠</span>
-                                Intelligence Engine
-                                <span class="intelligence-brain">🚀</span>
-                            </h1>
-                            <p style="font-size: var(--font-size-lg); color: var(--text-secondary); margin: 0;">
-                                IA comportamental avançada para maximizar sua performance
-                            </p>
-                        </div>
-                        
-                        <div class="feature-card" style="background: #fef3cd; border: 1px solid #fcd34d; text-align: center;">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">🎯</div>
-                            <h2 style="color: #92400e;">Dados Insuficientes</h2>
-                            <p style="color: #92400e; margin-bottom: 2rem;">
-                                Para usar o Intelligence Engine, você precisa ter jogos salvos.
-                                <br><br>
-                                Comece gerando uma estratégia e salvando alguns jogos!
-                            </p>
-                            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                                <button onclick="startStrategyWizard()" class="btn-primary">
-                                    🎲 Gerar Estratégia
-                                </button>
-                                <button onclick="renderSavedGamesScreen()" class="btn-secondary">
-                                    💾 Ver Jogos Salvos
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
+            console.log('🧠 Nenhum jogo encontrado - mostrando tela de dados insuficientes');
+            renderIntelligenceEngineNoData();
             return;
         }
         
-        console.log('🧠 Gerando análise comportamental...');
+        // Analisar status dos jogos com detecção mais robusta
+        const pendingGames = savedGames.filter(g => 
+            g.status === 'pending' || g.status === 'Pendente' || !g.result
+        );
+        const checkedGames = savedGames.filter(g => 
+            g.status === 'checked' || g.status === 'Verificado' || g.status === 'verificado' || !!g.result
+        );
+        const gamesWithResults = savedGames.filter(g => g.result != null && g.result !== undefined);
+        
+        console.log('🧠 Análise dos jogos:');
+        console.log('🧠 - Total:', savedGames.length);
+        console.log('🧠 - Pendentes:', pendingGames.length);
+        console.log('🧠 - Verificados (por status):', checkedGames.length);
+        console.log('🧠 - Com resultados (não-nulos):', gamesWithResults.length);
+        
+        // Usar critério mais flexível: se há jogos com resultados, usar eles
+        const usableGames = gamesWithResults.length > 0 ? gamesWithResults : checkedGames;
+        
+        console.log('🧠 - Jogos utilizáveis para análise:', usableGames.length);
+        
+        // Se não há jogos utilizáveis, mostrar orientação
+        if (usableGames.length === 0) {
+            console.log('🧠 Nenhum jogo utilizável - mostrando tela de orientação');
+            renderIntelligenceEngineNeedsVerification(savedGames.length, pendingGames.length);
+            return;
+        }
+        
+        console.log('🧠 Gerando análise comportamental com', usableGames.length, 'jogos...');
         
         // Converter dados para formato usado pelas funções de análise
-        const gamesForAnalysis = savedGames.map(game => ({
-            id: game.id,
-            lottery_type: game.lottery_type,
-            numbers: game.numbers,
-            expected_draw: game.expected_draw,
-            contest_number: game.contest_number,
-            status: game.status,
-            created_at: game.created_at,
-            checked_at: game.checked_at,
-            result: game.result,
-            // Campos derivados para análise
-            cost: getCostForGame(game.lottery_type, game.numbers.length),
-            investment: getCostForGame(game.lottery_type, game.numbers.length),
-            winnings: game.result?.prize_amount || 0,
-            isWinner: game.result?.is_winner || false
-        }));
+        const gamesForAnalysis = usableGames.map(game => {
+            const cost = getCostForGame(game.lottery_type, game.numbers.length);
+            const winnings = game.result?.prize_amount || 0;
+            const isWinner = game.result?.is_winner || winnings > 0;
+            
+            console.log(`🧠 Convertendo Game ${game.id}:`, {
+                type: game.lottery_type,
+                numbersCount: game.numbers.length,
+                cost: cost,
+                winnings: winnings,
+                isWinner: isWinner,
+                hasResult: !!game.result
+            });
+            
+            return {
+                id: game.id,
+                lottery_type: game.lottery_type,
+                numbers: game.numbers,
+                expected_draw: game.expected_draw,
+                contest_number: game.contest_number,
+                status: game.status,
+                created_at: game.created_at,
+                checked_at: game.checked_at,
+                result: game.result,
+                // Campos derivados para análise
+                cost: cost,
+                investment: cost,
+                winnings: winnings,
+                isWinner: isWinner
+            };
+        });
         
-        console.log('🧠 Dados convertidos:', gamesForAnalysis.length, 'jogos');
+        console.log('🧠 Dados convertidos para análise:', gamesForAnalysis.length, 'jogos');
+        console.log('🧠 Dados detalhados:', gamesForAnalysis);
         
         const iaAnalysis = generateBehavioralAnalysis(gamesForAnalysis);
         const heatmapData = generateHeatmapData(gamesForAnalysis);
@@ -4374,74 +4391,13 @@ async function loadIntelligenceData() {
         const timing = calculateOptimalTiming(gamesForAnalysis);
 
         console.log('🧠 Análise concluída, renderizando interface...');
+        console.log('🧠 - iaAnalysis:', iaAnalysis);
+        console.log('🧠 - heatmapData:', heatmapData);
+        console.log('🧠 - predictions:', predictions);
+        console.log('🧠 - suggestions:', suggestions);
+        console.log('🧠 - timing:', timing);
         
-        app.innerHTML = `
-            <div class="container">
-                <header class="header">
-                    <h1 class="logo">🧠 Intelligence Engine</h1>
-                    <div class="header-actions">
-                        <button onclick="renderPerformanceDashboard()" class="btn-secondary">📊 Dashboard</button>
-                        <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
-                    </div>
-                </header>
-                
-                <div class="main-content">
-                    <!-- Hero Section Épico -->
-                    <div class="intelligence-hero">
-                        <h1 class="intelligence-title">
-                            <span class="intelligence-brain">🧠</span>
-                            Intelligence Engine
-                            <span class="intelligence-brain">🚀</span>
-                        </h1>
-                        <p style="font-size: var(--font-size-lg); color: var(--text-secondary); margin: 0;">
-                            IA comportamental avançada para maximizar sua performance
-                        </p>
-                    </div>
-
-                    <!-- Análise Comportamental -->
-                    <div class="section">
-                        <h2 class="section-title">🤖 Análise Comportamental Avançada</h2>
-                        <div class="behavioral-analysis">
-                            ${generateBehaviorCards(iaAnalysis)}
-                        </div>
-                    </div>
-
-                    <!-- Heatmaps Épicos -->
-                    <div class="section">
-                        <h2 class="section-title">🔥 Heatmaps de Números</h2>
-                        <div class="heatmap-section">
-                            ${generateHeatmaps(heatmapData)}
-                        </div>
-                    </div>
-
-                    <!-- Predições da IA -->
-                    <div class="section">
-                        <h2 class="section-title">📈 Predições da IA</h2>
-                        <div class="predictions-section">
-                            ${generatePredictionCards(predictions)}
-                        </div>
-                    </div>
-
-                    <!-- Sugestões Personalizadas -->
-                    <div class="section">
-                        <h2 class="section-title">💡 Sugestões Personalizadas</h2>
-                        <div class="suggestions-grid">
-                            ${generateSuggestionCards(suggestions)}
-                        </div>
-                    </div>
-
-                    <!-- Timing Ideal -->
-                    <div class="section">
-                        <h2 class="section-title">⏰ Momentos Ideais para Jogar</h2>
-                        <div class="timing-section">
-                            <div class="timing-grid">
-                                ${generateTimingCards(timing)}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+        renderIntelligenceEngineWithData(iaAnalysis, heatmapData, predictions, suggestions, timing);
         
         console.log('🧠 Intelligence Engine renderizado com sucesso!');
         
@@ -4449,50 +4405,8 @@ async function loadIntelligenceData() {
         console.error('🧠 ERROR: Erro em loadIntelligenceData:', (error as Error).message);
         console.error('🧠 ERROR: Stack trace:', (error as Error).stack);
         
-        app.innerHTML = `
-            <div class="container">
-                <header class="header">
-                    <h1 class="logo">🧠 Intelligence Engine</h1>
-                    <div class="header-actions">
-                        <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
-                    </div>
-                </header>
-                
-                <div class="main-content">
-                    <div class="feature-card" style="background: #fef2f2; border: 1px solid #fecaca;">
-                        <h2 style="color: #dc2626;">❌ Erro no Intelligence Engine</h2>
-                        <p style="color: #7f1d1d;">
-                            Erro: ${(error as Error).message}
-                            <br><br>
-                            Tente recarregar a página ou entre em contato com o suporte.
-                        </p>
-                        <button onclick="renderWelcome()" class="btn-primary" style="margin-top: 1rem;">
-                            ⬅️ Voltar ao Início
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
+        renderIntelligenceEngineError(error as Error);
     }
-}
-
-// Função auxiliar para calcular custo do jogo
-function getCostForGame(lotteryType: string, numbersCount: number): number {
-    if (lotteryType === 'mega-sena') {
-        // Preços oficiais Mega-Sena
-        const prices: { [key: number]: number } = {
-            6: 5.00, 7: 35.00, 8: 140.00, 9: 420.00, 10: 1050.00,
-            11: 2310.00, 12: 4620.00, 13: 8580.00, 14: 15015.00, 15: 25025.00
-        };
-        return prices[numbersCount] || 5.00;
-    } else if (lotteryType === 'lotofacil') {
-        // Preços oficiais Lotofácil
-        const prices: { [key: number]: number } = {
-            15: 3.00, 16: 48.00, 17: 408.00, 18: 2448.00, 19: 11628.00, 20: 46512.00
-        };
-        return prices[numbersCount] || 3.00;
-    }
-    return 0;
 }
 
 // ===============================
@@ -5337,3 +5251,223 @@ function getScoreClass(score: number): string {
 
 // Adicionar às funções globais
 (window as any).renderIntelligenceEngine = renderIntelligenceEngine;
+
+// Função auxiliar para calcular custo do jogo
+function getCostForGame(lotteryType: string, numbersCount: number): number {
+    if (lotteryType === 'mega-sena') {
+        // Preços oficiais Mega-Sena
+        const prices: { [key: number]: number } = {
+            6: 5.00, 7: 35.00, 8: 140.00, 9: 420.00, 10: 1050.00,
+            11: 2310.00, 12: 4620.00, 13: 8580.00, 14: 15015.00, 15: 25025.00
+        };
+        return prices[numbersCount] || 5.00;
+    } else if (lotteryType === 'lotofacil') {
+        // Preços oficiais Lotofácil
+        const prices: { [key: number]: number } = {
+            15: 3.00, 16: 48.00, 17: 408.00, 18: 2448.00, 19: 11628.00, 20: 46512.00
+        };
+        return prices[numbersCount] || 3.00;
+    }
+    return 0;
+}
+
+// Renderizar Intelligence Engine - Sem dados
+function renderIntelligenceEngineNoData() {
+    const app = document.getElementById('app')!;
+    app.innerHTML = `
+        <div class="container">
+            <header class="header">
+                <h1 class="logo">🧠 Intelligence Engine</h1>
+                <div class="header-actions">
+                    <button onclick="renderPerformanceDashboard()" class="btn-secondary">📊 Dashboard</button>
+                    <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
+                </div>
+            </header>
+            
+            <div class="main-content">
+                <div class="intelligence-hero">
+                    <h1 class="intelligence-title">
+                        <span class="intelligence-brain">🧠</span>
+                        Intelligence Engine
+                        <span class="intelligence-brain">🚀</span>
+                    </h1>
+                    <p style="font-size: var(--font-size-lg); color: var(--text-secondary); margin: 0;">
+                        IA comportamental avançada para maximizar sua performance
+                    </p>
+                </div>
+                
+                <div class="feature-card" style="background: #fef3cd; border: 1px solid #fcd34d; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🎯</div>
+                    <h2 style="color: #92400e;">Dados Insuficientes</h2>
+                    <p style="color: #92400e; margin-bottom: 2rem;">
+                        Para usar o Intelligence Engine, você precisa ter jogos salvos.
+                        <br><br>
+                        Comece gerando uma estratégia e salvando alguns jogos!
+                    </p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="startStrategyWizard()" class="btn-primary">
+                            🎲 Gerar Estratégia
+                        </button>
+                        <button onclick="renderSavedGamesScreen()" class="btn-secondary">
+                            💾 Ver Jogos Salvos
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Renderizar Intelligence Engine - Precisa de verificação
+function renderIntelligenceEngineNeedsVerification(totalGames: number, pendingGames: number) {
+    const app = document.getElementById('app')!;
+    app.innerHTML = `
+        <div class="container">
+            <header class="header">
+                <h1 class="logo">🧠 Intelligence Engine</h1>
+                <div class="header-actions">
+                    <button onclick="renderPerformanceDashboard()" class="btn-secondary">📊 Dashboard</button>
+                    <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
+                </div>
+            </header>
+            
+            <div class="main-content">
+                <div class="intelligence-hero">
+                    <h1 class="intelligence-title">
+                        <span class="intelligence-brain">🧠</span>
+                        Intelligence Engine
+                        <span class="intelligence-brain">🚀</span>
+                    </h1>
+                    <p style="font-size: var(--font-size-lg); color: var(--text-secondary); margin: 0;">
+                        IA comportamental avançada para maximizar sua performance
+                    </p>
+                </div>
+                
+                <div class="feature-card" style="background: #eff6ff; border: 1px solid #3b82f6; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+                    <h2 style="color: #1d4ed8;">Aguardando Verificação de Resultados</h2>
+                    <p style="color: #1e40af; margin-bottom: 2rem;">
+                        Você tem <strong>${totalGames} jogo(s) salvo(s)</strong>, mas ${pendingGames} ainda precisam ser verificados.
+                        <br><br>
+                        O Intelligence Engine precisa de jogos com resultados verificados para gerar análises precisas.
+                        <br><br>
+                        <strong>Clique em "Verificar Resultados" para começar!</strong>
+                    </p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                        <button onclick="renderSavedGamesScreen()" class="btn-primary">
+                            💾 Ver Jogos Salvos
+                        </button>
+                        <button onclick="checkAllPendingGames().then(() => renderIntelligenceEngine())" class="btn-secondary">
+                            🔄 Verificar Resultados
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Renderizar Intelligence Engine com dados
+function renderIntelligenceEngineWithData(iaAnalysis: any, heatmapData: any, predictions: any, suggestions: any[], timing: any) {
+    const app = document.getElementById('app')!;
+    app.innerHTML = `
+        <div class="container">
+            <header class="header">
+                <h1 class="logo">🧠 Intelligence Engine</h1>
+                <div class="header-actions">
+                    <button onclick="renderPerformanceDashboard()" class="btn-secondary">📊 Dashboard</button>
+                    <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
+                </div>
+            </header>
+            
+            <div class="main-content">
+                <!-- Hero Section Épico -->
+                <div class="intelligence-hero">
+                    <h1 class="intelligence-title">
+                        <span class="intelligence-brain">🧠</span>
+                        Intelligence Engine
+                        <span class="intelligence-brain">🚀</span>
+                    </h1>
+                    <p style="font-size: var(--font-size-lg); color: var(--text-secondary); margin: 0;">
+                        IA comportamental avançada para maximizar sua performance
+                    </p>
+                </div>
+
+                <!-- Análise Comportamental -->
+                <div class="section">
+                    <h2 class="section-title">🤖 Análise Comportamental Avançada</h2>
+                    <div class="behavioral-analysis">
+                        ${generateBehaviorCards(iaAnalysis)}
+                    </div>
+                </div>
+
+                <!-- Heatmaps Épicos -->
+                <div class="section">
+                    <h2 class="section-title">🔥 Heatmaps de Números</h2>
+                    <div class="heatmap-section">
+                        ${generateHeatmaps(heatmapData)}
+                    </div>
+                </div>
+
+                <!-- Predições da IA -->
+                <div class="section">
+                    <h2 class="section-title">📈 Predições da IA</h2>
+                    <div class="predictions-section">
+                        ${generatePredictionCards(predictions)}
+                    </div>
+                </div>
+
+                <!-- Sugestões Personalizadas -->
+                <div class="section">
+                    <h2 class="section-title">💡 Sugestões Personalizadas</h2>
+                    <div class="suggestions-grid">
+                        ${generateSuggestionCards(suggestions)}
+                    </div>
+                </div>
+
+                <!-- Timing Ideal -->
+                <div class="section">
+                    <h2 class="section-title">⏰ Momentos Ideais para Jogar</h2>
+                    <div class="timing-section">
+                        <div class="timing-grid">
+                            ${generateTimingCards(timing)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Renderizar Intelligence Engine - Erro
+function renderIntelligenceEngineError(error: Error) {
+    const app = document.getElementById('app')!;
+    app.innerHTML = `
+        <div class="container">
+            <header class="header">
+                <h1 class="logo">🧠 Intelligence Engine</h1>
+                <div class="header-actions">
+                    <button onclick="renderWelcome()" class="btn-secondary">⬅️ Voltar</button>
+                </div>
+            </header>
+            
+            <div class="main-content">
+                <div class="feature-card" style="background: #fef2f2; border: 1px solid #fecaca;">
+                    <h2 style="color: #dc2626;">❌ Erro no Intelligence Engine</h2>
+                    <p style="color: #7f1d1d;">
+                        Erro: ${error.message}
+                        <br><br>
+                        Tente recarregar a página ou entre em contato com o suporte.
+                    </p>
+                    <button onclick="renderWelcome()" class="btn-primary" style="margin-top: 1rem;">
+                        ⬅️ Voltar ao Início
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ===============================
+// FUNÇÕES DO INTELLIGENCE ENGINE
+// ===============================
