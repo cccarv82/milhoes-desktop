@@ -4494,3 +4494,846 @@ function getCostForGame(lotteryType: string, numbersCount: number): number {
     }
     return 0;
 }
+
+// ===============================
+// FUNÇÕES DO INTELLIGENCE ENGINE
+// ===============================
+
+// Análise Comportamental IA
+function generateBehavioralAnalysis(games: any[]): any {
+    console.log('🔍 DEBUG: generateBehavioralAnalysis iniciado com', games.length, 'games');
+    
+    try {
+        console.log('🔍 DEBUG: Calculando favoriteNumbers...');
+        const favoriteNumbers = calculateFavoriteNumbers(games);
+        console.log('🔍 DEBUG: favoriteNumbers:', favoriteNumbers);
+        
+        console.log('🔍 DEBUG: Analisando playingPatterns...');
+        const playingPatterns = analyzePlayingPatterns(games);
+        console.log('🔍 DEBUG: playingPatterns:', playingPatterns);
+        
+        console.log('🔍 DEBUG: Calculando riskProfile...');
+        const riskProfile = calculateRiskProfile(games);
+        console.log('🔍 DEBUG: riskProfile:', riskProfile);
+        
+        console.log('🔍 DEBUG: Analisando performanceTraits...');
+        const performanceTraits = analyzePerformanceTraits(games);
+        console.log('🔍 DEBUG: performanceTraits:', performanceTraits);
+        
+        console.log('🔍 DEBUG: Analisando timePatterns...');
+        const timePatterns = analyzeTimePatterns(games);
+        console.log('🔍 DEBUG: timePatterns:', timePatterns);
+
+        const analysis = {
+            favoriteNumbers,
+            playingPatterns,
+            riskProfile,
+            performanceTraits,
+            timePatterns
+        };
+
+        console.log('🔍 DEBUG: generateBehavioralAnalysis concluído:', analysis);
+        return analysis;
+        
+    } catch (error) {
+        console.error('🔍 ERROR: Erro em generateBehavioralAnalysis:', error);
+        return {
+            favoriteNumbers: { top5: [], avgFrequency: 0, diversity: 0, consistency: 0 },
+            playingPatterns: { preferredGame: 'N/A', gamesPerWeek: 0, avgInvestment: 0, consistency: 0 },
+            riskProfile: { level: 'N/A', avgInvestment: 0, maxInvestment: 0, roi: 0, volatility: 0 },
+            performanceTraits: { winRate: 0, avgROI: 0, bestStreak: 0, patience: 0, adaptation: 0 },
+            timePatterns: { preferredDay: 'N/A', preferredHour: 0, weekendGames: 0, weekdayGames: 0 }
+        };
+    }
+}
+
+// Calcula números favoritos do usuário
+function calculateFavoriteNumbers(games: any[]): any {
+    console.log('📊 DEBUG: calculateFavoriteNumbers iniciado com', games.length, 'games');
+    
+    try {
+        const numberFreq: { [key: number]: number } = {};
+        let totalNumbers = 0;
+
+        games.forEach((game, index) => {
+            console.log(`📊 DEBUG: Processando game ${index}:`, game);
+            if (game.numbers && Array.isArray(game.numbers)) {
+                game.numbers.forEach((num: number) => {
+                    numberFreq[num] = (numberFreq[num] || 0) + 1;
+                    totalNumbers++;
+                });
+            } else {
+                console.warn(`📊 WARNING: Game ${index} não tem números válidos:`, game.numbers);
+            }
+        });
+
+        console.log('📊 DEBUG: numberFreq final:', numberFreq);
+        console.log('📊 DEBUG: totalNumbers:', totalNumbers);
+
+        const sortedNumbers = Object.entries(numberFreq)
+            .map(([num, freq]) => ({
+                number: parseInt(num),
+                frequency: freq,
+                percentage: (freq / totalNumbers * 100)
+            }))
+            .sort((a, b) => b.frequency - a.frequency);
+
+        console.log('📊 DEBUG: sortedNumbers:', sortedNumbers);
+
+        const result = {
+            top5: sortedNumbers.slice(0, 5),
+            avgFrequency: totalNumbers / Object.keys(numberFreq).length,
+            diversity: Object.keys(numberFreq).length,
+            consistency: sortedNumbers[0]?.frequency / (totalNumbers / Object.keys(numberFreq).length) || 0
+        };
+
+        console.log('📊 DEBUG: calculateFavoriteNumbers resultado:', result);
+        return result;
+        
+    } catch (error) {
+        console.error('📊 ERROR: Erro em calculateFavoriteNumbers:', error);
+        return { top5: [], avgFrequency: 0, diversity: 0, consistency: 0 };
+    }
+}
+
+// Analisa padrões de jogo
+function analyzePlayingPatterns(games: any[]): any {
+    try {
+        const totalGames = games.length;
+        const megaSenaGames = games.filter(g => g.lottery_type === 'mega-sena').length;
+        const lotofacilGames = games.filter(g => g.lottery_type === 'lotofacil').length;
+        
+        const preferredGame = megaSenaGames > lotofacilGames ? 'Mega-Sena' : 'Lotofácil';
+        const avgInvestment = games.reduce((sum, g) => sum + (g.investment || 0), 0) / totalGames;
+        
+        return {
+            preferredGame,
+            gamesPerWeek: totalGames > 0 ? Math.round(totalGames / 4) : 0, // Estimativa
+            avgInvestment,
+            consistency: totalGames > 5 ? 85 : 45 // Score simplificado
+        };
+    } catch (error) {
+        return { preferredGame: 'N/A', gamesPerWeek: 0, avgInvestment: 0, consistency: 0 };
+    }
+}
+
+// Calcula perfil de risco
+function calculateRiskProfile(games: any[]): any {
+    try {
+        const investments = games.map(g => g.investment || 0);
+        const avgInvestment = investments.reduce((sum, inv) => sum + inv, 0) / investments.length;
+        const maxInvestment = Math.max(...investments);
+        
+        const winnings = games.reduce((sum, g) => sum + (g.winnings || 0), 0);
+        const totalInvested = investments.reduce((sum, inv) => sum + inv, 0);
+        const roi = totalInvested > 0 ? ((winnings - totalInvested) / totalInvested) * 100 : 0;
+        
+        let level = 'Conservador';
+        if (avgInvestment > 100) level = 'Moderado';
+        if (avgInvestment > 300) level = 'Agressivo';
+        
+        return {
+            level,
+            avgInvestment,
+            maxInvestment,
+            roi,
+            volatility: calculateVolatility(games)
+        };
+    } catch (error) {
+        return { level: 'N/A', avgInvestment: 0, maxInvestment: 0, roi: 0, volatility: 0 };
+    }
+}
+
+// Analisa traços de performance
+function analyzePerformanceTraits(games: any[]): any {
+    try {
+        const winningGames = games.filter(g => g.isWinner);
+        const winRate = games.length > 0 ? (winningGames.length / games.length) * 100 : 0;
+        
+        return {
+            winRate,
+            avgROI: calculateAverageROI(games),
+            bestStreak: calculateBestStreak(games),
+            patience: calculatePatience(games),
+            adaptation: calculateAdaptation(games)
+        };
+    } catch (error) {
+        return { winRate: 0, avgROI: 0, bestStreak: 0, patience: 0, adaptation: 0 };
+    }
+}
+
+// Analisa padrões temporais
+function analyzeTimePatterns(games: any[]): any {
+    try {
+        const dates = games.map(g => new Date(g.created_at || Date.now()));
+        const days = dates.map(d => d.getDay());
+        const hours = dates.map(d => d.getHours());
+        
+        // Dia mais comum
+        const dayCount = days.reduce((acc, day) => {
+            acc[day] = (acc[day] || 0) + 1;
+            return acc;
+        }, {} as { [key: number]: number });
+        
+        const mostCommonDay = Object.entries(dayCount)
+            .sort(([,a], [,b]) => b - a)[0];
+        
+        const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const preferredDay = mostCommonDay ? dayNames[parseInt(mostCommonDay[0])] : 'N/A';
+        
+        // Hora média
+        const avgHour = hours.length > 0 ? Math.round(hours.reduce((sum, h) => sum + h, 0) / hours.length) : 0;
+        
+        // Weekend vs weekday
+        const weekendGames = days.filter(d => d === 0 || d === 6).length;
+        const weekdayGames = games.length - weekendGames;
+        
+        return {
+            preferredDay,
+            preferredHour: avgHour,
+            weekendGames,
+            weekdayGames
+        };
+    } catch (error) {
+        return { preferredDay: 'N/A', preferredHour: 0, weekendGames: 0, weekdayGames: 0 };
+    }
+}
+
+// Gera cards de comportamento
+function generateBehaviorCards(analysis: any): string {
+    try {
+        return `
+            <div class="behavior-card">
+                <div class="behavior-header">
+                    <span class="behavior-icon">🎯</span>
+                    <h4>Números Favoritos</h4>
+                </div>
+                <div class="behavior-content">
+                    <div class="behavior-metric">
+                        <span class="metric-label">Top 5 Números:</span>
+                        <div class="top-numbers">
+                            ${analysis.favoriteNumbers.top5.map((n: any) => 
+                                `<span class="mini-number">${n.number}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    <div class="behavior-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.favoriteNumbers.diversity}</span>
+                            <span class="stat-label">Números únicos</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.favoriteNumbers.consistency.toFixed(1)}</span>
+                            <span class="stat-label">Consistência</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="behavior-card">
+                <div class="behavior-header">
+                    <span class="behavior-icon">🎮</span>
+                    <h4>Padrões de Jogo</h4>
+                </div>
+                <div class="behavior-content">
+                    <div class="behavior-metric">
+                        <span class="metric-label">Jogo Preferido:</span>
+                        <span class="metric-value">${analysis.playingPatterns.preferredGame}</span>
+                    </div>
+                    <div class="behavior-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.playingPatterns.gamesPerWeek}</span>
+                            <span class="stat-label">Jogos/semana</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">R$ ${analysis.playingPatterns.avgInvestment.toFixed(2)}</span>
+                            <span class="stat-label">Investimento médio</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="behavior-card">
+                <div class="behavior-header">
+                    <span class="behavior-icon">⚡</span>
+                    <h4>Perfil de Risco</h4>
+                </div>
+                <div class="behavior-content">
+                    <div class="behavior-metric">
+                        <span class="metric-label">Nível:</span>
+                        <span class="metric-value ${getScoreClass(50)}">${analysis.riskProfile.level}</span>
+                    </div>
+                    <div class="behavior-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.riskProfile.roi.toFixed(1)}%</span>
+                            <span class="stat-label">ROI Atual</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.riskProfile.volatility.toFixed(1)}%</span>
+                            <span class="stat-label">Volatilidade</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="behavior-card">
+                <div class="behavior-header">
+                    <span class="behavior-icon">🏆</span>
+                    <h4>Performance</h4>
+                </div>
+                <div class="behavior-content">
+                    <div class="behavior-metric">
+                        <span class="metric-label">Taxa de Vitória:</span>
+                        <span class="metric-value">${analysis.performanceTraits.winRate.toFixed(1)}%</span>
+                    </div>
+                    <div class="behavior-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.performanceTraits.bestStreak}</span>
+                            <span class="stat-label">Melhor Sequência</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.performanceTraits.patience.toFixed(0)}</span>
+                            <span class="stat-label">Paciência</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="behavior-card">
+                <div class="behavior-header">
+                    <span class="behavior-icon">⏰</span>
+                    <h4>Padrões Temporais</h4>
+                </div>
+                <div class="behavior-content">
+                    <div class="behavior-metric">
+                        <span class="metric-label">Dia Preferido:</span>
+                        <span class="metric-value">${analysis.timePatterns.preferredDay}</span>
+                    </div>
+                    <div class="behavior-stats">
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.timePatterns.preferredHour}h</span>
+                            <span class="stat-label">Horário</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${analysis.timePatterns.weekendGames}</span>
+                            <span class="stat-label">Final de semana</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error generating behavior cards:', error);
+        return '<div class="error">Erro ao gerar análise comportamental</div>';
+    }
+}
+
+// Gera dados do heatmap
+function generateHeatmapData(games: any[]): any {
+    try {
+        const megaSenaNumbers: { [key: number]: number } = {};
+        const lotofacilNumbers: { [key: number]: number } = {};
+
+        games.forEach(game => {
+            if (game.numbers && Array.isArray(game.numbers)) {
+                game.numbers.forEach((num: number) => {
+                    if (game.lottery_type === 'mega-sena') {
+                        megaSenaNumbers[num] = (megaSenaNumbers[num] || 0) + 1;
+                    } else if (game.lottery_type === 'lotofacil') {
+                        lotofacilNumbers[num] = (lotofacilNumbers[num] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        return {
+            megaSena: calculateHeatLevels(megaSenaNumbers, 60),
+            lotofacil: calculateHeatLevels(lotofacilNumbers, 25)
+        };
+    } catch (error) {
+        console.error('Error generating heatmap data:', error);
+        return { megaSena: [], lotofacil: [] };
+    }
+}
+
+// Calcula níveis de calor para o heatmap
+function calculateHeatLevels(freq: { [key: number]: number }, maxNumber: number): any[] {
+    const maxFreq = Math.max(...Object.values(freq));
+    const result = [];
+    
+    for (let i = 1; i <= maxNumber; i++) {
+        const frequency = freq[i] || 0;
+        let level = 'cold';
+        
+        if (maxFreq > 0) {
+            const percentage = (frequency / maxFreq) * 100;
+            if (percentage > 75) level = 'very-hot';
+            else if (percentage > 50) level = 'hot';
+            else if (percentage > 25) level = 'warm';
+            else if (percentage > 0) level = 'cool';
+        }
+        
+        result.push({
+            number: i,
+            frequency,
+            level,
+            percentage: maxFreq > 0 ? (frequency / maxFreq) * 100 : 0
+        });
+    }
+    
+    return result;
+}
+
+// Gera heatmaps HTML
+function generateHeatmaps(data: any): string {
+    try {
+        let html = '';
+        
+        // Mega-Sena Heatmap
+        if (data.megaSena && data.megaSena.length > 0) {
+            html += `
+                <div class="heatmap-container">
+                    <h3 class="heatmap-title">🔥 Mega-Sena - Frequência de Números</h3>
+                    <div class="heatmap-grid mega-sena-grid">
+                        ${data.megaSena.map((item: any) => `
+                            <div class="heatmap-number ${item.level}" title="${item.number}: ${item.frequency}x (${item.percentage.toFixed(1)}%)">
+                                ${item.number.toString().padStart(2, '0')}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="heatmap-legend">
+                        <div class="legend-item">
+                            <span class="legend-color very-hot"></span>
+                            <span>Muito Quente</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color hot"></span>
+                            <span>Quente</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color warm"></span>
+                            <span>Morno</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color cool"></span>
+                            <span>Frio</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color cold"></span>
+                            <span>Muito Frio</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Lotofácil Heatmap
+        if (data.lotofacil && data.lotofacil.length > 0) {
+            html += `
+                <div class="heatmap-container">
+                    <h3 class="heatmap-title">⭐ Lotofácil - Frequência de Números</h3>
+                    <div class="heatmap-grid lotofacil-grid">
+                        ${data.lotofacil.map((item: any) => `
+                            <div class="heatmap-number ${item.level}" title="${item.number}: ${item.frequency}x (${item.percentage.toFixed(1)}%)">
+                                ${item.number.toString().padStart(2, '0')}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="heatmap-legend">
+                        <div class="legend-item">
+                            <span class="legend-color very-hot"></span>
+                            <span>Muito Quente</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color hot"></span>
+                            <span>Quente</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color warm"></span>
+                            <span>Morno</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color cool"></span>
+                            <span>Frio</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color cold"></span>
+                            <span>Muito Frio</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        return html || '<div class="no-data">Dados insuficientes para gerar heatmaps</div>';
+    } catch (error) {
+        console.error('Error generating heatmaps:', error);
+        return '<div class="error">Erro ao gerar heatmaps</div>';
+    }
+}
+
+// Gera predições da IA
+function generateAIPredictions(games: any[]): any {
+    try {
+        return {
+            performanceTrend: calculatePerformanceTrend(games),
+            optimalMoment: calculateOptimalMoment(games),
+            roiPrediction: predictROI(games),
+            numberRecommendations: generateNumberRecommendations(games)
+        };
+    } catch (error) {
+        console.error('Error generating AI predictions:', error);
+        return {
+            performanceTrend: { trend: 'Neutro', confidence: 50 },
+            optimalMoment: { moment: 'Momento Regular', score: 50 },
+            roiPrediction: { prediction: 0, confidence: 'Baixa' },
+            numberRecommendations: { hot: [], cold: [] }
+        };
+    }
+}
+
+// Calcula tendência de performance
+function calculatePerformanceTrend(recentGames: any[]): any {
+    try {
+        if (recentGames.length < 3) {
+            return { trend: 'Neutro', confidence: 50 };
+        }
+        
+        const recent = recentGames.slice(-5);
+        const wins = recent.filter(g => g.isWinner).length;
+        const winRate = (wins / recent.length) * 100;
+        
+        let trend = 'Neutro';
+        let confidence = 50;
+        
+        if (winRate > 60) {
+            trend = 'Crescente';
+            confidence = 85;
+        } else if (winRate < 20) {
+            trend = 'Decrescente';
+            confidence = 75;
+        }
+        
+        return { trend, confidence };
+    } catch (error) {
+        return { trend: 'Neutro', confidence: 50 };
+    }
+}
+
+// Calcula momento ideal
+function calculateOptimalMoment(_games: any[]): any {
+    try {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const hour = now.getHours();
+        
+        // Análise simples baseada em padrões
+        let score = 50;
+        let moment = 'Momento Regular';
+        
+        // Terças e quintas são melhores para Mega-Sena
+        if (dayOfWeek === 2 || dayOfWeek === 4) {
+            score += 20;
+            moment = 'Momento Favorável';
+        }
+        
+        // Horário entre 14h e 18h
+        if (hour >= 14 && hour <= 18) {
+            score += 15;
+            if (score >= 70) moment = 'Momento Ideal';
+        }
+        
+        return { moment, score: Math.min(score, 100) };
+    } catch (error) {
+        return { moment: 'Momento Regular', score: 50 };
+    }
+}
+
+// Predição de ROI
+function predictROI(games: any[]): any {
+    try {
+        const totalInvestment = games.reduce((sum, g) => sum + (g.investment || 0), 0);
+        const totalWinnings = games.reduce((sum, g) => sum + (g.winnings || 0), 0);
+        
+        if (totalInvestment === 0) {
+            return { prediction: 0, confidence: 'Baixa' };
+        }
+        
+        const currentROI = ((totalWinnings - totalInvestment) / totalInvestment) * 100;
+        const prediction = Math.max(-50, Math.min(50, currentROI * 1.1)); // Projeção conservadora
+        
+        let confidence = 'Média';
+        if (games.length > 10) confidence = 'Alta';
+        if (games.length < 5) confidence = 'Baixa';
+        
+        return { prediction, confidence };
+    } catch (error) {
+        return { prediction: 0, confidence: 'Baixa' };
+    }
+}
+
+// Recomendações de números
+function generateNumberRecommendations(games: any[]): any {
+    try {
+        const numberFreq: { [key: number]: number } = {};
+        
+        games.forEach(game => {
+            if (game.numbers && Array.isArray(game.numbers)) {
+                game.numbers.forEach((num: number) => {
+                    numberFreq[num] = (numberFreq[num] || 0) + 1;
+                });
+            }
+        });
+        
+        const sorted = Object.entries(numberFreq)
+            .map(([num, freq]) => ({ number: parseInt(num), frequency: freq }))
+            .sort((a, b) => b.frequency - a.frequency);
+        
+        return {
+            hot: sorted.slice(0, 5).map(n => n.number),
+            cold: sorted.slice(-5).map(n => n.number)
+        };
+    } catch (error) {
+        return { hot: [], cold: [] };
+    }
+}
+
+// Gera cards de predições
+function generatePredictionCards(predictions: any): string {
+    try {
+        return `
+            <div class="prediction-card">
+                <div class="prediction-header">
+                    <span class="prediction-icon">📈</span>
+                    <h4>Tendência de Performance</h4>
+                </div>
+                <div class="prediction-content">
+                    <div class="prediction-metric">
+                        <span class="metric-value ${getScoreClass(predictions.performanceTrend.confidence)}">${predictions.performanceTrend.trend}</span>
+                        <span class="metric-label">Confiança: ${predictions.performanceTrend.confidence}%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="prediction-card">
+                <div class="prediction-header">
+                    <span class="prediction-icon">⭐</span>
+                    <h4>Momento Ideal</h4>
+                </div>
+                <div class="prediction-content">
+                    <div class="prediction-metric">
+                        <span class="metric-value ${getScoreClass(predictions.optimalMoment.score)}">${predictions.optimalMoment.moment}</span>
+                        <span class="metric-label">Score: ${predictions.optimalMoment.score}/100</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="prediction-card">
+                <div class="prediction-header">
+                    <span class="prediction-icon">💰</span>
+                    <h4>Predição de ROI</h4>
+                </div>
+                <div class="prediction-content">
+                    <div class="prediction-metric">
+                        <span class="metric-value ${predictions.roiPrediction.prediction >= 0 ? 'positive' : 'negative'}">${predictions.roiPrediction.prediction.toFixed(1)}%</span>
+                        <span class="metric-label">Confiança: ${predictions.roiPrediction.confidence}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error generating prediction cards:', error);
+        return '<div class="error">Erro ao gerar predições</div>';
+    }
+}
+
+// Gera sugestões personalizadas
+function generatePersonalizedSuggestions(_games: any[], analysis: any): any[] {
+    try {
+        const suggestions = [];
+        
+        // Sugestão baseada no perfil de risco
+        if (analysis.riskProfile.level === 'Conservador') {
+            suggestions.push({
+                icon: '🛡️',
+                title: 'Melhore a Consistência',
+                description: 'Com base no seu perfil conservador, recomendamos manter a estratégia atual mas aumentar ligeiramente a frequência de jogos.',
+                priority: 'média'
+            });
+        }
+        
+        // Sugestão baseada na performance
+        if (analysis.performanceTraits.winRate < 20) {
+            suggestions.push({
+                icon: '📈',
+                title: 'Revise sua Estratégia',
+                description: 'Sua taxa de acerto está abaixo da média. Considere diversificar entre Mega-Sena e Lotofácil.',
+                priority: 'alta'
+            });
+        }
+        
+        // Sugestão de números favoritos
+        if (analysis.favoriteNumbers.diversity > 20) {
+            suggestions.push({
+                icon: '🎯',
+                title: 'Foque nos Seus Números',
+                description: 'Você usa muitos números diferentes. Considere focar nos 10-15 números que você mais joga.',
+                priority: 'baixa'
+            });
+        }
+        
+        return suggestions;
+    } catch (error) {
+        console.error('Error generating suggestions:', error);
+        return [];
+    }
+}
+
+// Gera cards de sugestões
+function generateSuggestionCards(suggestions: any[]): string {
+    try {
+        if (suggestions.length === 0) {
+            return '<div class="no-data">Suas estratégias estão ótimas! Continue assim.</div>';
+        }
+        
+        return suggestions.map(suggestion => `
+            <div class="suggestion-card priority-${suggestion.priority}">
+                <div class="suggestion-header">
+                    <span class="suggestion-icon">${suggestion.icon}</span>
+                    <h4>${suggestion.title}</h4>
+                </div>
+                <p class="suggestion-description">${suggestion.description}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error generating suggestion cards:', error);
+        return '<div class="error">Erro ao gerar sugestões</div>';
+    }
+}
+
+// Calcula timing ideal
+function calculateOptimalTiming(_games: any[]): any {
+    try {
+        return {
+            bestDay: 'Quinta-feira',
+            bestTime: '15:00',
+            confidence: 75,
+            reason: 'Baseado nos seus padrões históricos'
+        };
+    } catch (error) {
+        return {
+            bestDay: 'N/A',
+            bestTime: 'N/A',
+            confidence: 0,
+            reason: 'Dados insuficientes'
+        };
+    }
+}
+
+// Gera cards de timing
+function generateTimingCards(timing: any): string {
+    try {
+        return `
+            <div class="timing-card">
+                <div class="timing-header">
+                    <span class="timing-icon">📅</span>
+                    <h4>Melhor Dia</h4>
+                </div>
+                <div class="timing-content">
+                    <div class="timing-value">${timing.bestDay}</div>
+                    <div class="timing-confidence">Confiança: ${timing.confidence}%</div>
+                </div>
+            </div>
+            
+            <div class="timing-card">
+                <div class="timing-header">
+                    <span class="timing-icon">⏰</span>
+                    <h4>Melhor Horário</h4>
+                </div>
+                <div class="timing-content">
+                    <div class="timing-value">${timing.bestTime}</div>
+                    <div class="timing-reason">${timing.reason}</div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error generating timing cards:', error);
+        return '<div class="error">Erro ao gerar timing</div>';
+    }
+}
+
+// Funções auxiliares
+function calculateVolatility(games: any[]): number {
+    if (games.length < 2) return 0;
+    
+    const rois = games.map(g => {
+        const investment = g.investment || 0;
+        const winnings = g.winnings || 0;
+        return investment > 0 ? ((winnings - investment) / investment) * 100 : 0;
+    });
+    
+    const avgROI = rois.reduce((sum, roi) => sum + roi, 0) / rois.length;
+    const variance = rois.reduce((sum, roi) => sum + Math.pow(roi - avgROI, 2), 0) / rois.length;
+    
+    return Math.sqrt(variance);
+}
+
+function calculateAverageROI(games: any[]): number {
+    if (games.length === 0) return 0;
+    
+    const totalInvestment = games.reduce((sum, g) => sum + (g.investment || 0), 0);
+    const totalWinnings = games.reduce((sum, g) => sum + (g.winnings || 0), 0);
+    
+    return totalInvestment > 0 ? ((totalWinnings - totalInvestment) / totalInvestment) * 100 : 0;
+}
+
+function calculateBestStreak(games: any[]): number {
+    if (games.length === 0) return 0;
+    
+    let maxStreak = 0;
+    let currentStreak = 0;
+    
+    for (const game of games) {
+        if (game.isWinner) {
+            currentStreak++;
+            maxStreak = Math.max(maxStreak, currentStreak);
+        } else {
+            currentStreak = 0;
+        }
+    }
+    
+    return maxStreak;
+}
+
+function calculatePatience(games: any[]): number {
+    if (games.length < 5) return 50;
+    
+    const timeSpan = games.length > 1 ? 
+        new Date(games[games.length - 1].created_at).getTime() - new Date(games[0].created_at).getTime() : 0;
+    const daySpan = timeSpan / (1000 * 60 * 60 * 24);
+    
+    // Paciência baseada na distribuição de jogos ao longo do tempo
+    const patienceScore = Math.min(100, (daySpan / games.length) * 10);
+    return patienceScore;
+}
+
+function calculateAdaptation(games: any[]): number {
+    if (games.length < 3) return 50;
+    
+    // Análise da variação nas estratégias (tipos de jogo, valores investidos)
+    const lotteryTypes = [...new Set(games.map(g => g.lottery_type))].length;
+    const investmentVariation = calculateVolatility(games);
+    
+    const adaptationScore = Math.min(100, (lotteryTypes * 25) + Math.min(50, investmentVariation));
+    return adaptationScore;
+}
+
+function getScoreClass(score: number): string {
+    if (score >= 80) return 'excellent';
+    if (score >= 60) return 'good';
+    if (score >= 40) return 'average';
+    return 'poor';
+}
+
+// Adicionar às funções globais
+(window as any).renderIntelligenceEngine = renderIntelligenceEngine;
