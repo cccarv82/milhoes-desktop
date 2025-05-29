@@ -3106,15 +3106,6 @@ function getTrendIcon(trend: string): string {
     }
 }
 
-function getTrendText(trend: string): string {
-    switch (trend) {
-        case 'up': return 'Sorte está melhorando';
-        case 'down': return 'Momento de paciência';
-        default: return 'Sorte estável';
-    }
-}
-
-// CALCULADORA ROI
 // ===============================
 
 async function renderROICalculator() {
