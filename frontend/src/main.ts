@@ -4619,32 +4619,27 @@ function generateBehaviorCards(analysis: any): string {
                         <div class="top-numbers">
                             ${analysis.favoriteNumbers.top5.length > 0 
                                 ? analysis.favoriteNumbers.top5.map((n: any) => 
-                                    `<span class="mini-number">${n.number.toString().padStart(2, '0')}</span>`
+                                    `<span class="number">${n.number.toString().padStart(2, '0')}</span>`
                                   ).join('')
                                 : '<span class="no-data-inline">Nenhum padrão identificado</span>'
                             }
                         </div>
                         ${analysis.favoriteNumbers.top5.length > 0 ? `
-                            <div style="margin-top: 8px; font-size: 0.9rem; color: var(--text-secondary);">
-                                ${analysis.favoriteNumbers.top5[0]?.number} é seu número favorito (${analysis.favoriteNumbers.top5[0]?.frequency}x jogado)
+                            <div class="favorite-insight">
+                                <strong>${analysis.favoriteNumbers.top5[0]?.number.toString().padStart(2, '0')}</strong> é seu número favorito 
+                                (jogado ${analysis.favoriteNumbers.top5[0]?.frequency}x)
                             </div>
                         ` : ''}
                     </div>
-                    <div class="behavior-stats">
+                    <div class="behavior-stats-grid">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.favoriteNumbers.diversity}</span>
-                            <span class="stat-label">números diferentes usados</span>
+                            <span class="stat-label">números diferentes</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-value">${(analysis.favoriteNumbers.consistency * 100).toFixed(0)}%</span>
                             <span class="stat-label">consistência</span>
                         </div>
-                    </div>
-                    <div class="behavior-insight">
-                        ${analysis.favoriteNumbers.diversity > 15 
-                            ? '🎲 Você gosta de variar bastante os números' 
-                            : '🎯 Você tem preferência por números específicos'
-                        }
                     </div>
                 </div>
             </div>
@@ -4657,16 +4652,16 @@ function generateBehaviorCards(analysis: any): string {
                 <div class="behavior-content">
                     <div class="behavior-metric">
                         <span class="metric-label">Sua loteria favorita:</span>
-                        <span class="metric-value game-preference">${analysis.playingPatterns.preferredGame}</span>
+                        <span class="metric-value-highlight">${analysis.playingPatterns.preferredGame}</span>
                     </div>
-                    <div class="behavior-stats">
+                    <div class="behavior-stats-grid">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.playingPatterns.gamesPerWeek}</span>
-                            <span class="stat-label">jogos por semana</span>
+                            <span class="stat-label">jogos/semana</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-value">R$ ${analysis.playingPatterns.avgInvestment.toFixed(2)}</span>
-                            <span class="stat-label">gasto médio por jogo</span>
+                            <span class="stat-label">gasto médio</span>
                         </div>
                     </div>
                     <div class="behavior-insight">
@@ -4686,9 +4681,9 @@ function generateBehaviorCards(analysis: any): string {
                 <div class="behavior-content">
                     <div class="behavior-metric">
                         <span class="metric-label">Tipo:</span>
-                        <span class="metric-value ${getRiskLevelClass(analysis.riskProfile.level)}">${analysis.riskProfile.level}</span>
+                        <span class="metric-value-highlight ${getRiskLevelClass(analysis.riskProfile.level)}">${analysis.riskProfile.level}</span>
                     </div>
-                    <div class="behavior-stats">
+                    <div class="behavior-stats-grid">
                         <div class="stat-item">
                             <span class="stat-value ${analysis.riskProfile.roi >= 0 ? 'positive' : 'negative'}">${analysis.riskProfile.roi.toFixed(1)}%</span>
                             <span class="stat-label">retorno atual</span>
@@ -4712,16 +4707,16 @@ function generateBehaviorCards(analysis: any): string {
                 <div class="behavior-content">
                     <div class="behavior-metric">
                         <span class="metric-label">Taxa de sucesso:</span>
-                        <span class="metric-value ${getWinRateClass(analysis.performanceTraits.winRate)}">${analysis.performanceTraits.winRate.toFixed(1)}%</span>
+                        <span class="metric-value-highlight ${getWinRateClass(analysis.performanceTraits.winRate)}">${analysis.performanceTraits.winRate.toFixed(1)}%</span>
                     </div>
-                    <div class="behavior-stats">
+                    <div class="behavior-stats-grid">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.performanceTraits.bestStreak}</span>
-                            <span class="stat-label">melhor sequência de vitórias</span>
+                            <span class="stat-label">melhor sequência</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-value">${analysis.performanceTraits.patience.toFixed(0)}</span>
-                            <span class="stat-label">nível de paciência</span>
+                            <span class="stat-label">paciência</span>
                         </div>
                     </div>
                     <div class="behavior-insight">
@@ -4738,9 +4733,9 @@ function generateBehaviorCards(analysis: any): string {
                 <div class="behavior-content">
                     <div class="behavior-metric">
                         <span class="metric-label">Dia favorito:</span>
-                        <span class="metric-value">${analysis.timePatterns.preferredDay}</span>
+                        <span class="metric-value-highlight">${analysis.timePatterns.preferredDay}</span>
                     </div>
-                    <div class="behavior-stats">
+                    <div class="behavior-stats-grid">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.timePatterns.preferredHour}h</span>
                             <span class="stat-label">horário preferido</span>
@@ -4750,7 +4745,7 @@ function generateBehaviorCards(analysis: any): string {
                                 Math.round((analysis.timePatterns.weekendGames / (analysis.timePatterns.weekendGames + analysis.timePatterns.weekdayGames)) * 100) + '%'
                                 : '0%'
                             }</span>
-                            <span class="stat-label">jogos no fim de semana</span>
+                            <span class="stat-label">fins de semana</span>
                         </div>
                     </div>
                     <div class="behavior-insight">
@@ -4888,82 +4883,100 @@ function generateHeatmaps(data: any): string {
         if (data.megaSena && data.megaSena.length > 0) {
             html += `
                 <div class="heatmap-container">
-                    <h3 class="heatmap-title">🔥 Mega-Sena - Frequência de Números</h3>
+                    <div class="heatmap-header">
+                        <span class="heatmap-icon">🔥</span>
+                        <h3 class="heatmap-title">Mega-Sena - Frequência de Números</h3>
+                    </div>
                     <div class="heatmap-grid mega-sena-grid">
                         ${data.megaSena.map((item: any) => `
-                            <div class="heatmap-number ${item.level}" title="${item.number}: ${item.frequency}x (${item.percentage.toFixed(1)}%)">
-                                ${item.number.toString().padStart(2, '0')}
+                            <div class="heatmap-number ${item.level}" 
+                                 title="Número ${item.number}: ${item.frequency}x jogado (${item.percentage.toFixed(1)}% da frequência máxima)"
+                                 data-frequency="${item.frequency}">
+                                <span class="number-display">${item.number.toString().padStart(2, '0')}</span>
+                                <span class="frequency-display">${item.frequency}x</span>
                             </div>
                         `).join('')}
                     </div>
                     <div class="heatmap-legend">
-                        <div class="legend-item">
-                            <span class="legend-color very-hot"></span>
-                            <span>Muito Quente</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color hot"></span>
-                            <span>Quente</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color warm"></span>
-                            <span>Morno</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color cool"></span>
-                            <span>Frio</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color cold"></span>
-                            <span>Muito Frio</span>
+                        <div class="legend-title">Legenda de Frequência:</div>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <span class="legend-color very-hot"></span>
+                                <span class="legend-text">Muito Quente (75%+)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color hot"></span>
+                                <span class="legend-text">Quente (50-75%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color warm"></span>
+                                <span class="legend-text">Morno (25-50%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color cool"></span>
+                                <span class="legend-text">Frio (1-25%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color cold"></span>
+                                <span class="legend-text">Muito Frio (0%)</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
-        
+
         // Lotofácil Heatmap
         if (data.lotofacil && data.lotofacil.length > 0) {
             html += `
                 <div class="heatmap-container">
-                    <h3 class="heatmap-title">⭐ Lotofácil - Frequência de Números</h3>
+                    <div class="heatmap-header">
+                        <span class="heatmap-icon">⭐</span>
+                        <h3 class="heatmap-title">Lotofácil - Frequência de Números</h3>
+                    </div>
                     <div class="heatmap-grid lotofacil-grid">
                         ${data.lotofacil.map((item: any) => `
-                            <div class="heatmap-number ${item.level}" title="${item.number}: ${item.frequency}x (${item.percentage.toFixed(1)}%)">
-                                ${item.number.toString().padStart(2, '0')}
+                            <div class="heatmap-number ${item.level}" 
+                                 title="Número ${item.number}: ${item.frequency}x jogado (${item.percentage.toFixed(1)}% da frequência máxima)"
+                                 data-frequency="${item.frequency}">
+                                <span class="number-display">${item.number.toString().padStart(2, '0')}</span>
+                                <span class="frequency-display">${item.frequency}x</span>
                             </div>
                         `).join('')}
                     </div>
                     <div class="heatmap-legend">
-                        <div class="legend-item">
-                            <span class="legend-color very-hot"></span>
-                            <span>Muito Quente</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color hot"></span>
-                            <span>Quente</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color warm"></span>
-                            <span>Morno</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color cool"></span>
-                            <span>Frio</span>
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-color cold"></span>
-                            <span>Muito Frio</span>
+                        <div class="legend-title">Legenda de Frequência:</div>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <span class="legend-color very-hot"></span>
+                                <span class="legend-text">Muito Quente (75%+)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color hot"></span>
+                                <span class="legend-text">Quente (50-75%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color warm"></span>
+                                <span class="legend-text">Morno (25-50%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color cool"></span>
+                                <span class="legend-text">Frio (1-25%)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color cold"></span>
+                                <span class="legend-text">Muito Frio (0%)</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
         
-        return html || '<div class="no-data">Dados insuficientes para gerar heatmaps</div>';
+        return html || '<div class="no-data-message">Dados insuficientes para gerar heatmaps</div>';
     } catch (error) {
         console.error('Error generating heatmaps:', error);
-        return '<div class="error">Erro ao gerar heatmaps</div>';
+        return '<div class="error-message">Erro ao gerar heatmaps</div>';
     }
 }
 
@@ -5402,26 +5415,40 @@ function renderIntelligenceEngineWithData(iaAnalysis: any, heatmapData: any, pre
                     </div>
                 </div>
 
-                <!-- Ações Rápidas -->
+                <!-- Próximas Ações -->
                 <div class="section">
                     <h2 class="section-title">🚀 Próximas Ações</h2>
-                    <div class="quick-actions-intelligence">
-                        <button onclick="startStrategyWizard()" class="action-card intelligence">
-                            <span class="action-icon">🎯</span>
-                            <h3>Gerar Nova Estratégia</h3>
-                            <p>Baseada na sua análise comportamental</p>
+                    <div class="main-nav-grid">
+                        <button onclick="startStrategyWizard()" class="main-nav-btn">
+                            <span class="btn-icon">🎯</span>
+                            <div class="btn-content">
+                                <h3>Gerar Nova Estratégia</h3>
+                                <p>Baseada na sua análise comportamental</p>
+                            </div>
                         </button>
                         
-                        <button onclick="renderSavedGamesScreen()" class="action-card intelligence">
-                            <span class="action-icon">💾</span>
-                            <h3>Ver Seus Jogos</h3>
-                            <p>Acompanhe resultados e performance</p>
+                        <button onclick="renderSavedGamesScreen()" class="main-nav-btn">
+                            <span class="btn-icon">💾</span>
+                            <div class="btn-content">
+                                <h3>Ver Seus Jogos</h3>
+                                <p>Acompanhe resultados e performance</p>
+                            </div>
                         </button>
                         
-                        <button onclick="renderPerformanceDashboard()" class="action-card intelligence">
-                            <span class="action-icon">📊</span>
-                            <h3>Dashboard Completo</h3>
-                            <p>Métricas detalhadas de performance</p>
+                        <button onclick="renderPerformanceDashboard()" class="main-nav-btn">
+                            <span class="btn-icon">📊</span>
+                            <div class="btn-content">
+                                <h3>Dashboard Completo</h3>
+                                <p>Métricas detalhadas de performance</p>
+                            </div>
+                        </button>
+                        
+                        <button onclick="renderROICalculator()" class="main-nav-btn">
+                            <span class="btn-icon">💰</span>
+                            <div class="btn-content">
+                                <h3>Calculadora ROI</h3>
+                                <p>Projeções de investimento</p>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -5520,20 +5547,36 @@ function generatePersonalizedSuggestions(_games: any[], analysis: any): any[] {
 function generateSuggestionCards(suggestions: any[]): string {
     try {
         if (suggestions.length === 0) {
-            return '<div class="no-data">Suas estratégias estão ótimas! Continue assim.</div>';
+            return `
+                <div class="feature-card" style="text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">✨</div>
+                    <h3>Excelente!</h3>
+                    <p>Suas estratégias estão otimizadas. Continue assim!</p>
+                </div>
+            `;
         }
         
         return suggestions.map(suggestion => `
-            <div class="suggestion-card priority-${suggestion.priority}">
+            <div class="feature-card suggestion-card priority-${suggestion.priority}">
                 <div class="suggestion-header">
                     <span class="suggestion-icon">${suggestion.icon}</span>
-                    <h4>${suggestion.title}</h4>
+                    <h4 class="suggestion-title">${suggestion.title}</h4>
+                    <span class="priority-indicator priority-${suggestion.priority}">
+                        ${suggestion.priority === 'alta' ? 'Alta' : 
+                          suggestion.priority === 'média' ? 'Média' : 'Baixa'}
+                    </span>
                 </div>
                 <p class="suggestion-description">${suggestion.description}</p>
             </div>
         `).join('');
     } catch (error) {
-        return '<div class="no-data">Continue com sua estratégia atual!</div>';
+        return `
+            <div class="feature-card" style="text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 1rem;">💡</div>
+                <h3>Continue!</h3>
+                <p>Mantenha sua estratégia atual!</p>
+            </div>
+        `;
     }
 }
 
