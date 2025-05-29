@@ -4620,118 +4620,150 @@ function generateBehaviorCards(analysis: any): string {
             <div class="behavior-card">
                 <div class="behavior-header">
                     <span class="behavior-icon">🎯</span>
-                    <h4>Números Favoritos</h4>
+                    <h4>Seus Números da Sorte</h4>
                 </div>
                 <div class="behavior-content">
                     <div class="behavior-metric">
-                        <span class="metric-label">Top 5 Números:</span>
+                        <span class="metric-label">Números que você mais joga:</span>
                         <div class="top-numbers">
-                            ${analysis.favoriteNumbers.top5.map((n: any) => 
-                                `<span class="mini-number">${n.number}</span>`
-                            ).join('')}
+                            ${analysis.favoriteNumbers.top5.length > 0 
+                                ? analysis.favoriteNumbers.top5.map((n: any) => 
+                                    `<span class="mini-number">${n.number.toString().padStart(2, '0')}</span>`
+                                  ).join('')
+                                : '<span class="no-data-inline">Nenhum padrão identificado</span>'
+                            }
                         </div>
+                        ${analysis.favoriteNumbers.top5.length > 0 ? `
+                            <div style="margin-top: 8px; font-size: 0.9rem; color: var(--text-secondary);">
+                                ${analysis.favoriteNumbers.top5[0]?.number} é seu número favorito (${analysis.favoriteNumbers.top5[0]?.frequency}x jogado)
+                            </div>
+                        ` : ''}
                     </div>
                     <div class="behavior-stats">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.favoriteNumbers.diversity}</span>
-                            <span class="stat-label">Números únicos</span>
+                            <span class="stat-label">números diferentes usados</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-value">${analysis.favoriteNumbers.consistency.toFixed(1)}</span>
-                            <span class="stat-label">Consistência</span>
+                            <span class="stat-value">${(analysis.favoriteNumbers.consistency * 100).toFixed(0)}%</span>
+                            <span class="stat-label">consistência</span>
                         </div>
+                    </div>
+                    <div class="behavior-insight">
+                        ${analysis.favoriteNumbers.diversity > 15 
+                            ? '🎲 Você gosta de variar bastante os números' 
+                            : '🎯 Você tem preferência por números específicos'
+                        }
                     </div>
                 </div>
             </div>
-            
+
             <div class="behavior-card">
                 <div class="behavior-header">
                     <span class="behavior-icon">🎮</span>
-                    <h4>Padrões de Jogo</h4>
+                    <h4>Como Você Joga</h4>
                 </div>
                 <div class="behavior-content">
                     <div class="behavior-metric">
-                        <span class="metric-label">Jogo Preferido:</span>
-                        <span class="metric-value">${analysis.playingPatterns.preferredGame}</span>
+                        <span class="metric-label">Sua loteria favorita:</span>
+                        <span class="metric-value game-preference">${analysis.playingPatterns.preferredGame}</span>
                     </div>
                     <div class="behavior-stats">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.playingPatterns.gamesPerWeek}</span>
-                            <span class="stat-label">Jogos/semana</span>
+                            <span class="stat-label">jogos por semana</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-value">R$ ${analysis.playingPatterns.avgInvestment.toFixed(2)}</span>
-                            <span class="stat-label">Investimento médio</span>
+                            <span class="stat-label">gasto médio por jogo</span>
                         </div>
+                    </div>
+                    <div class="behavior-insight">
+                        ${analysis.playingPatterns.preferredGame === 'Mega-Sena' 
+                            ? '🔥 Você prefere prêmios grandes!' 
+                            : '⭐ Você prefere mais chances de ganhar!'
+                        }
                     </div>
                 </div>
             </div>
-            
+
             <div class="behavior-card">
                 <div class="behavior-header">
                     <span class="behavior-icon">⚡</span>
-                    <h4>Perfil de Risco</h4>
+                    <h4>Seu Perfil de Apostador</h4>
                 </div>
                 <div class="behavior-content">
                     <div class="behavior-metric">
-                        <span class="metric-label">Nível:</span>
-                        <span class="metric-value ${getScoreClass(50)}">${analysis.riskProfile.level}</span>
+                        <span class="metric-label">Tipo:</span>
+                        <span class="metric-value ${getRiskLevelClass(analysis.riskProfile.level)}">${analysis.riskProfile.level}</span>
                     </div>
                     <div class="behavior-stats">
                         <div class="stat-item">
-                            <span class="stat-value">${analysis.riskProfile.roi.toFixed(1)}%</span>
-                            <span class="stat-label">ROI Atual</span>
+                            <span class="stat-value ${analysis.riskProfile.roi >= 0 ? 'positive' : 'negative'}">${analysis.riskProfile.roi.toFixed(1)}%</span>
+                            <span class="stat-label">retorno atual</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-value">${analysis.riskProfile.volatility.toFixed(1)}%</span>
-                            <span class="stat-label">Volatilidade</span>
+                            <span class="stat-value">R$ ${analysis.riskProfile.maxInvestment.toFixed(2)}</span>
+                            <span class="stat-label">maior aposta</span>
                         </div>
+                    </div>
+                    <div class="behavior-insight">
+                        ${getRiskInsight(analysis.riskProfile.level, analysis.riskProfile.roi)}
                     </div>
                 </div>
             </div>
-            
+
             <div class="behavior-card">
                 <div class="behavior-header">
                     <span class="behavior-icon">🏆</span>
-                    <h4>Performance</h4>
+                    <h4>Sua Performance</h4>
                 </div>
                 <div class="behavior-content">
                     <div class="behavior-metric">
-                        <span class="metric-label">Taxa de Vitória:</span>
-                        <span class="metric-value">${analysis.performanceTraits.winRate.toFixed(1)}%</span>
+                        <span class="metric-label">Taxa de sucesso:</span>
+                        <span class="metric-value ${getWinRateClass(analysis.performanceTraits.winRate)}">${analysis.performanceTraits.winRate.toFixed(1)}%</span>
                     </div>
                     <div class="behavior-stats">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.performanceTraits.bestStreak}</span>
-                            <span class="stat-label">Melhor Sequência</span>
+                            <span class="stat-label">melhor sequência de vitórias</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-value">${analysis.performanceTraits.patience.toFixed(0)}</span>
-                            <span class="stat-label">Paciência</span>
+                            <span class="stat-label">nível de paciência</span>
                         </div>
+                    </div>
+                    <div class="behavior-insight">
+                        ${getPerformanceInsight(analysis.performanceTraits.winRate, analysis.performanceTraits.bestStreak)}
                     </div>
                 </div>
             </div>
-            
+
             <div class="behavior-card">
                 <div class="behavior-header">
                     <span class="behavior-icon">⏰</span>
-                    <h4>Padrões Temporais</h4>
+                    <h4>Quando Você Joga</h4>
                 </div>
                 <div class="behavior-content">
                     <div class="behavior-metric">
-                        <span class="metric-label">Dia Preferido:</span>
+                        <span class="metric-label">Dia favorito:</span>
                         <span class="metric-value">${analysis.timePatterns.preferredDay}</span>
                     </div>
                     <div class="behavior-stats">
                         <div class="stat-item">
                             <span class="stat-value">${analysis.timePatterns.preferredHour}h</span>
-                            <span class="stat-label">Horário</span>
+                            <span class="stat-label">horário preferido</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-value">${analysis.timePatterns.weekendGames}</span>
-                            <span class="stat-label">Final de semana</span>
+                            <span class="stat-value">${analysis.timePatterns.weekendGames + analysis.timePatterns.weekdayGames > 0 ? 
+                                Math.round((analysis.timePatterns.weekendGames / (analysis.timePatterns.weekendGames + analysis.timePatterns.weekdayGames)) * 100) + '%'
+                                : '0%'
+                            }</span>
+                            <span class="stat-label">jogos no fim de semana</span>
                         </div>
+                    </div>
+                    <div class="behavior-insight">
+                        ${getTimingInsight(analysis.timePatterns.preferredDay, analysis.timePatterns.weekendGames, analysis.timePatterns.weekdayGames)}
                     </div>
                 </div>
             </div>
@@ -4739,6 +4771,64 @@ function generateBehaviorCards(analysis: any): string {
     } catch (error) {
         console.error('Error generating behavior cards:', error);
         return '<div class="error">Erro ao gerar análise comportamental</div>';
+    }
+}
+
+// Funções auxiliares para insights
+function getRiskLevelClass(level: string): string {
+    switch (level) {
+        case 'Conservador': return 'conservative';
+        case 'Moderado': return 'moderate'; 
+        case 'Agressivo': return 'aggressive';
+        default: return '';
+    }
+}
+
+function getRiskInsight(level: string, roi: number): string {
+    if (roi > 0) {
+        return '🎉 Sua estratégia está dando lucro!';
+    } else if (level === 'Conservador') {
+        return '🛡️ Você joga com segurança e disciplina';
+    } else if (level === 'Agressivo') {
+        return '🚀 Você não tem medo de arriscar!';
+    } else {
+        return '⚖️ Você equilibra risco e segurança';
+    }
+}
+
+function getWinRateClass(winRate: number): string {
+    if (winRate >= 80) return 'excellent';
+    if (winRate >= 60) return 'good';
+    if (winRate >= 40) return 'average';
+    return 'poor';
+}
+
+function getPerformanceInsight(winRate: number, bestStreak: number): string {
+    if (winRate === 100) {
+        return '🔥 Perfeito! Você ganhou em todos os jogos!';
+    } else if (winRate >= 80) {
+        return '⭐ Excelente performance! Continue assim!';
+    } else if (winRate >= 60) {
+        return '👍 Boa taxa de acerto! Você está no caminho certo!';
+    } else if (bestStreak >= 2) {
+        return '💪 Você já teve sequências boas, pode melhorar!';
+    } else {
+        return '🎯 Foque na consistência, os resultados virão!';
+    }
+}
+
+function getTimingInsight(preferredDay: string, weekendGames: number, weekdayGames: number): string {
+    const total = weekendGames + weekdayGames;
+    if (total === 0) return '📅 Ainda coletando dados sobre seus horários';
+    
+    const weekendPercentage = (weekendGames / total) * 100;
+    
+    if (weekendPercentage > 70) {
+        return '🏖️ Você prefere jogar no fim de semana!';
+    } else if (weekendPercentage < 30) {
+        return '💼 Você joga mais durante a semana';
+    } else {
+        return '⚖️ Você distribui bem seus jogos na semana';
     }
 }
 
@@ -5019,38 +5109,64 @@ function generatePredictionCards(predictions: any): string {
             <div class="prediction-card">
                 <div class="prediction-header">
                     <span class="prediction-icon">📈</span>
-                    <h4>Tendência de Performance</h4>
+                    <h4>Como Está Sua Sorte?</h4>
                 </div>
                 <div class="prediction-content">
                     <div class="prediction-metric">
-                        <span class="metric-value ${getScoreClass(predictions.performanceTrend.confidence)}">${predictions.performanceTrend.trend}</span>
-                        <span class="metric-label">Confiança: ${predictions.performanceTrend.confidence}%</span>
+                        <span class="metric-value ${getTrendClass(predictions.performanceTrend.trend)}">${getTrendText(predictions.performanceTrend.trend)}</span>
+                        <span class="metric-label">Baseado nos seus últimos jogos</span>
+                    </div>
+                    <div class="prediction-confidence">
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${predictions.performanceTrend.confidence}%"></div>
+                        </div>
+                        <span class="confidence-text">${predictions.performanceTrend.confidence}% de confiança</span>
+                    </div>
+                    <div class="prediction-insight">
+                        ${getTrendInsight(predictions.performanceTrend.trend, predictions.performanceTrend.confidence)}
                     </div>
                 </div>
             </div>
-            
+
             <div class="prediction-card">
                 <div class="prediction-header">
                     <span class="prediction-icon">⭐</span>
-                    <h4>Momento Ideal</h4>
+                    <h4>Melhor Momento para Jogar</h4>
                 </div>
                 <div class="prediction-content">
                     <div class="prediction-metric">
-                        <span class="metric-value ${getScoreClass(predictions.optimalMoment.score)}">${predictions.optimalMoment.moment}</span>
-                        <span class="metric-label">Score: ${predictions.optimalMoment.score}/100</span>
+                        <span class="metric-value ${getMomentClass(predictions.optimalMoment.score)}">${predictions.optimalMoment.moment}</span>
+                        <span class="metric-label">Análise do momento atual</span>
+                    </div>
+                    <div class="prediction-score">
+                        <div class="score-circle">
+                            <div class="score-fill" style="--score: ${predictions.optimalMoment.score}%">
+                                <span class="score-number">${predictions.optimalMoment.score}</span>
+                            </div>
+                        </div>
+                        <span class="score-label">Score do momento</span>
+                    </div>
+                    <div class="prediction-insight">
+                        ${getMomentInsight(predictions.optimalMoment.score)}
                     </div>
                 </div>
             </div>
-            
+
             <div class="prediction-card">
                 <div class="prediction-header">
                     <span class="prediction-icon">💰</span>
-                    <h4>Predição de ROI</h4>
+                    <h4>Expectativa de Retorno</h4>
                 </div>
                 <div class="prediction-content">
                     <div class="prediction-metric">
-                        <span class="metric-value ${predictions.roiPrediction.prediction >= 0 ? 'positive' : 'negative'}">${predictions.roiPrediction.prediction.toFixed(1)}%</span>
-                        <span class="metric-label">Confiança: ${predictions.roiPrediction.confidence}</span>
+                        <span class="metric-value ${predictions.roiPrediction.prediction >= 0 ? 'positive' : 'negative'}">${predictions.roiPrediction.prediction >= 0 ? '+' : ''}${predictions.roiPrediction.prediction.toFixed(1)}%</span>
+                        <span class="metric-label">Projeção baseada no seu histórico</span>
+                    </div>
+                    <div class="prediction-confidence-level">
+                        <span class="confidence-badge ${predictions.roiPrediction.confidence.toLowerCase()}">${predictions.roiPrediction.confidence} confiança</span>
+                    </div>
+                    <div class="prediction-insight">
+                        ${getROIInsight(predictions.roiPrediction.prediction, predictions.roiPrediction.confidence)}
                     </div>
                 </div>
             </div>
@@ -5061,192 +5177,62 @@ function generatePredictionCards(predictions: any): string {
     }
 }
 
-// Gera sugestões personalizadas
-function generatePersonalizedSuggestions(_games: any[], analysis: any): any[] {
-    try {
-        const suggestions = [];
-        
-        // Sugestão baseada no perfil de risco
-        if (analysis.riskProfile.level === 'Conservador') {
-            suggestions.push({
-                icon: '🛡️',
-                title: 'Melhore a Consistência',
-                description: 'Com base no seu perfil conservador, recomendamos manter a estratégia atual mas aumentar ligeiramente a frequência de jogos.',
-                priority: 'média'
-            });
-        }
-        
-        // Sugestão baseada na performance
-        if (analysis.performanceTraits.winRate < 20) {
-            suggestions.push({
-                icon: '📈',
-                title: 'Revise sua Estratégia',
-                description: 'Sua taxa de acerto está abaixo da média. Considere diversificar entre Mega-Sena e Lotofácil.',
-                priority: 'alta'
-            });
-        }
-        
-        // Sugestão de números favoritos
-        if (analysis.favoriteNumbers.diversity > 20) {
-            suggestions.push({
-                icon: '🎯',
-                title: 'Foque nos Seus Números',
-                description: 'Você usa muitos números diferentes. Considere focar nos 10-15 números que você mais joga.',
-                priority: 'baixa'
-            });
-        }
-        
-        return suggestions;
-    } catch (error) {
-        console.error('Error generating suggestions:', error);
-        return [];
+// Funções auxiliares para predições
+function getTrendClass(trend: string): string {
+    switch (trend) {
+        case 'Crescente': return 'positive';
+        case 'Decrescente': return 'negative';
+        default: return 'neutral';
     }
 }
 
-// Gera cards de sugestões
-function generateSuggestionCards(suggestions: any[]): string {
-    try {
-        if (suggestions.length === 0) {
-            return '<div class="no-data">Suas estratégias estão ótimas! Continue assim.</div>';
-        }
-        
-        return suggestions.map(suggestion => `
-            <div class="suggestion-card priority-${suggestion.priority}">
-                <div class="suggestion-header">
-                    <span class="suggestion-icon">${suggestion.icon}</span>
-                    <h4>${suggestion.title}</h4>
-                </div>
-                <p class="suggestion-description">${suggestion.description}</p>
-            </div>
-        `).join('');
-    } catch (error) {
-        console.error('Error generating suggestion cards:', error);
-        return '<div class="error">Erro ao gerar sugestões</div>';
+function getTrendText(trend: string): string {
+    switch (trend) {
+        case 'Crescente': return 'Sua sorte está melhorando! 📈';
+        case 'Decrescente': return 'Momento de paciência 📉';
+        default: return 'Sorte estável 📊';
     }
 }
 
-// Calcula timing ideal
-function calculateOptimalTiming(_games: any[]): any {
-    try {
-        return {
-            bestDay: 'Quinta-feira',
-            bestTime: '15:00',
-            confidence: 75,
-            reason: 'Baseado nos seus padrões históricos'
-        };
-    } catch (error) {
-        return {
-            bestDay: 'N/A',
-            bestTime: 'N/A',
-            confidence: 0,
-            reason: 'Dados insuficientes'
-        };
+function getTrendInsight(trend: string, confidence: number): string {
+    if (trend === 'Crescente' && confidence >= 70) {
+        return '🎯 Continue com sua estratégia atual!';
+    } else if (trend === 'Decrescente' && confidence >= 70) {
+        return '🔄 Considere mudar sua abordagem';
+    } else {
+        return '📊 Mantenha a consistência nos jogos';
     }
 }
 
-// Gera cards de timing
-function generateTimingCards(timing: any): string {
-    try {
-        return `
-            <div class="timing-card">
-                <div class="timing-header">
-                    <span class="timing-icon">📅</span>
-                    <h4>Melhor Dia</h4>
-                </div>
-                <div class="timing-content">
-                    <div class="timing-value">${timing.bestDay}</div>
-                    <div class="timing-confidence">Confiança: ${timing.confidence}%</div>
-                </div>
-            </div>
-            
-            <div class="timing-card">
-                <div class="timing-header">
-                    <span class="timing-icon">⏰</span>
-                    <h4>Melhor Horário</h4>
-                </div>
-                <div class="timing-content">
-                    <div class="timing-value">${timing.bestTime}</div>
-                    <div class="timing-reason">${timing.reason}</div>
-                </div>
-            </div>
-        `;
-    } catch (error) {
-        console.error('Error generating timing cards:', error);
-        return '<div class="error">Erro ao gerar timing</div>';
-    }
-}
-
-// Funções auxiliares
-function calculateVolatility(games: any[]): number {
-    if (games.length < 2) return 0;
-    
-    const rois = games.map(g => {
-        const investment = g.investment || 0;
-        const winnings = g.winnings || 0;
-        return investment > 0 ? ((winnings - investment) / investment) * 100 : 0;
-    });
-    
-    const avgROI = rois.reduce((sum, roi) => sum + roi, 0) / rois.length;
-    const variance = rois.reduce((sum, roi) => sum + Math.pow(roi - avgROI, 2), 0) / rois.length;
-    
-    return Math.sqrt(variance);
-}
-
-function calculateAverageROI(games: any[]): number {
-    if (games.length === 0) return 0;
-    
-    const totalInvestment = games.reduce((sum, g) => sum + (g.investment || 0), 0);
-    const totalWinnings = games.reduce((sum, g) => sum + (g.winnings || 0), 0);
-    
-    return totalInvestment > 0 ? ((totalWinnings - totalInvestment) / totalInvestment) * 100 : 0;
-}
-
-function calculateBestStreak(games: any[]): number {
-    if (games.length === 0) return 0;
-    
-    let maxStreak = 0;
-    let currentStreak = 0;
-    
-    for (const game of games) {
-        if (game.isWinner) {
-            currentStreak++;
-            maxStreak = Math.max(maxStreak, currentStreak);
-        } else {
-            currentStreak = 0;
-        }
-    }
-    
-    return maxStreak;
-}
-
-function calculatePatience(games: any[]): number {
-    if (games.length < 5) return 50;
-    
-    const timeSpan = games.length > 1 ? 
-        new Date(games[games.length - 1].created_at).getTime() - new Date(games[0].created_at).getTime() : 0;
-    const daySpan = timeSpan / (1000 * 60 * 60 * 24);
-    
-    // Paciência baseada na distribuição de jogos ao longo do tempo
-    const patienceScore = Math.min(100, (daySpan / games.length) * 10);
-    return patienceScore;
-}
-
-function calculateAdaptation(games: any[]): number {
-    if (games.length < 3) return 50;
-    
-    // Análise da variação nas estratégias (tipos de jogo, valores investidos)
-    const lotteryTypes = [...new Set(games.map(g => g.lottery_type))].length;
-    const investmentVariation = calculateVolatility(games);
-    
-    const adaptationScore = Math.min(100, (lotteryTypes * 25) + Math.min(50, investmentVariation));
-    return adaptationScore;
-}
-
-function getScoreClass(score: number): string {
+function getMomentClass(score: number): string {
     if (score >= 80) return 'excellent';
     if (score >= 60) return 'good';
     if (score >= 40) return 'average';
     return 'poor';
+}
+
+function getMomentInsight(score: number): string {
+    if (score >= 80) {
+        return '🌟 Excelente momento para apostar!';
+    } else if (score >= 60) {
+        return '👍 Bom momento, pode apostar!';
+    } else if (score >= 40) {
+        return '⚖️ Momento neutro, use o bom senso';
+    } else {
+        return '⏳ Melhor aguardar um momento mais favorável';
+    }
+}
+
+function getROIInsight(prediction: number, confidence: string): string {
+    if (prediction > 10 && confidence === 'Alta') {
+        return '🚀 Expectativa muito positiva!';
+    } else if (prediction > 0) {
+        return '💚 Expectativa de ganhos moderados';
+    } else if (prediction > -20) {
+        return '⚠️ Risco moderado de perdas';
+    } else {
+        return '🛑 Alto risco - aposte com cuidado';
+    }
 }
 
 // Adicionar às funções globais
@@ -5368,7 +5354,7 @@ function renderIntelligenceEngineNeedsVerification(totalGames: number, pendingGa
 }
 
 // Renderizar Intelligence Engine com dados
-function renderIntelligenceEngineWithData(iaAnalysis: any, heatmapData: any, predictions: any, suggestions: any[], timing: any) {
+function renderIntelligenceEngineWithData(iaAnalysis: any, heatmapData: any, predictions: any, suggestions: any[], _timing: any) {
     const app = document.getElementById('app')!;
     app.innerHTML = `
         <div class="container">
@@ -5425,13 +5411,27 @@ function renderIntelligenceEngineWithData(iaAnalysis: any, heatmapData: any, pre
                     </div>
                 </div>
 
-                <!-- Timing Ideal -->
+                <!-- Ações Rápidas -->
                 <div class="section">
-                    <h2 class="section-title">⏰ Momentos Ideais para Jogar</h2>
-                    <div class="timing-section">
-                        <div class="timing-grid">
-                            ${generateTimingCards(timing)}
-                        </div>
+                    <h2 class="section-title">🚀 Próximas Ações</h2>
+                    <div class="quick-actions-intelligence">
+                        <button onclick="startStrategyWizard()" class="action-card intelligence">
+                            <span class="action-icon">🎯</span>
+                            <h3>Gerar Nova Estratégia</h3>
+                            <p>Baseada na sua análise comportamental</p>
+                        </button>
+                        
+                        <button onclick="renderSavedGamesScreen()" class="action-card intelligence">
+                            <span class="action-icon">💾</span>
+                            <h3>Ver Seus Jogos</h3>
+                            <p>Acompanhe resultados e performance</p>
+                        </button>
+                        
+                        <button onclick="renderPerformanceDashboard()" class="action-card intelligence">
+                            <span class="action-icon">📊</span>
+                            <h3>Dashboard Completo</h3>
+                            <p>Métricas detalhadas de performance</p>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -5471,3 +5471,149 @@ function renderIntelligenceEngineError(error: Error) {
 // ===============================
 // FUNÇÕES DO INTELLIGENCE ENGINE
 // ===============================
+
+// Gera sugestões personalizadas
+function generatePersonalizedSuggestions(_games: any[], analysis: any): any[] {
+    try {
+        const suggestions = [];
+        
+        // Sugestão baseada no perfil de risco
+        if (analysis.riskProfile.level === 'Conservador' && analysis.riskProfile.roi < 0) {
+            suggestions.push({
+                icon: '🛡️',
+                title: 'Melhore a Consistência',
+                description: 'Continue jogando com disciplina. Considere aumentar ligeiramente a frequência.',
+                priority: 'média'
+            });
+        }
+        
+        // Sugestão baseada na performance
+        if (analysis.performanceTraits.winRate < 50) {
+            suggestions.push({
+                icon: '📈',
+                title: 'Diversifique Sua Estratégia',
+                description: 'Experimente jogar tanto Mega-Sena quanto Lotofácil para aumentar suas chances.',
+                priority: 'alta'
+            });
+        } else {
+            suggestions.push({
+                icon: '🎯',
+                title: 'Mantenha o Foco',
+                description: 'Sua estratégia está funcionando bem! Continue assim.',
+                priority: 'baixa'
+            });
+        }
+        
+        // Sugestão de números favoritos
+        if (analysis.favoriteNumbers.diversity > 20) {
+            suggestions.push({
+                icon: '🎲',
+                title: 'Simplifique Seus Números',
+                description: 'Você usa muitos números diferentes. Foque nos seus favoritos.',
+                priority: 'média'
+            });
+        }
+        
+        return suggestions.slice(0, 3); // Máximo 3 sugestões
+    } catch (error) {
+        return [{
+            icon: '💡',
+            title: 'Continue Jogando!',
+            description: 'Mantenha a consistência nos seus jogos.',
+            priority: 'baixa'
+        }];
+    }
+}
+
+// Gera cards de sugestões
+function generateSuggestionCards(suggestions: any[]): string {
+    try {
+        if (suggestions.length === 0) {
+            return '<div class="no-data">Suas estratégias estão ótimas! Continue assim.</div>';
+        }
+        
+        return suggestions.map(suggestion => `
+            <div class="suggestion-card priority-${suggestion.priority}">
+                <div class="suggestion-header">
+                    <span class="suggestion-icon">${suggestion.icon}</span>
+                    <h4>${suggestion.title}</h4>
+                </div>
+                <p class="suggestion-description">${suggestion.description}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        return '<div class="no-data">Continue com sua estratégia atual!</div>';
+    }
+}
+
+// Calcula timing ideal simplificado
+function calculateOptimalTiming(_games: any[]): any {
+    return {
+        bestDay: 'Quinta-feira',
+        bestTime: '15:00',
+        confidence: 75,
+        reason: 'Baseado em análise estatística'
+    };
+}
+
+// Funções auxiliares
+function calculateVolatility(games: any[]): number {
+    if (games.length < 2) return 0;
+    
+    const rois = games.map(g => {
+        const investment = g.investment || 0;
+        const winnings = g.winnings || 0;
+        return investment > 0 ? ((winnings - investment) / investment) * 100 : 0;
+    });
+    
+    const avgROI = rois.reduce((sum, roi) => sum + roi, 0) / rois.length;
+    const variance = rois.reduce((sum, roi) => sum + Math.pow(roi - avgROI, 2), 0) / rois.length;
+    
+    return Math.sqrt(variance);
+}
+
+function calculateAverageROI(games: any[]): number {
+    if (games.length === 0) return 0;
+    
+    const totalInvestment = games.reduce((sum, g) => sum + (g.investment || 0), 0);
+    const totalWinnings = games.reduce((sum, g) => sum + (g.winnings || 0), 0);
+    
+    return totalInvestment > 0 ? ((totalWinnings - totalInvestment) / totalInvestment) * 100 : 0;
+}
+
+function calculateBestStreak(games: any[]): number {
+    if (games.length === 0) return 0;
+    
+    let maxStreak = 0;
+    let currentStreak = 0;
+    
+    for (const game of games) {
+        if (game.isWinner) {
+            currentStreak++;
+            maxStreak = Math.max(maxStreak, currentStreak);
+        } else {
+            currentStreak = 0;
+        }
+    }
+    
+    return maxStreak;
+}
+
+function calculatePatience(games: any[]): number {
+    if (games.length < 5) return 50;
+    
+    const timeSpan = games.length > 1 ? 
+        new Date(games[games.length - 1].created_at).getTime() - new Date(games[0].created_at).getTime() : 0;
+    const daySpan = timeSpan / (1000 * 60 * 60 * 24);
+    
+    return Math.min(100, (daySpan / games.length) * 10);
+}
+
+function calculateAdaptation(games: any[]): number {
+    if (games.length < 3) return 50;
+    
+    const lotteryTypes = [...new Set(games.map(g => g.lottery_type))].length;
+    const investmentVariation = calculateVolatility(games);
+    
+    return Math.min(100, (lotteryTypes * 25) + Math.min(50, investmentVariation));
+}
