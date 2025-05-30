@@ -187,89 +187,108 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 
 		// SEM FALLBACK! Retornar erro para o usuário tentar novamente
 		return nil, fmt.Errorf("erro no parsing da resposta do Claude - tente gerar novamente")
-	} else {
-		// Validate parsed strategy
-		if analysisResp.Strategy.Games == nil || len(analysisResp.Strategy.Games) == 0 {
-			logs.LogAI("⚠️ JSON parseado mas sem jogos válidos")
-			return nil, fmt.Errorf("estratégia inválida gerada pelo Claude - tente novamente")
-		} else {
-			// VALIDAÇÃO DE DIVERSIFICAÇÃO CRÍTICA
-			if !validateDiversification(analysisResp.Strategy.Games) {
-				logs.LogAI("🔄 Estratégia falhou na validação de diversificação, tentando novamente...")
+	}
 
-				// Retry até 5 vezes mais para conseguir diversificação correta
-				maxRetries := 5
-				bestStrategy := analysisResp // Manter a melhor estratégia gerada
+	// Validate parsed strategy
+	if analysisResp.Strategy.Games == nil || len(analysisResp.Strategy.Games) == 0 {
+		logs.LogAI("⚠️ JSON parseado mas sem jogos válidos")
+		return nil, fmt.Errorf("estratégia inválida gerada pelo Claude - tente novamente")
+	}
 
-				for retry := 0; retry < maxRetries; retry++ {
-					logs.LogAI("🔄 Tentativa %d/%d para diversificação correta...", retry+1, maxRetries)
+	// VALIDAÇÃO CRÍTICA: Verificar se todos os jogos têm números mínimos
+	for i, game := range analysisResp.Strategy.Games {
+		var minNumbers int
+		if game.Type == "lotofacil" {
+			minNumbers = 15
+		} else if game.Type == "megasena" {
+			minNumbers = 6
+		}
 
-					// Gerar nova estratégia
-					newPrompt := c.buildAnalysisPrompt(request)
-					newClaudeReq := ClaudeRequest{
-						Model:     c.model,
-						MaxTokens: c.maxTokens,
-						Messages: []Message{
-							{
-								Role:    "user",
-								Content: newPrompt,
-							},
-						},
-					}
+		if len(game.Numbers) < minNumbers {
+			logs.LogError(logs.CategoryAI, "❌ ERRO CRÍTICO: Jogo %d (%s) tem apenas %d números, mínimo é %d",
+				i+1, game.Type, len(game.Numbers), minNumbers)
+			logs.LogAI("🎲 Jogo inválido: %v", game.Numbers)
+			return nil, fmt.Errorf("IA gerou jogo inválido: %s com apenas %d números (mínimo: %d)",
+				game.Type, len(game.Numbers), minNumbers)
+		}
 
-					newReqBody, _ := json.Marshal(newClaudeReq)
-					newReq, _ := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(newReqBody))
-					newReq.Header.Set("Content-Type", "application/json")
-					newReq.Header.Set("x-api-key", c.apiKey)
-					newReq.Header.Set("anthropic-version", "2023-06-01")
+		logs.LogAI("✅ Jogo %d validado: %s com %d números", i+1, game.Type, len(game.Numbers))
+	}
 
-					newResp, err := c.httpClient.Do(newReq)
-					if err != nil {
-						continue
-					}
-					defer newResp.Body.Close()
+	if !validateDiversification(analysisResp.Strategy.Games) {
+		logs.LogAI("🔄 Estratégia falhou na validação de diversificação, tentando novamente...")
 
-					if newResp.StatusCode != http.StatusOK {
-						continue
-					}
+		// Retry até 5 vezes mais para conseguir diversificação correta
+		maxRetries := 5
+		bestStrategy := analysisResp // Manter a melhor estratégia gerada
 
-					var newClaudeResp ClaudeResponse
-					if err := json.NewDecoder(newResp.Body).Decode(&newClaudeResp); err != nil {
-						continue
-					}
+		for retry := 0; retry < maxRetries; retry++ {
+			logs.LogAI("🔄 Tentativa %d/%d para diversificação correta...", retry+1, maxRetries)
 
-					if len(newClaudeResp.Content) == 0 {
-						continue
-					}
+			// Gerar nova estratégia
+			newPrompt := c.buildAnalysisPrompt(request)
+			newClaudeReq := ClaudeRequest{
+				Model:     c.model,
+				MaxTokens: c.maxTokens,
+				Messages: []Message{
+					{
+						Role:    "user",
+						Content: newPrompt,
+					},
+				},
+			}
 
-					newJsonContent := extractJSON(newClaudeResp.Content[0].Text)
-					var newAnalysisResp lottery.AnalysisResponse
+			newReqBody, _ := json.Marshal(newClaudeReq)
+			newReq, _ := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(newReqBody))
+			newReq.Header.Set("Content-Type", "application/json")
+			newReq.Header.Set("x-api-key", c.apiKey)
+			newReq.Header.Set("anthropic-version", "2023-06-01")
 
-					if err := json.Unmarshal([]byte(newJsonContent), &newAnalysisResp); err == nil {
-						if validateDiversification(newAnalysisResp.Strategy.Games) {
-							logs.LogAI("✅ Diversificação correta conseguida na tentativa %d!", retry+1)
-							analysisResp = newAnalysisResp
-							break
-						} else {
-							// Manter a estratégia com melhor orçamento/qualidade
-							if newAnalysisResp.Strategy.TotalCost > bestStrategy.Strategy.TotalCost {
-								bestStrategy = newAnalysisResp
-								logs.LogAI("💡 Nova melhor estratégia encontrada: R$ %.2f", newAnalysisResp.Strategy.TotalCost)
-							}
-						}
+			newResp, err := c.httpClient.Do(newReq)
+			if err != nil {
+				continue
+			}
+			defer newResp.Body.Close()
+
+			if newResp.StatusCode != http.StatusOK {
+				continue
+			}
+
+			var newClaudeResp ClaudeResponse
+			if err := json.NewDecoder(newResp.Body).Decode(&newClaudeResp); err != nil {
+				continue
+			}
+
+			if len(newClaudeResp.Content) == 0 {
+				continue
+			}
+
+			newJsonContent := extractJSON(newClaudeResp.Content[0].Text)
+			var newAnalysisResp lottery.AnalysisResponse
+
+			if err := json.Unmarshal([]byte(newJsonContent), &newAnalysisResp); err == nil {
+				if validateDiversification(newAnalysisResp.Strategy.Games) {
+					logs.LogAI("✅ Diversificação correta conseguida na tentativa %d!", retry+1)
+					analysisResp = newAnalysisResp
+					break
+				} else {
+					// Manter a estratégia com melhor orçamento/qualidade
+					if newAnalysisResp.Strategy.TotalCost > bestStrategy.Strategy.TotalCost {
+						bestStrategy = newAnalysisResp
+						logs.LogAI("💡 Nova melhor estratégia encontrada: R$ %.2f", newAnalysisResp.Strategy.TotalCost)
 					}
 				}
-
-				// Se não conseguiu diversificação perfeita, usar a MELHOR estratégia do Claude
-				if !validateDiversification(analysisResp.Strategy.Games) {
-					logs.LogAI("💪 Usando MELHOR estratégia Claude (sem fallback!): R$ %.2f - Qualidade superior!", bestStrategy.Strategy.TotalCost)
-					analysisResp = bestStrategy
-					analysisResp.Confidence = analysisResp.Confidence * 0.9 // Reduzir confiança ligeiramente
-				}
-			} else {
-				logs.LogAI("✅ JSON parseado com sucesso: %d jogos gerados", len(analysisResp.Strategy.Games))
 			}
 		}
+
+		// Se não conseguiu diversificação perfeita, usar a MELHOR estratégia do Claude
+		if !validateDiversification(analysisResp.Strategy.Games) {
+			logs.LogAI("💪 Usando MELHOR estratégia Claude (sem fallback!): R$ %.2f - Qualidade superior!", bestStrategy.Strategy.TotalCost)
+			analysisResp = bestStrategy
+			analysisResp.Confidence = analysisResp.Confidence * 0.9 // Reduzir confiança ligeiramente
+		}
+	} else {
+		logs.LogAI("✅ JSON parseado com sucesso: %d jogos gerados", len(analysisResp.Strategy.Games))
 	}
 
 	if config.IsVerbose() {
@@ -604,6 +623,13 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
 7. Distância de Hamming entre jogos ≥8
 8. Soma de cada jogo dentro da faixa histórica
 9. Distribuição balanceada por quadrantes/décadas
+
+🚨 VALIDAÇÃO FINAL OBRIGATÓRIA ANTES DE RETORNAR:
+ANTES de retornar o JSON, VERIFIQUE CADA JOGO:
+- Lotofácil: CONTE os números - deve ter EXATAMENTE 15, 16, 17, 18, 19 ou 20 números
+- Mega-Sena: CONTE os números - deve ter EXATAMENTE 6, 7, 8, 9, 10, 11 ou 12 números
+- SE algum jogo tiver menos números que o mínimo, ADICIONE números aleatórios válidos
+- NUNCA retorne um jogo com números insuficientes!
 
 Use SOMENTE os dados estatísticos fornecidos + filtros matemáticos avançados. Esta é a estratégia de ESPECIALISTAS MUNDIAIS!`,
 		budget, statisticalAnalysis, budget, len(request.Draws))

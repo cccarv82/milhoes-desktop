@@ -19,6 +19,7 @@ import (
 	"lottery-optimizer-gui/internal/models"
 	"lottery-optimizer-gui/internal/notifications"
 	"lottery-optimizer-gui/internal/services"
+	"lottery-optimizer-gui/internal/strategy"
 	"lottery-optimizer-gui/internal/updater"
 
 	"gopkg.in/yaml.v3"
@@ -490,16 +491,19 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 		}
 	}
 
-	// TEMPORÁRIO: Pular validação para debug - usar estratégia da IA diretamente
-	validatedStrategy := &response.Strategy
+	// VALIDAÇÃO OBRIGATÓRIA: Validar e ajustar estratégia da IA
+	customLogger.Printf("🔍 Validando estratégia da IA...")
+	validatedStrategy := strategy.ValidateAndAdjustStrategy(&response.Strategy, *internalPrefs)
 
-	// Recalcular totalCost corretamente baseado nos jogos individuais
-	// (corrige erro da IA que às vezes retorna totalCost incorreto)
+	// Recalcular totalCost corretamente baseado nos jogos validados
 	totalCost := 0.0
 	for _, game := range validatedStrategy.Games {
 		totalCost += game.Cost
 	}
 	validatedStrategy.TotalCost = totalCost
+
+	// Log após validação
+	customLogger.Printf("✅ Após validação: %d jogos válidos com custo total R$ %.2f", len(validatedStrategy.Games), validatedStrategy.TotalCost)
 
 	// VALIDAÇÃO CRÍTICA: Garantir que não excede o orçamento
 	if totalCost > internalPrefs.Budget {
