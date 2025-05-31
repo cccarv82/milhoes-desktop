@@ -1,0 +1,22 @@
+2025/05/30 18:01:38.965540 🚀 =================================
+2025/05/30 18:01:38.965540 🚀 LOTTERY OPTIMIZER v1.1.3 INICIADO
+2025/05/30 18:01:38.965540 🚀 Sistema de Atualização Silenciosa ATIVO
+2025/05/30 18:01:38.966545 🚀 =================================
+2025/05/30 18:01:38.966545 📁 Diretório de logs: D:\dev\milhoes\logs
+2025/05/30 18:01:38.966545 📝 Arquivo de log: D:\dev\milhoes\logs\lottery-optimizer-2025-05-30.log
+2025/05/30 18:01:38.967245 🧪 TESTE DE LOGGING - Se você está vendo isso, o sistema funciona!
+2025/05/30 18:01:38.967938 🧪 TESTE PÓS-INICIALIZAÇÃO - NewApp iniciado com logging funcional
+2025/05/30 18:01:38.968633 🔧 CARREGANDO CONFIGURAÇÃO EXISTENTE NA INICIALIZAÇÃO...
+2025/05/30 18:01:38.969327 🔍 getConfigPath iniciado - procurando por: lottery-optimizer.yaml
+2025/05/30 18:01:38.969327 📁 ESTRATÉGIA 1 - UserConfigDir: C:\Users\carlo\AppData\Roaming, err: <nil>
+2025/05/30 18:01:38.969327 📁 Tentando APPDATA: C:\Users\carlo\AppData\Roaming\lottery-optimizer\lottery-optimizer.yaml
+2025/05/30 18:01:38.970021 ✅ Diretório APPDATA criado/existe: C:\Users\carlo\AppData\Roaming\lottery-optimizer
+2025/05/30 18:01:38.970021 ✅ APPDATA é writável - usando: C:\Users\carlo\AppData\Roaming\lottery-optimizer\lottery-optimizer.yaml
+2025/05/30 18:01:38.970021 ✅ Arquivo já existe em APPDATA
+2025/05/30 18:01:38.970021 📁 Verificando configuração em: C:\Users\carlo\AppData\Roaming\lottery-optimizer\lottery-optimizer.yaml
+2025/05/30 18:01:38.971527 ✅ Arquivo de configuração encontrado, carregando...
+2025/05/30 18:01:38.971527 📖 Arquivo lido (229 bytes)
+2025/05/30 18:01:38.972544 ✅ CONFIGURAÇÃO CARREGADA: APIKey length=108, Model=claude-opus-4-20250514, MaxTokens=8000
+2025/05/30 18:01:38.973555 📁 Inicializando banco de dados em: D:\dev\milhoes\data\saved_games.db
+2025/05/30 18:01:38.996026 ✅ Banco de jogos salvos inicializado com sucesso!
+2025/05/30 18:01:38.996807 ✅ Verificador de resultados inicializado e agendado!

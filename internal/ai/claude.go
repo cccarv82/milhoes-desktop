@@ -96,7 +96,7 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 	logs.LogAI("🔍 MaxTokens: %d", c.maxTokens)
 	logs.LogAI("🔍 BaseURL: %s", c.baseURL)
 
-	prompt := c.buildAnalysisPrompt(request)
+	prompt := c.BuildAnalysisPrompt(request)
 
 	claudeReq := ClaudeRequest{
 		Model:     c.model,
@@ -314,7 +314,7 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 					logs.LogAI("🔄 Tentativa %d/%d para diversificação correta...", retry+1, maxRetries)
 
 					// Gerar nova estratégia
-					newPrompt := c.buildAnalysisPrompt(request)
+					newPrompt := c.BuildAnalysisPrompt(request)
 					newClaudeReq := ClaudeRequest{
 						Model:     c.model,
 						MaxTokens: c.maxTokens,
@@ -406,58 +406,56 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 	var games []lottery.Game
 	totalCost := 0.0
 
-	logs.LogAI("🔄 Gerando estratégia fallback para orçamento R$ %.2f", budget)
+	logs.LogAI("🔄 Gerando estratégia fallback INTELIGENTE para orçamento R$ %.2f", budget)
 
-	// Generate simple games based on budget and preferences
-	for _, lotteryType := range request.Preferences.LotteryTypes {
-		if lotteryType == lottery.MegaSena && budget-totalCost >= 5 {
-			remainingBudget := budget - totalCost
+	// ESTRATÉGIA INTELIGENTE: Analisar qual opção maximiza combinações
+	targetBudget := budget * 0.85 // Usar 85% do orçamento
 
-			if remainingBudget >= 140 { // Can afford 8 numbers
-				numbers := []int{1, 7, 15, 23, 35, 42, 48, 58}
-				cost := lottery.CalculateGameCost(lottery.MegaSena, len(numbers))
-				games = append(games, lottery.Game{
-					Type:    lottery.MegaSena,
-					Numbers: numbers,
-					Cost:    cost,
-				})
-				totalCost += cost
-			} else if remainingBudget >= 35 { // Can afford 7 numbers
-				numbers := []int{7, 15, 23, 35, 42, 48, 58}
-				cost := lottery.CalculateGameCost(lottery.MegaSena, len(numbers))
-				games = append(games, lottery.Game{
-					Type:    lottery.MegaSena,
-					Numbers: numbers,
-					Cost:    cost,
-				})
-				totalCost += cost
-			} else if remainingBudget >= 5 { // Simple 6 numbers
-				numbers := []int{7, 15, 23, 35, 42, 58}
-				cost := lottery.CalculateGameCost(lottery.MegaSena, len(numbers))
-				games = append(games, lottery.Game{
-					Type:    lottery.MegaSena,
-					Numbers: numbers,
-					Cost:    cost,
-				})
-				totalCost += cost
+	// Analisar opções matemáticas para Lotofácil
+	options := []struct {
+		numbers      int
+		cost         float64
+		combinations int
+		description  string
+	}{
+		{15, 3.00, 1, "15 números"},
+		{16, 48.00, 16, "16 números"},
+		{17, 408.00, 136, "17 números"},
+		{18, 2448.00, 816, "18 números"},
+	}
+
+	bestOption := options[0]
+	maxCombinations := 0
+
+	// Encontrar a opção que maximiza combinações dentro do orçamento
+	for _, option := range options {
+		if option.cost <= targetBudget {
+			possibleGames := int(targetBudget / option.cost)
+			totalCombinations := possibleGames * option.combinations
+
+			logs.LogAI("📊 Opção %s: %d jogos × %d combinações = %d combinações totais (R$ %.2f)",
+				option.description, possibleGames, option.combinations, totalCombinations, float64(possibleGames)*option.cost)
+
+			if totalCombinations > maxCombinations {
+				maxCombinations = totalCombinations
+				bestOption = option
 			}
 		}
+	}
 
-		if lotteryType == lottery.Lotofacil && budget-totalCost >= 3 {
-			remainingBudget := budget - totalCost
+	// Gerar jogos com a melhor opção encontrada
+	for _, lotteryType := range request.Preferences.LotteryTypes {
+		if lotteryType == lottery.Lotofacil {
+			gamesCount := int(targetBudget / bestOption.cost)
 
-			if remainingBudget >= 48 { // Can afford 16 numbers
-				numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+			logs.LogAI("🍀 ESTRATÉGIA ÓTIMA: %d jogos de %s = %d combinações totais (R$ %.2f)",
+				gamesCount, bestOption.description, gamesCount*bestOption.combinations, float64(gamesCount)*bestOption.cost)
+
+			for i := 0; i < gamesCount && totalCost+bestOption.cost <= budget; i++ {
+				// Gerar números baseado na quantidade otimizada
+				numbers := generateOptimizedLotofacilNumbers(bestOption.numbers, i)
 				cost := lottery.CalculateGameCost(lottery.Lotofacil, len(numbers))
-				games = append(games, lottery.Game{
-					Type:    lottery.Lotofacil,
-					Numbers: numbers,
-					Cost:    cost,
-				})
-				totalCost += cost
-			} else if remainingBudget >= 3 { // Simple 15 numbers
-				numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-				cost := lottery.CalculateGameCost(lottery.Lotofacil, len(numbers))
+
 				games = append(games, lottery.Game{
 					Type:    lottery.Lotofacil,
 					Numbers: numbers,
@@ -468,9 +466,38 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 		}
 	}
 
-	reasoning := fmt.Sprintf("Estratégia fallback gerada: %d jogos por R$ %.2f (%.1f%% do orçamento). "+
-		"Esta é uma estratégia básica gerada quando a análise avançada da IA falha.",
-		len(games), totalCost, (totalCost/budget)*100)
+	// Usar orçamento restante para Mega-Sena se disponível
+	for _, lotteryType := range request.Preferences.LotteryTypes {
+		if lotteryType == lottery.MegaSena {
+			remainingBudget := budget - totalCost
+			if remainingBudget >= 5.0 {
+				megaGamesCount := int(remainingBudget / 5.0) // Jogos simples de 6 números
+
+				logs.LogAI("🎰 Complementando com %d jogos de Mega-Sena (R$ %.2f)", megaGamesCount, float64(megaGamesCount)*5.0)
+
+				for i := 0; i < megaGamesCount && totalCost+5 <= budget; i++ {
+					numbers := generateMegaSenaNumbers(i)
+					cost := lottery.CalculateGameCost(lottery.MegaSena, len(numbers))
+
+					games = append(games, lottery.Game{
+						Type:    lottery.MegaSena,
+						Numbers: numbers,
+						Cost:    cost,
+					})
+					totalCost += cost
+				}
+			}
+		}
+	}
+
+	utilizationPercent := (totalCost / budget) * 100
+
+	reasoning := fmt.Sprintf("Estratégia fallback matematicamente otimizada: %d jogos por R$ %.2f (%.1f%% do orçamento). "+
+		"Análise matemática determinou que jogos de %s maximizam as combinações (%d combinações totais) para orçamento de R$ %.2f.",
+		len(games), totalCost, utilizationPercent, bestOption.description, maxCombinations, budget)
+
+	logs.LogAI("✅ Fallback INTELIGENTE: %d jogos, R$ %.2f (%.1f%% do orçamento), %d combinações totais",
+		len(games), totalCost, utilizationPercent, maxCombinations)
 
 	return lottery.AnalysisResponse{
 		Strategy: lottery.Strategy{
@@ -485,8 +512,105 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 				ColdNumbers:   []int{51, 52, 53, 54, 55, 56, 57, 58, 59, 60}, // Simple defaults
 			},
 		},
-		Confidence: 0.6, // Lower confidence for fallback
+		Confidence: 0.8, // Higher confidence for mathematically optimized fallback
 	}
+}
+
+// generateOptimizedLotofacilNumbers gera números de Lotofácil com quantidade otimizada
+func generateOptimizedLotofacilNumbers(count int, index int) []int {
+	// Números base distribuídos uniformemente
+	baseNumbers := []int{}
+	step := 25 / count
+
+	for i := 0; i < count; i++ {
+		num := (i * step) + 1 + (index % 3) // Adicionar variação baseada no índice
+		if num > 25 {
+			num = num%25 + 1
+		}
+		baseNumbers = append(baseNumbers, num)
+	}
+
+	// Garantir que temos exatamente a quantidade correta de números únicos
+	uniqueNumbers := make(map[int]bool)
+	result := []int{}
+
+	for _, num := range baseNumbers {
+		if !uniqueNumbers[num] && len(result) < count {
+			uniqueNumbers[num] = true
+			result = append(result, num)
+		}
+	}
+
+	// Completar se necessário
+	for num := 1; num <= 25 && len(result) < count; num++ {
+		if !uniqueNumbers[num] {
+			result = append(result, num)
+		}
+	}
+
+	return result
+}
+
+// generateLotofacilNumbers gera números de Lotofácil com variação baseada no índice
+func generateLotofacilNumbers(index int) []int {
+	baseNumbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+
+	// Aplicar variação baseada no índice para diversificar
+	offset := index % 10
+	for i := range baseNumbers {
+		baseNumbers[i] = ((baseNumbers[i] + offset - 1) % 25) + 1
+	}
+
+	// Garantir que temos exatamente 15 números únicos
+	uniqueNumbers := make(map[int]bool)
+	result := []int{}
+
+	for _, num := range baseNumbers {
+		if !uniqueNumbers[num] && len(result) < 15 {
+			uniqueNumbers[num] = true
+			result = append(result, num)
+		}
+	}
+
+	// Completar se necessário
+	for num := 1; num <= 25 && len(result) < 15; num++ {
+		if !uniqueNumbers[num] {
+			result = append(result, num)
+		}
+	}
+
+	return result
+}
+
+// generateMegaSenaNumbers gera números de Mega-Sena com variação baseada no índice
+func generateMegaSenaNumbers(index int) []int {
+	baseNumbers := []int{7, 15, 23, 35, 42, 58}
+
+	// Aplicar variação baseada no índice para diversificar
+	offset := index % 10
+	for i := range baseNumbers {
+		baseNumbers[i] = ((baseNumbers[i] + offset - 1) % 60) + 1
+	}
+
+	// Garantir que temos exatamente 6 números únicos
+	uniqueNumbers := make(map[int]bool)
+	result := []int{}
+
+	for _, num := range baseNumbers {
+		if !uniqueNumbers[num] && len(result) < 6 {
+			uniqueNumbers[num] = true
+			result = append(result, num)
+		}
+	}
+
+	// Completar se necessário
+	for num := 1; num <= 60 && len(result) < 6; num++ {
+		if !uniqueNumbers[num] {
+			result = append(result, num)
+		}
+	}
+
+	return result
 }
 
 // extractJSON extrai o primeiro JSON válido encontrado no texto
@@ -617,121 +741,70 @@ func min(a, b int) int {
 	return b
 }
 
-// buildAnalysisPrompt constrói o prompt para análise com ESTRATÉGIAS PROFISSIONAIS MUNDIAIS
-func (c *ClaudeClient) buildAnalysisPrompt(request lottery.AnalysisRequest) string {
+// BuildAnalysisPrompt constrói o prompt para análise com ESTRATÉGIAS PROFISSIONAIS MUNDIAIS
+func (c *ClaudeClient) BuildAnalysisPrompt(request lottery.AnalysisRequest) string {
 	budget := request.Preferences.Budget
 
 	// ANÁLISE ESTATÍSTICA RIGOROSA DOS DADOS HISTÓRICOS REAIS
 	statisticalAnalysis := c.analyzeHistoricalData(request.Draws, request.Preferences.LotteryTypes)
 
-	prompt := fmt.Sprintf(`Voce e um MATEMATICO ESPECIALISTA MUNDIAL em loterias, combinatoria avancada e teoria de jogos. Use as ESTRATEGIAS PROFISSIONAIS mais avancadas do mundo.
+	prompt := fmt.Sprintf(`Você é um especialista em loterias. Analise os dados históricos e gere uma estratégia otimizada.
 
-OBJETIVO: MAXIMIZAR matematicamente as chances REAIS de ganho para R$ %.2f usando tecnicas de ESPECIALISTAS MUNDIAIS.
+ORÇAMENTO DISPONÍVEL: R$ %.2f
+OBJETIVO: Maximizar probabilidade de ganho usando 85-95%% do orçamento.
 
-=== DADOS ESTATISTICOS REAIS ===
+=== DADOS HISTÓRICOS ===
 %s
 
-=== PRECOS OFICIAIS CAIXA (EXATOS) ===
-MEGA-SENA (PRECOS COMPLETOS):
-6 numeros → R$ 5,00     | 7 numeros → R$ 35,00    | 8 numeros → R$ 140,00
-9 numeros → R$ 420,00   | 10 numeros → R$ 1.050,00 | 11 numeros → R$ 2.310,00
-12 numeros → R$ 4.620,00 | 13 numeros → R$ 8.580,00 | 14 numeros → R$ 15.015,00
-15 numeros → R$ 25.025,00 | 16 numeros → R$ 40.040,00 | 17 numeros → R$ 61.880,00
-18 numeros → R$ 92.820,00 | 19 numeros → R$ 135.660,00 | 20 numeros → R$ 193.800,00
+=== REGRAS OBRIGATÓRIAS ===
 
-LOTOFACIL (PRECOS COMPLETOS):
-15 numeros → R$ 3,00      | 16 numeros → R$ 48,00     | 17 numeros → R$ 408,00
-18 numeros → R$ 2.448,00  | 19 numeros → R$ 11.628,00 | 20 numeros → R$ 46.512,00
+LOTOFÁCIL:
+- Mínimo: 15 números, Máximo: 20 números
+- Preços: 15 números = R$ 3,00 | 16 números = R$ 48,00 | 17 números = R$ 408,00 | 18 números = R$ 2.448,00 | 19 números = R$ 11.628,00 | 20 números = R$ 46.512,00
 
-ATENCAO CRITICA: Use EXATAMENTE estes valores no campo "cost" do JSON!
+MEGA-SENA:
+- Mínimo: 6 números, Máximo: 20 números  
+- Preços: 6 números = R$ 5,00 | 7 números = R$ 35,00 | 8 números = R$ 140,00 | 9 números = R$ 420,00 | 10 números = R$ 1.050,00 | 11 números = R$ 2.310,00
 
-=== ESTRATEGIA DE COBERTURA COMBINATORIAL ===
+ESTRATÉGIA:
+1. Use 85-95%% do orçamento total
+2. Priorize Lotofácil (mais eficiente)
+3. Escolha a quantidade de números que maximiza probabilidade
+4. Gere jogos com números baseados na análise histórica
 
-REGRA FUNDAMENTAL DE PRIORIZACAO:
-SEMPRE PRIORIZE LOTOFACIL! E 834x mais eficiente que Mega-Sena!
-
-**PARA ORCAMENTOS BAIXOS (R$50-150):**
-- OBRIGATORIO: 80-90%% do orcamento em Lotofacil (jogos de 15-16 numeros)
-- Maximo 1-2 jogos de Mega-Sena simples (6 numeros)
-- Use diversificacao de Hamming: distancia minima de 8 numeros entre jogos
-- Aplique TODOS os filtros matematicos
-
-**PARA ORCAMENTOS MEDIOS (R$150-500):**
-- OBRIGATORIO: 70-80%% do orcamento em Lotofacil (jogos de 16+ numeros)
-- Maximo 20-30%% em Mega-Sena (1-2 jogos maximo)
-- Implemente sistema de reducao basico
-- Use balanceamento por blocos numericos
-
-**PARA ORCAMENTOS ALTOS (R$500+):**
-- OBRIGATORIO: 60-70%% do orcamento em Lotofacil (sistemas de garantia)
-- Maximo 30-40%% em Mega-Sena (jogos de 7-8 numeros)
-- Implemente sistemas de garantia completos
-- Use matrizes de reducao profissionais
-- Estrategia de portfolio diversificado
-
-ESTRATEGIA OBRIGATORIA DE DISTRIBUICAO:
-- SEMPRE comece gerando jogos de Lotofacil primeiro
-- Use Mega-Sena apenas para complementar com orcamento restante
-- NUNCA gere mais jogos de Mega-Sena que de Lotofacil
-- A IA deve decidir livremente entre jogos baratos (15 numeros) ou caros (16+ numeros) baseado na eficiencia matematica
-
-=== SAIDA JSON OBRIGATORIA ===
-IMPORTANTE: Retorne APENAS o JSON valido, SEM texto adicional, SEM markdown, SEM backticks.
-Comece sua resposta diretamente com { e termine com }.
-
-FORMATO EXATO:
+FORMATO DE RESPOSTA (JSON apenas):
 {
   "strategy": {
     "budget": %.2f,
-    "totalCost": [SOMA EXATA DOS CUSTOS],
+    "totalCost": [CUSTO TOTAL - ENTRE 85-95%% DO ORÇAMENTO],
     "games": [
       {
-        "type": "megasena",
-        "numbers": [EXATAMENTE 6/7/8/9/10/11/12 NUMEROS UNICOS - NUNCA MENOS QUE 6!],
-        "cost": [CUSTO OFICIAL EXATO: 6numeros=5.00 | 7numeros=35.00 | 8numeros=140.00],
-        "filters": {
-          "sum": [SOMA DOS NUMEROS],
-          "evenOdd": "3p3i",
-          "decades": [DISTRIBUICAO],
-          "consecutives": [QUANTIDADE],
-          "endings": [TERMINACOES]
-        }
+        "type": "lotofacil",
+        "numbers": [15 A 20 NÚMEROS ÚNICOS DE 1 A 25],
+        "cost": [CUSTO EXATO]
       },
       {
-        "type": "lotofacil",
-        "numbers": [EXATAMENTE 15/16/17/18/19/20 NUMEROS UNICOS - NUNCA MENOS QUE 15!],
-        "cost": [CUSTO OFICIAL EXATO: 15numeros=3.00 | 16numeros=48.00 | 17numeros=408.00],
-        "filters": {
-          "sum": [SOMA DOS NUMEROS],
-          "evenOdd": "8p8i",
-          "decades": [DISTRIBUICAO],
-          "consecutives": [QUANTIDADE],
-          "endings": [TERMINACOES]
-        }
+        "type": "megasena", 
+        "numbers": [6 A 20 NÚMEROS ÚNICOS DE 1 A 60],
+        "cost": [CUSTO EXATO]
       }
     ],
-    "reasoning": "[EXPLICACAO DETALHADA da estrategia usada]",
-    "systemUsed": "[NOME DO SISTEMA usado]",
-    "expectedValue": [VALOR ESPERADO TOTAL],
-    "guarantees": "[O QUE O SISTEMA GARANTE]",
+    "reasoning": "Explicação da estratégia escolhida",
     "statistics": {
       "analyzedDraws": %.0f,
-      "hotNumbers": [NUMEROS MAIS FREQUENTES],
-      "coldNumbers": [NUMEROS MENOS FREQUENTES],
-      "regressionCandidates": [NUMEROS FRIOS QUE DEVEM SER INCLUIDOS]
+      "hotNumbers": [NÚMEROS MAIS FREQUENTES],
+      "coldNumbers": [NÚMEROS MENOS FREQUENTES]
     }
   },
-  "confidence": [0.88-0.95]
+  "confidence": 0.9
 }
 
-ATENCAO CRITICA: Use EXATAMENTE estes tipos:
-- Para Mega-Sena: "megasena" (SEM HIFEN!)
-- Para Lotofacil: "lotofacil" (SEM HIFEN!)
-
-ATENCAO: Use valores numericos SEM "R$" no campo "cost" (ex: 3.00, nao "R$3,00")
-ATENCAO: Use pontos decimais, nao virgulas (ex: 48.00, nao 48,00)
-
-Use SOMENTE os dados estatisticos fornecidos + filtros matematicos avancados. Esta e a estrategia de ESPECIALISTAS MUNDIAIS!`,
+IMPORTANTE:
+- Use "lotofacil" e "megasena" (sem hífen)
+- Números devem estar na faixa correta (1-25 para Lotofácil, 1-60 para Mega-Sena)
+- Quantidade de números deve estar no mínimo/máximo permitido
+- Custo deve usar pelo menos 85%% do orçamento
+- Retorne APENAS o JSON, sem texto adicional`,
 		budget, statisticalAnalysis, budget, float64(len(request.Draws)))
 
 	return prompt
@@ -852,10 +925,10 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 	}
 
 	analysis.WriteString("⚡ OTIMIZAÇÃO MATEMÁTICA:\n")
-	analysis.WriteString("• Lotofácil 16 números = 8.008 combinações por R$48 = 166.8 comb/real\n")
-	analysis.WriteString("• Mega-Sena 8 números = 28 combinações por R$140 = 0.2 comb/real\n")
-	analysis.WriteString("• ROI Lotofácil é 834x superior!\n")
-	analysis.WriteString("• ESTRATÉGIA ÓTIMA: Priorizar Lotofácil 16+ números\n\n")
+	analysis.WriteString("• Lotofácil 16 números = 16 combinações por R$48 = 0.33 comb/real\n")
+	analysis.WriteString("• Mega-Sena 8 números = 28 combinações por R$140 = 0.20 comb/real\n")
+	analysis.WriteString("• ROI Lotofácil é 1.67x superior!\n")
+	analysis.WriteString("• ESTRATÉGIA ÓTIMA: Priorizar Lotofácil para melhor custo-benefício\n\n")
 
 	return analysis.String()
 }

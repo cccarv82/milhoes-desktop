@@ -430,7 +430,7 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 	var failedLotteries []lottery.LotteryType
 
 	for _, ltype := range internalPrefs.LotteryTypes {
-		draws, err := a.dataClient.GetLatestDraws(ltype, 250)
+		draws, err := a.dataClient.GetLatestDraws(ltype, 250) // 250 sorteios POR LOTERIA
 		if err != nil {
 			failedLotteries = append(failedLotteries, ltype)
 			continue
@@ -439,6 +439,11 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 		allDraws = append(allDraws, draws...)
 		allRules = append(allRules, lottery.GetRules(ltype))
 		availableLotteries = append(availableLotteries, ltype)
+
+		// Log para confirmar quantos dados foram carregados por loteria
+		if config.IsVerbose() {
+			customLogger.Printf("✅ Carregados %d sorteios históricos de %s", len(draws), ltype)
+		}
 	}
 
 	// Implementar lógica de fallback
