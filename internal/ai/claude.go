@@ -185,110 +185,210 @@ func (c *ClaudeClient) AnalyzeStrategy(request lottery.AnalysisRequest) (*lotter
 		logs.LogError(logs.CategoryAI, "❌ Erro ao fazer parse do JSON: %v", err)
 		logs.LogAI("📄 JSON que falhou: %s", jsonContent)
 
+		// Tentar identificar o problema específico no JSON
+		if strings.Contains(err.Error(), "invalid character") {
+			logs.LogAI("🔍 Problema: JSON contém caracteres inválidos")
+		} else if strings.Contains(err.Error(), "unexpected end") {
+			logs.LogAI("🔍 Problema: JSON incompleto ou cortado")
+		} else if strings.Contains(err.Error(), "cannot unmarshal") {
+			logs.LogAI("🔍 Problema: Estrutura JSON não corresponde ao esperado")
+		}
+
+		// Verificar se o JSON extraído está vazio ou muito pequeno
+		if len(strings.TrimSpace(jsonContent)) < 50 {
+			logs.LogAI("⚠️ JSON extraído muito pequeno: '%s'", jsonContent)
+			logs.LogAI("📄 Resposta completa do Claude: %s", rawResponse)
+		}
+
 		// SEM FALLBACK! Retornar erro para o usuário tentar novamente
-		return nil, fmt.Errorf("erro no parsing da resposta do Claude - tente gerar novamente")
-	}
+		return nil, fmt.Errorf("erro no parsing da resposta do Claude - JSON inválido: %v", err)
+	} else {
+		// CORREÇÃO AUTOMÁTICA DE TIPOS DE LOTERIA INCORRETOS
+		for i := range analysisResp.Strategy.Games {
+			game := &analysisResp.Strategy.Games[i]
 
-	// Validate parsed strategy
-	if analysisResp.Strategy.Games == nil || len(analysisResp.Strategy.Games) == 0 {
-		logs.LogAI("⚠️ JSON parseado mas sem jogos válidos")
-		return nil, fmt.Errorf("estratégia inválida gerada pelo Claude - tente novamente")
-	}
-
-	// VALIDAÇÃO CRÍTICA: Verificar se todos os jogos têm números mínimos
-	for i, game := range analysisResp.Strategy.Games {
-		var minNumbers int
-		if game.Type == "lotofacil" {
-			minNumbers = 15
-		} else if game.Type == "megasena" {
-			minNumbers = 6
+			// Converter tipos incorretos que o Claude possa retornar
+			switch string(game.Type) {
+			case "mega-sena", "megasena", "Mega-Sena", "MEGASENA":
+				game.Type = lottery.MegaSena
+				logs.LogAI("🔧 CORRIGINDO TIPO: '%s' -> 'megasena'", string(game.Type))
+			case "loto-facil", "lotofacil", "Lotofácil", "LOTOFACIL":
+				game.Type = lottery.Lotofacil
+				logs.LogAI("🔧 CORRIGINDO TIPO: '%s' -> 'lotofacil'", string(game.Type))
+			}
 		}
 
-		if len(game.Numbers) < minNumbers {
-			logs.LogError(logs.CategoryAI, "❌ ERRO CRÍTICO: Jogo %d (%s) tem apenas %d números, mínimo é %d",
-				i+1, game.Type, len(game.Numbers), minNumbers)
-			logs.LogAI("🎲 Jogo inválido: %v", game.Numbers)
-			return nil, fmt.Errorf("IA gerou jogo inválido: %s com apenas %d números (mínimo: %d)",
-				game.Type, len(game.Numbers), minNumbers)
+		// VALIDAÇÃO CRÍTICA DE CUSTOS - Corrigir custos incorretos do Claude
+		totalCostRecalculated := 0.0
+		for i := range analysisResp.Strategy.Games {
+			game := &analysisResp.Strategy.Games[i]
+			correctCost := lottery.CalculateGameCost(game.Type, len(game.Numbers))
+
+			if game.Cost != correctCost {
+				logs.LogAI("🔧 CORRIGINDO CUSTO: %s com %d números - Claude retornou R$ %.2f, correto é R$ %.2f",
+					game.Type, len(game.Numbers), game.Cost, correctCost)
+				game.Cost = correctCost
+			}
+			totalCostRecalculated += game.Cost
 		}
 
-		logs.LogAI("✅ Jogo %d validado: %s com %d números", i+1, game.Type, len(game.Numbers))
-	}
+		// Atualizar custo total se necessário
+		if analysisResp.Strategy.TotalCost != totalCostRecalculated {
+			logs.LogAI("🔧 CORRIGINDO CUSTO TOTAL: Claude retornou R$ %.2f, correto é R$ %.2f",
+				analysisResp.Strategy.TotalCost, totalCostRecalculated)
+			analysisResp.Strategy.TotalCost = totalCostRecalculated
+		}
 
-	if !validateDiversification(analysisResp.Strategy.Games) {
-		logs.LogAI("🔄 Estratégia falhou na validação de diversificação, tentando novamente...")
+		// VALIDAÇÃO CRÍTICA DE PRIORIZAÇÃO LOTOFÁCIL
+		megaCount := 0
+		lotoCount := 0
+		megaCost := 0.0
+		lotoCost := 0.0
 
-		// Retry até 5 vezes mais para conseguir diversificação correta
-		maxRetries := 5
-		bestStrategy := analysisResp // Manter a melhor estratégia gerada
+		for _, game := range analysisResp.Strategy.Games {
+			if game.Type == lottery.MegaSena {
+				megaCount++
+				megaCost += game.Cost
+			} else if game.Type == lottery.Lotofacil {
+				lotoCount++
+				lotoCost += game.Cost
+			}
+		}
 
-		for retry := 0; retry < maxRetries; retry++ {
-			logs.LogAI("🔄 Tentativa %d/%d para diversificação correta...", retry+1, maxRetries)
+		// Verificar se está priorizando Lotofácil corretamente
+		if megaCount > lotoCount && lotoCount > 0 {
+			logs.LogAI("⚠️ ESTRATÉGIA INCORRETA: %d jogos Mega-Sena vs %d Lotofácil - CORRIGINDO!", megaCount, lotoCount)
 
-			// Gerar nova estratégia
-			newPrompt := c.buildAnalysisPrompt(request)
-			newClaudeReq := ClaudeRequest{
-				Model:     c.model,
-				MaxTokens: c.maxTokens,
-				Messages: []Message{
-					{
-						Role:    "user",
-						Content: newPrompt,
-					},
-				},
+			// Remover jogos de Mega-Sena em excesso, mantendo apenas 1-2
+			correctedGames := []lottery.Game{}
+			megaAdded := 0
+			maxMegaGames := 1
+			if request.Preferences.Budget > 150 {
+				maxMegaGames = 2
 			}
 
-			newReqBody, _ := json.Marshal(newClaudeReq)
-			newReq, _ := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(newReqBody))
-			newReq.Header.Set("Content-Type", "application/json")
-			newReq.Header.Set("x-api-key", c.apiKey)
-			newReq.Header.Set("anthropic-version", "2023-06-01")
-
-			newResp, err := c.httpClient.Do(newReq)
-			if err != nil {
-				continue
-			}
-			defer newResp.Body.Close()
-
-			if newResp.StatusCode != http.StatusOK {
-				continue
-			}
-
-			var newClaudeResp ClaudeResponse
-			if err := json.NewDecoder(newResp.Body).Decode(&newClaudeResp); err != nil {
-				continue
-			}
-
-			if len(newClaudeResp.Content) == 0 {
-				continue
-			}
-
-			newJsonContent := extractJSON(newClaudeResp.Content[0].Text)
-			var newAnalysisResp lottery.AnalysisResponse
-
-			if err := json.Unmarshal([]byte(newJsonContent), &newAnalysisResp); err == nil {
-				if validateDiversification(newAnalysisResp.Strategy.Games) {
-					logs.LogAI("✅ Diversificação correta conseguida na tentativa %d!", retry+1)
-					analysisResp = newAnalysisResp
-					break
-				} else {
-					// Manter a estratégia com melhor orçamento/qualidade
-					if newAnalysisResp.Strategy.TotalCost > bestStrategy.Strategy.TotalCost {
-						bestStrategy = newAnalysisResp
-						logs.LogAI("💡 Nova melhor estratégia encontrada: R$ %.2f", newAnalysisResp.Strategy.TotalCost)
-					}
+			// Adicionar todos os jogos de Lotofácil primeiro
+			for _, game := range analysisResp.Strategy.Games {
+				if game.Type == lottery.Lotofacil {
+					correctedGames = append(correctedGames, game)
 				}
 			}
+
+			// Adicionar apenas alguns jogos de Mega-Sena
+			for _, game := range analysisResp.Strategy.Games {
+				if game.Type == lottery.MegaSena && megaAdded < maxMegaGames {
+					correctedGames = append(correctedGames, game)
+					megaAdded++
+				}
+			}
+
+			// Recalcular custos
+			newTotalCost := 0.0
+			for _, game := range correctedGames {
+				newTotalCost += game.Cost
+			}
+
+			analysisResp.Strategy.Games = correctedGames
+			analysisResp.Strategy.TotalCost = newTotalCost
+
+			logs.LogAI("✅ ESTRATÉGIA CORRIGIDA: %d Lotofácil + %d Mega-Sena = R$ %.2f",
+				len(correctedGames)-megaAdded, megaAdded, newTotalCost)
+		} else {
+			logs.LogAI("✅ PRIORIZAÇÃO CORRETA: %d Lotofácil + %d Mega-Sena", lotoCount, megaCount)
 		}
 
-		// Se não conseguiu diversificação perfeita, usar a MELHOR estratégia do Claude
-		if !validateDiversification(analysisResp.Strategy.Games) {
-			logs.LogAI("💪 Usando MELHOR estratégia Claude (sem fallback!): R$ %.2f - Qualidade superior!", bestStrategy.Strategy.TotalCost)
-			analysisResp = bestStrategy
-			analysisResp.Confidence = analysisResp.Confidence * 0.9 // Reduzir confiança ligeiramente
+		// Validate parsed strategy
+		if analysisResp.Strategy.Games == nil || len(analysisResp.Strategy.Games) == 0 {
+			logs.LogAI("⚠️ JSON parseado mas sem jogos válidos")
+			return nil, fmt.Errorf("estratégia inválida gerada pelo Claude - tente novamente")
+		} else {
+			// VALIDAÇÃO DE DIVERSIFICAÇÃO CRÍTICA
+			if !validateDiversification(analysisResp.Strategy.Games) {
+				logs.LogAI("🔄 Estratégia falhou na validação de diversificação, tentando novamente...")
+
+				// Retry até 5 vezes mais para conseguir diversificação correta
+				maxRetries := 5
+				bestStrategy := analysisResp // Manter a melhor estratégia gerada
+
+				for retry := 0; retry < maxRetries; retry++ {
+					logs.LogAI("🔄 Tentativa %d/%d para diversificação correta...", retry+1, maxRetries)
+
+					// Gerar nova estratégia
+					newPrompt := c.buildAnalysisPrompt(request)
+					newClaudeReq := ClaudeRequest{
+						Model:     c.model,
+						MaxTokens: c.maxTokens,
+						Messages: []Message{
+							{
+								Role:    "user",
+								Content: newPrompt,
+							},
+						},
+					}
+
+					newReqBody, _ := json.Marshal(newClaudeReq)
+					newReq, _ := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(newReqBody))
+					newReq.Header.Set("Content-Type", "application/json")
+					newReq.Header.Set("x-api-key", c.apiKey)
+					newReq.Header.Set("anthropic-version", "2023-06-01")
+
+					newResp, err := c.httpClient.Do(newReq)
+					if err != nil {
+						continue
+					}
+					defer newResp.Body.Close()
+
+					if newResp.StatusCode != http.StatusOK {
+						continue
+					}
+
+					var newClaudeResp ClaudeResponse
+					if err := json.NewDecoder(newResp.Body).Decode(&newClaudeResp); err != nil {
+						continue
+					}
+
+					if len(newClaudeResp.Content) == 0 {
+						continue
+					}
+
+					newJsonContent := extractJSON(newClaudeResp.Content[0].Text)
+					var newAnalysisResp lottery.AnalysisResponse
+
+					if err := json.Unmarshal([]byte(newJsonContent), &newAnalysisResp); err == nil {
+						// Validar custos da nova estratégia também
+						newTotalCost := 0.0
+						for i := range newAnalysisResp.Strategy.Games {
+							game := &newAnalysisResp.Strategy.Games[i]
+							correctCost := lottery.CalculateGameCost(game.Type, len(game.Numbers))
+							game.Cost = correctCost
+							newTotalCost += game.Cost
+						}
+						newAnalysisResp.Strategy.TotalCost = newTotalCost
+
+						if validateDiversification(newAnalysisResp.Strategy.Games) {
+							logs.LogAI("✅ Diversificação correta conseguida na tentativa %d!", retry+1)
+							analysisResp = newAnalysisResp
+							break
+						} else {
+							// Manter a estratégia com melhor orçamento/qualidade
+							if newAnalysisResp.Strategy.TotalCost > bestStrategy.Strategy.TotalCost {
+								bestStrategy = newAnalysisResp
+								logs.LogAI("💡 Nova melhor estratégia encontrada: R$ %.2f", newAnalysisResp.Strategy.TotalCost)
+							}
+						}
+					}
+				}
+
+				// Se não conseguiu diversificação perfeita, usar a MELHOR estratégia do Claude
+				if !validateDiversification(analysisResp.Strategy.Games) {
+					logs.LogAI("💪 Usando MELHOR estratégia Claude (sem fallback!): R$ %.2f - Qualidade superior!", bestStrategy.Strategy.TotalCost)
+					analysisResp = bestStrategy
+					analysisResp.Confidence = analysisResp.Confidence * 0.9 // Reduzir confiança ligeiramente
+				}
+			} else {
+				logs.LogAI("✅ JSON parseado com sucesso: %d jogos gerados", len(analysisResp.Strategy.Games))
+			}
 		}
-	} else {
-		logs.LogAI("✅ JSON parseado com sucesso: %d jogos gerados", len(analysisResp.Strategy.Games))
 	}
 
 	if config.IsVerbose() {
@@ -310,50 +410,60 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 
 	// Generate simple games based on budget and preferences
 	for _, lotteryType := range request.Preferences.LotteryTypes {
-		if lotteryType == "megasena" && budget-totalCost >= 5 {
+		if lotteryType == lottery.MegaSena && budget-totalCost >= 5 {
 			remainingBudget := budget - totalCost
 
 			if remainingBudget >= 140 { // Can afford 8 numbers
+				numbers := []int{1, 7, 15, 23, 35, 42, 48, 58}
+				cost := lottery.CalculateGameCost(lottery.MegaSena, len(numbers))
 				games = append(games, lottery.Game{
-					Type:    "megasena",
-					Numbers: []int{1, 7, 15, 23, 35, 42, 48, 58}, // Simple fallback numbers
-					Cost:    140,
+					Type:    lottery.MegaSena,
+					Numbers: numbers,
+					Cost:    cost,
 				})
-				totalCost += 140
+				totalCost += cost
 			} else if remainingBudget >= 35 { // Can afford 7 numbers
+				numbers := []int{7, 15, 23, 35, 42, 48, 58}
+				cost := lottery.CalculateGameCost(lottery.MegaSena, len(numbers))
 				games = append(games, lottery.Game{
-					Type:    "megasena",
-					Numbers: []int{7, 15, 23, 35, 42, 48, 58}, // Simple fallback numbers
-					Cost:    35,
+					Type:    lottery.MegaSena,
+					Numbers: numbers,
+					Cost:    cost,
 				})
-				totalCost += 35
+				totalCost += cost
 			} else if remainingBudget >= 5 { // Simple 6 numbers
+				numbers := []int{7, 15, 23, 35, 42, 58}
+				cost := lottery.CalculateGameCost(lottery.MegaSena, len(numbers))
 				games = append(games, lottery.Game{
-					Type:    "megasena",
-					Numbers: []int{7, 15, 23, 35, 42, 58}, // Simple fallback numbers
-					Cost:    5,
+					Type:    lottery.MegaSena,
+					Numbers: numbers,
+					Cost:    cost,
 				})
-				totalCost += 5
+				totalCost += cost
 			}
 		}
 
-		if lotteryType == "lotofacil" && budget-totalCost >= 3 {
+		if lotteryType == lottery.Lotofacil && budget-totalCost >= 3 {
 			remainingBudget := budget - totalCost
 
 			if remainingBudget >= 48 { // Can afford 16 numbers
+				numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+				cost := lottery.CalculateGameCost(lottery.Lotofacil, len(numbers))
 				games = append(games, lottery.Game{
-					Type:    "lotofacil",
-					Numbers: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, // Simple fallback
-					Cost:    48,
+					Type:    lottery.Lotofacil,
+					Numbers: numbers,
+					Cost:    cost,
 				})
-				totalCost += 48
+				totalCost += cost
 			} else if remainingBudget >= 3 { // Simple 15 numbers
+				numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+				cost := lottery.CalculateGameCost(lottery.Lotofacil, len(numbers))
 				games = append(games, lottery.Game{
-					Type:    "lotofacil",
-					Numbers: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, // Simple fallback
-					Cost:    3,
+					Type:    lottery.Lotofacil,
+					Numbers: numbers,
+					Cost:    cost,
 				})
-				totalCost += 3
+				totalCost += cost
 			}
 		}
 	}
@@ -381,7 +491,30 @@ func (c *ClaudeClient) generateFallbackStrategy(request lottery.AnalysisRequest)
 
 // extractJSON extrai o primeiro JSON válido encontrado no texto
 func extractJSON(text string) string {
-	// Procurar pelo início do JSON
+	// Primeiro, tentar encontrar JSON entre ```json e ```
+	if start := strings.Index(text, "```json"); start != -1 {
+		start += len("```json")
+		if end := strings.Index(text[start:], "```"); end != -1 {
+			jsonContent := strings.TrimSpace(text[start : start+end])
+			logs.LogAI("🔍 JSON encontrado entre markdown: %s", jsonContent[:min(100, len(jsonContent))]+"...")
+			return jsonContent
+		}
+	}
+
+	// Segundo, tentar encontrar JSON entre ``` e ```
+	if start := strings.Index(text, "```"); start != -1 {
+		start += 3
+		if end := strings.Index(text[start:], "```"); end != -1 {
+			jsonContent := strings.TrimSpace(text[start : start+end])
+			// Verificar se parece com JSON
+			if strings.HasPrefix(jsonContent, "{") && strings.HasSuffix(jsonContent, "}") {
+				logs.LogAI("🔍 JSON encontrado entre markdown genérico: %s", jsonContent[:min(100, len(jsonContent))]+"...")
+				return jsonContent
+			}
+		}
+	}
+
+	// Terceiro, procurar pelo início do JSON usando contagem de chaves
 	start := -1
 	braceCount := 0
 
@@ -394,12 +527,35 @@ func extractJSON(text string) string {
 		} else if char == '}' {
 			braceCount--
 			if start != -1 && braceCount == 0 {
-				return text[start : i+1]
+				jsonContent := text[start : i+1]
+				logs.LogAI("🔍 JSON encontrado por contagem de chaves: %s", jsonContent[:min(100, len(jsonContent))]+"...")
+				return jsonContent
 			}
 		}
 	}
 
-	// Se não encontrou JSON válido, retorna o texto original
+	// Se não encontrou JSON válido, tentar extrair qualquer coisa que pareça JSON
+	lines := strings.Split(text, "\n")
+	var jsonLines []string
+	inJson := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "{") {
+			inJson = true
+			jsonLines = append(jsonLines, line)
+		} else if inJson {
+			jsonLines = append(jsonLines, line)
+			if strings.HasSuffix(trimmed, "}") && strings.Count(strings.Join(jsonLines, "\n"), "{") == strings.Count(strings.Join(jsonLines, "\n"), "}") {
+				jsonContent := strings.Join(jsonLines, "\n")
+				logs.LogAI("🔍 JSON encontrado por análise de linhas: %s", jsonContent[:min(100, len(jsonContent))]+"...")
+				return jsonContent
+			}
+		}
+	}
+
+	// Último recurso: retornar o texto original
+	logs.LogAI("⚠️ Nenhum JSON válido encontrado, retornando texto original")
 	return text
 }
 
@@ -476,8 +632,18 @@ func (c *ClaudeClient) buildAnalysisPrompt(request lottery.AnalysisRequest) stri
 %s
 
 === PREÇOS OFICIAIS CAIXA (EXATOS) ===
-MEGA-SENA: 6→R$5,00 | 7→R$35,00 | 8→R$140,00 | 9→R$420,00 | 10→R$1.050,00 | 11→R$2.310,00 | 12→R$4.620,00
-LOTOFÁCIL: 15→R$3,00 | 16→R$48,00 | 17→R$408,00 | 18→R$2.448,00 | 19→R$11.628,00 | 20→R$46.512,00
+🎰 MEGA-SENA (PREÇOS COMPLETOS):
+6 números → R$ 5,00     | 7 números → R$ 35,00    | 8 números → R$ 140,00
+9 números → R$ 420,00   | 10 números → R$ 1.050,00 | 11 números → R$ 2.310,00
+12 números → R$ 4.620,00 | 13 números → R$ 8.580,00 | 14 números → R$ 15.015,00
+15 números → R$ 25.025,00 | 16 números → R$ 40.040,00 | 17 números → R$ 61.880,00
+18 números → R$ 92.820,00 | 19 números → R$ 135.660,00 | 20 números → R$ 193.800,00
+
+🍀 LOTOFÁCIL (PREÇOS COMPLETOS):
+15 números → R$ 3,00      | 16 números → R$ 48,00     | 17 números → R$ 408,00
+18 números → R$ 2.448,00  | 19 números → R$ 11.628,00 | 20 números → R$ 46.512,00
+
+⚠️ ATENÇÃO CRÍTICA: Use EXATAMENTE estes valores no campo "cost" do JSON!
 
 === ANÁLISE DE VALOR ESPERADO PROFISSIONAL ===
 LOTOFÁCIL VALOR ESPERADO COMPLETO (incluindo prêmios secundários):
@@ -538,20 +704,33 @@ MEGA-SENA - SISTEMAS DE GARANTIA:
 
 === ESTRATÉGIA DE COBERTURA COMBINATORIAL ===
 
+🚨 REGRA FUNDAMENTAL DE PRIORIZAÇÃO:
+SEMPRE PRIORIZE LOTOFÁCIL! É 834x mais eficiente que Mega-Sena!
+
 **PARA ORÇAMENTOS BAIXOS (R$50-150):**
-- Foque em Lotofácil 16 números (melhor valor esperado)
+- OBRIGATÓRIO: 80-90% do orçamento em Lotofácil (jogos de 15-16 números)
+- Máximo 1-2 jogos de Mega-Sena simples (6 números)
 - Use diversificação de Hamming: distância mínima de 8 números entre jogos
 - Aplique TODOS os filtros matemáticos
 
 **PARA ORÇAMENTOS MÉDIOS (R$150-500):**
-- Sistema misto: 70%% Lotofácil + 30%% Mega-Sena
+- OBRIGATÓRIO: 70-80% do orçamento em Lotofácil (jogos de 16+ números)
+- Máximo 20-30% em Mega-Sena (1-2 jogos máximo)
 - Implemente sistema de redução básico
 - Use balanceamento por blocos numéricos
 
 **PARA ORÇAMENTOS ALTOS (R$500+):**
+- OBRIGATÓRIO: 60-70% do orçamento em Lotofácil (sistemas de garantia)
+- Máximo 30-40% em Mega-Sena (jogos de 7-8 números)
 - Implemente sistemas de garantia completos
 - Use matrizes de redução profissionais
 - Estratégia de portfólio diversificado
+
+🎯 ESTRATÉGIA OBRIGATÓRIA DE DISTRIBUIÇÃO:
+- SEMPRE comece gerando jogos de Lotofácil primeiro
+- Use Mega-Sena apenas para complementar com orçamento restante
+- NUNCA gere mais jogos de Mega-Sena que de Lotofácil
+- A IA deve decidir livremente entre jogos baratos (15 números) ou caros (16+ números) baseado na eficiência matemática
 
 === ALGORITMO DE SELEÇÃO PROFISSIONAL ===
 
@@ -580,16 +759,31 @@ MEGA-SENA - SISTEMAS DE GARANTIA:
 - Balanceie risco vs. retorno baseado no perfil do usuário
 
 === SAÍDA JSON OBRIGATÓRIA ===
-RETORNE APENAS JSON VÁLIDO (sem markdown):
+🚨 IMPORTANTE: Retorne APENAS o JSON válido, SEM texto adicional, SEM markdown, SEM backticks.
+Comece sua resposta diretamente com { e termine com }.
+
+FORMATO EXATO:
 {
   "strategy": {
     "budget": %.2f,
     "totalCost": [SOMA EXATA DOS CUSTOS],
     "games": [
       {
+        "type": "megasena",
+        "numbers": [EXATAMENTE 6/7/8/9/10/11/12 NÚMEROS ÚNICOS - NUNCA MENOS QUE 6!],
+        "cost": [CUSTO OFICIAL EXATO: 6números=5.00 | 7números=35.00 | 8números=140.00],
+        "filters": {
+          "sum": [SOMA DOS NÚMEROS],
+          "evenOdd": "3p3i",
+          "decades": [DISTRIBUIÇÃO],
+          "consecutives": [QUANTIDADE],
+          "endings": [TERMINAÇÕES]
+        }
+      },
+      {
         "type": "lotofacil",
         "numbers": [EXATAMENTE 15/16/17/18/19/20 NÚMEROS ÚNICOS - NUNCA MENOS QUE 15!],
-        "cost": [CUSTO OFICIAL EXATO: 15números=R$3,00 | 16números=R$48,00 | 17números=R$408,00],
+        "cost": [CUSTO OFICIAL EXATO: 15números=3.00 | 16números=48.00 | 17números=408.00],
         "filters": {
           "sum": [SOMA DOS NÚMEROS],
           "evenOdd": "8p8i",
@@ -613,6 +807,13 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
   "confidence": [0.88-0.95]
 }
 
+⚠️ ATENÇÃO CRÍTICA: Use EXATAMENTE estes tipos:
+- Para Mega-Sena: "megasena" (SEM HÍFEN!)
+- Para Lotofácil: "lotofacil" (SEM HÍFEN!)
+
+⚠️ ATENÇÃO: Use valores numéricos SEM "R$" no campo "cost" (ex: 3.00, não "R$3,00")
+⚠️ ATENÇÃO: Use pontos decimais, não vírgulas (ex: 48.00, não 48,00)
+
 🚨 VALIDAÇÕES CRÍTICAS OBRIGATÓRIAS:
 1. CADA número deve aparecer APENAS UMA VEZ por jogo
 2. LOTOFÁCIL: MÍNIMO 15 NÚMEROS OBRIGATÓRIO - NUNCA MENOS!
@@ -623,13 +824,6 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
 7. Distância de Hamming entre jogos ≥8
 8. Soma de cada jogo dentro da faixa histórica
 9. Distribuição balanceada por quadrantes/décadas
-
-🚨 VALIDAÇÃO FINAL OBRIGATÓRIA ANTES DE RETORNAR:
-ANTES de retornar o JSON, VERIFIQUE CADA JOGO:
-- Lotofácil: CONTE os números - deve ter EXATAMENTE 15, 16, 17, 18, 19 ou 20 números
-- Mega-Sena: CONTE os números - deve ter EXATAMENTE 6, 7, 8, 9, 10, 11 ou 12 números
-- SE algum jogo tiver menos números que o mínimo, ADICIONE números aleatórios válidos
-- NUNCA retorne um jogo com números insuficientes!
 
 Use SOMENTE os dados estatísticos fornecidos + filtros matemáticos avançados. Esta é a estratégia de ESPECIALISTAS MUNDIAIS!`,
 		budget, statisticalAnalysis, budget, len(request.Draws))
@@ -685,15 +879,14 @@ func (c *ClaudeClient) TestConnection() error {
 	return nil
 }
 
-// analyzeHistoricalData realiza análise estatística otimizada dos dados históricos REAIS
+// analyzeHistoricalData realiza análise estatística rigorosa dos dados históricos REAIS
 func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes []lottery.LotteryType) string {
 	if len(draws) == 0 {
 		return "ERRO: Nenhum dado histórico disponível para análise."
 	}
 
-	// OTIMIZAÇÃO: Limites ajustados para melhor base estatística
-	const maxMegaSenaDraws = 100  // ~1 ano de dados (2x por semana)
-	const maxLotofacilDraws = 250 // ~8 meses de dados (diário)
+	analysis := strings.Builder{}
+	analysis.WriteString(fmt.Sprintf("📊 ANÁLISE DE %d SORTEIOS REAIS:\n\n", len(draws)))
 
 	// Separar dados por tipo de loteria
 	megaDraws := []lottery.Draw{}
@@ -701,37 +894,29 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 
 	for _, draw := range draws {
 		numbers := draw.Numbers.ToIntSlice()
-		if len(numbers) == 6 && len(megaDraws) < maxMegaSenaDraws { // Mega-Sena
+		if len(numbers) == 6 { // Mega-Sena
 			megaDraws = append(megaDraws, draw)
-		} else if len(numbers) >= 15 && len(lotoDraws) < maxLotofacilDraws { // Lotofácil
+		} else if len(numbers) >= 15 { // Lotofácil
 			lotoDraws = append(lotoDraws, draw)
-		}
-
-		// Parar se já temos amostras suficientes de ambas
-		if len(megaDraws) >= maxMegaSenaDraws && len(lotoDraws) >= maxLotofacilDraws {
-			break
 		}
 	}
 
-	analysis := strings.Builder{}
-	analysis.WriteString(fmt.Sprintf("📊 ANÁLISE ESTATÍSTICA ROBUSTA:\n\n"))
-
 	// Analisar Mega-Sena
 	if len(megaDraws) > 0 {
-		analysis.WriteString("🎰 MEGA-SENA - ANÁLISE PROFUNDA:\n")
+		analysis.WriteString("🎰 MEGA-SENA - FREQUÊNCIAS REAIS:\n")
 		megaFreq := calculateNumberFrequency(megaDraws, 60)
-		megaHot, megaCold := getHotColdNumbers(megaFreq, 10) // Voltou para 10 com mais dados
+		megaHot, megaCold := getHotColdNumbers(megaFreq, 10)
 		megaSums := calculateSumDistribution(megaDraws)
 		megaPairs := calculatePairImparDistribution(megaDraws)
 		megaSumMin, megaSumMax := getMostCommonSumRange(megaSums)
 
-		analysis.WriteString(fmt.Sprintf("• Base estatística: %d sorteios (~1 ano)\n", len(megaDraws)))
-		analysis.WriteString(fmt.Sprintf("• Números quentes: %v\n", megaHot))
-		analysis.WriteString(fmt.Sprintf("• Números frios: %v\n", megaCold))
-		analysis.WriteString(fmt.Sprintf("• Faixa de soma ótima: %d-%d\n", megaSumMin, megaSumMax))
-		analysis.WriteString(fmt.Sprintf("• Distribuição pares: %.1f%%\n", megaPairs))
-		analysis.WriteString(fmt.Sprintf("• Dezenas por faixa:\n"))
-		analysis.WriteString(fmt.Sprintf("  - 01-15: %v\n", getNumbersInRange(megaHot, 1, 15)))
+		analysis.WriteString(fmt.Sprintf("• Sorteios analisados: %d\n", len(megaDraws)))
+		analysis.WriteString(fmt.Sprintf("• Números MAIS frequentes: %v\n", megaHot))
+		analysis.WriteString(fmt.Sprintf("• Números MENOS frequentes: %v\n", megaCold))
+		analysis.WriteString(fmt.Sprintf("• Soma mais comum: %d-%d\n", megaSumMin, megaSumMax))
+		analysis.WriteString(fmt.Sprintf("• Distribuição Par/Ímpar: %.1f%% pares\n", megaPairs))
+		analysis.WriteString(fmt.Sprintf("• Faixas por frequência:\n"))
+		analysis.WriteString(fmt.Sprintf("  - 1-15: %v\n", getNumbersInRange(megaHot, 1, 15)))
 		analysis.WriteString(fmt.Sprintf("  - 16-30: %v\n", getNumbersInRange(megaHot, 16, 30)))
 		analysis.WriteString(fmt.Sprintf("  - 31-45: %v\n", getNumbersInRange(megaHot, 31, 45)))
 		analysis.WriteString(fmt.Sprintf("  - 46-60: %v\n", getNumbersInRange(megaHot, 46, 60)))
@@ -740,31 +925,31 @@ func (c *ClaudeClient) analyzeHistoricalData(draws []lottery.Draw, lotteryTypes 
 
 	// Analisar Lotofácil
 	if len(lotoDraws) > 0 {
-		analysis.WriteString("🍀 LOTOFÁCIL - ANÁLISE PROFUNDA:\n")
+		analysis.WriteString("🍀 LOTOFÁCIL - FREQUÊNCIAS REAIS:\n")
 		lotoFreq := calculateNumberFrequency(lotoDraws, 25)
-		lotoHot, lotoCold := getHotColdNumbers(lotoFreq, 8) // Voltou para 8 com mais dados
+		lotoHot, lotoCold := getHotColdNumbers(lotoFreq, 8)
 		lotoSums := calculateSumDistribution(lotoDraws)
 		lotoPairs := calculatePairImparDistribution(lotoDraws)
 		lotoSumMin, lotoSumMax := getMostCommonSumRange(lotoSums)
 
-		analysis.WriteString(fmt.Sprintf("• Base estatística: %d sorteios (~8 meses)\n", len(lotoDraws)))
-		analysis.WriteString(fmt.Sprintf("• Números quentes: %v\n", lotoHot))
-		analysis.WriteString(fmt.Sprintf("• Números frios: %v\n", lotoCold))
-		analysis.WriteString(fmt.Sprintf("• Faixa de soma ótima: %d-%d\n", lotoSumMin, lotoSumMax))
-		analysis.WriteString(fmt.Sprintf("• Distribuição pares: %.1f%%\n", lotoPairs))
+		analysis.WriteString(fmt.Sprintf("• Sorteios analisados: %d\n", len(lotoDraws)))
+		analysis.WriteString(fmt.Sprintf("• Números MAIS frequentes: %v\n", lotoHot))
+		analysis.WriteString(fmt.Sprintf("• Números MENOS frequentes: %v\n", lotoCold))
+		analysis.WriteString(fmt.Sprintf("• Soma mais comum: %d-%d\n", lotoSumMin, lotoSumMax))
+		analysis.WriteString(fmt.Sprintf("• Distribuição Par/Ímpar: %.1f%% pares\n", lotoPairs))
 		analysis.WriteString(fmt.Sprintf("• Quadrantes por frequência:\n"))
-		analysis.WriteString(fmt.Sprintf("  - Q1 (01-06): %v\n", getNumbersInRange(lotoHot, 1, 6)))
-		analysis.WriteString(fmt.Sprintf("  - Q2 (07-12): %v\n", getNumbersInRange(lotoHot, 7, 12)))
+		analysis.WriteString(fmt.Sprintf("  - Q1 (1-6): %v\n", getNumbersInRange(lotoHot, 1, 6)))
+		analysis.WriteString(fmt.Sprintf("  - Q2 (7-12): %v\n", getNumbersInRange(lotoHot, 7, 12)))
 		analysis.WriteString(fmt.Sprintf("  - Q3 (13-18): %v\n", getNumbersInRange(lotoHot, 13, 18)))
 		analysis.WriteString(fmt.Sprintf("  - Q4 (19-25): %v\n", getNumbersInRange(lotoHot, 19, 25)))
 		analysis.WriteString("\n")
 	}
 
-	analysis.WriteString("⚡ ESTRATÉGIA OTIMIZADA BASEADA EM DADOS REAIS:\n")
-	analysis.WriteString("• Lotofácil: Priorizar sistema 16 números para melhor ROI\n")
-	analysis.WriteString("• Mega-Sena: Balancear números quentes e frios para cobertura\n")
-	analysis.WriteString("• Aplicar filtros matemáticos rigorosos em todas as combinações\n")
-	analysis.WriteString("• Usar distribuição por quadrantes/décadas conforme padrões históricos\n\n")
+	analysis.WriteString("⚡ OTIMIZAÇÃO MATEMÁTICA:\n")
+	analysis.WriteString("• Lotofácil 16 números = 8.008 combinações por R$48 = 166.8 comb/real\n")
+	analysis.WriteString("• Mega-Sena 8 números = 28 combinações por R$140 = 0.2 comb/real\n")
+	analysis.WriteString("• ROI Lotofácil é 834x superior!\n")
+	analysis.WriteString("• ESTRATÉGIA ÓTIMA: Priorizar Lotofácil 16+ números\n\n")
 
 	return analysis.String()
 }
@@ -901,7 +1086,7 @@ func validateDiversification(games []lottery.Game) bool {
 
 	// Filtrar apenas jogos Lotofácil
 	for _, game := range games {
-		if game.Type == "lotofacil" && len(game.Numbers) >= 15 {
+		if game.Type == lottery.Lotofacil && len(game.Numbers) >= 15 {
 			lotofacilGames = append(lotofacilGames, game)
 		}
 	}

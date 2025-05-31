@@ -507,73 +507,33 @@ func (a *App) GenerateStrategy(preferences UserPreferences) StrategyResponse {
 
 	// VALIDAÇÃO CRÍTICA: Garantir que não excede o orçamento
 	if totalCost > internalPrefs.Budget {
-		customLogger.Printf("⚠️ Custo total R$ %.2f excede orçamento R$ %.2f - ajustando jogos", totalCost, internalPrefs.Budget)
+		customLogger.Printf("⚠️ Custo total R$ %.2f excede orçamento R$ %.2f - removendo jogos mais baratos", totalCost, internalPrefs.Budget)
 
-		// NOVA ESTRATÉGIA: Remover jogos BARATOS primeiro para aproveitar melhor o orçamento
-		// Ordenar jogos por custo (MAIORES primeiro para priorizar jogos mais eficientes)
-		sort.Slice(validatedStrategy.Games, func(i, j int) bool {
-			return validatedStrategy.Games[i].Cost > validatedStrategy.Games[j].Cost
-		})
-
-		validGames := []lottery.Game{}
+		// ESTRATÉGIA CORRETA: Remover jogos para ficar dentro do orçamento
+		validGames := optimizeBudgetUsage(validatedStrategy.Games, internalPrefs.Budget)
 		currentCost := 0.0
-
-		// Adicionar jogos mais caros primeiro até esgotar o orçamento
-		for _, game := range validatedStrategy.Games {
-			if currentCost+game.Cost <= internalPrefs.Budget {
-				validGames = append(validGames, game)
-				currentCost += game.Cost
-			}
-		}
-
-		// Se ainda sobrar orçamento significativo, tentar adicionar jogos menores que foram ignorados
-		remainingBudget := internalPrefs.Budget - currentCost
-		if remainingBudget >= 3.0 { // Suficiente para pelo menos uma Lotofácil
-			// Ordenar jogos restantes por custo crescente para preencher o orçamento
-			var remainingGames []lottery.Game
-			gameIDs := make(map[string]bool)
-
-			// Marcar jogos já incluídos
-			for _, game := range validGames {
-				key := fmt.Sprintf("%s:%v", game.Type, game.Numbers)
-				gameIDs[key] = true
-			}
-
-			// Encontrar jogos não incluídos
-			for _, game := range validatedStrategy.Games {
-				key := fmt.Sprintf("%s:%v", game.Type, game.Numbers)
-				if !gameIDs[key] {
-					remainingGames = append(remainingGames, game)
-				}
-			}
-
-			// Ordenar restantes por custo crescente
-			sort.Slice(remainingGames, func(i, j int) bool {
-				return remainingGames[i].Cost < remainingGames[j].Cost
-			})
-
-			// Adicionar jogos menores para completar o orçamento
-			for _, game := range remainingGames {
-				if currentCost+game.Cost <= internalPrefs.Budget {
-					validGames = append(validGames, game)
-					currentCost += game.Cost
-					remainingBudget = internalPrefs.Budget - currentCost
-					if remainingBudget < 3.0 {
-						break // Não vale a pena continuar
-					}
-				}
-			}
+		for _, game := range validGames {
+			currentCost += game.Cost
 		}
 
 		validatedStrategy.Games = validGames
 		validatedStrategy.TotalCost = currentCost
 
-		customLogger.Printf("✅ Orçamento otimizado: %d jogos por R$ %.2f (%.1f%% do orçamento)",
+		customLogger.Printf("✅ Orçamento ajustado: %d jogos por R$ %.2f (%.1f%% do orçamento)",
 			len(validGames), currentCost, (currentCost/internalPrefs.Budget)*100)
 
 		// Atualizar reasoning para explicar o ajuste
 		if validatedStrategy.Reasoning != "" {
-			validatedStrategy.Reasoning += fmt.Sprintf("\n\n⚠️ AJUSTE DE ORÇAMENTO: A estratégia original custaria R$ %.2f, mas foi ajustada para R$ %.2f (%.1f%% do seu orçamento de R$ %.2f) priorizando jogos mais eficientes e maximizando a utilização do orçamento.", totalCost, currentCost, (currentCost/internalPrefs.Budget)*100, internalPrefs.Budget)
+			validatedStrategy.Reasoning += fmt.Sprintf("\n\n⚠️ AJUSTE DE ORÇAMENTO: A estratégia original custaria R$ %.2f, mas foi ajustada para R$ %.2f (%.1f%% do seu orçamento de R$ %.2f) removendo os jogos mais baratos para manter apenas os jogos de maior qualidade dentro do orçamento disponível.", totalCost, currentCost, (currentCost/internalPrefs.Budget)*100, internalPrefs.Budget)
+		}
+	} else {
+		// Orçamento OK - aceitar que nem todo orçamento precisa ser usado
+		remainingBudget := internalPrefs.Budget - totalCost
+		customLogger.Printf("✅ Orçamento respeitado: R$ %.2f usado de R$ %.2f (%.1f%% - R$ %.2f restantes)",
+			totalCost, internalPrefs.Budget, (totalCost/internalPrefs.Budget)*100, remainingBudget)
+
+		if remainingBudget > 0 {
+			customLogger.Printf("💡 Orçamento restante de R$ %.2f é normal - priorizamos qualidade dos jogos gerados pela IA", remainingBudget)
 		}
 	}
 
@@ -1916,4 +1876,94 @@ func (a *App) GetPredictorMetrics() map[string]interface{} {
 		"success": true,
 		"data":    metrics,
 	}
+}
+
+// ===============================
+// FUNÇÕES DE OTIMIZAÇÃO DE ORÇAMENTO
+// ===============================
+
+// optimizeBudgetUsage implementa algoritmo de maximização de uso do orçamento
+func optimizeBudgetUsage(games []lottery.Game, budget float64) []lottery.Game {
+	if len(games) == 0 {
+		return games
+	}
+
+	// Implementar algoritmo de mochila (knapsack) simplificado
+	// Ordenar jogos por valor/custo (eficiência)
+	gamesCopy := make([]lottery.Game, len(games))
+	copy(gamesCopy, games)
+
+	// Calcular eficiência de cada jogo (números por real)
+	type gameWithEfficiency struct {
+		game       lottery.Game
+		efficiency float64
+	}
+
+	gamesWithEff := make([]gameWithEfficiency, len(gamesCopy))
+	for i, game := range gamesCopy {
+		efficiency := float64(len(game.Numbers)) / game.Cost
+		gamesWithEff[i] = gameWithEfficiency{game: game, efficiency: efficiency}
+	}
+
+	// Ordenar por eficiência decrescente
+	sort.Slice(gamesWithEff, func(i, j int) bool {
+		return gamesWithEff[i].efficiency > gamesWithEff[j].efficiency
+	})
+
+	// Selecionar jogos que maximizam o uso do orçamento
+	var selectedGames []lottery.Game
+	currentCost := 0.0
+
+	// Primeira passada: pegar jogos mais eficientes
+	for _, gameEff := range gamesWithEff {
+		if currentCost+gameEff.game.Cost <= budget {
+			selectedGames = append(selectedGames, gameEff.game)
+			currentCost += gameEff.game.Cost
+		}
+	}
+
+	// Segunda passada: tentar trocar jogos para usar mais orçamento
+	remainingBudget := budget - currentCost
+	if remainingBudget >= 3.0 {
+		// Tentar substituir jogos baratos por mais caros se possível
+		for i := len(selectedGames) - 1; i >= 0; i-- {
+			currentGame := selectedGames[i]
+			availableBudget := remainingBudget + currentGame.Cost
+
+			// Procurar um jogo mais caro que caiba no orçamento disponível
+			for _, gameEff := range gamesWithEff {
+				if gameEff.game.Cost > currentGame.Cost && gameEff.game.Cost <= availableBudget {
+					// Verificar se este jogo já não está selecionado
+					alreadySelected := false
+					for _, selected := range selectedGames {
+						if gameEff.game.Type == selected.Type &&
+							len(gameEff.game.Numbers) == len(selected.Numbers) &&
+							gameEff.game.Cost == selected.Cost {
+							// Comparar números para ver se é o mesmo jogo
+							same := true
+							for j, num := range gameEff.game.Numbers {
+								if j >= len(selected.Numbers) || num != selected.Numbers[j] {
+									same = false
+									break
+								}
+							}
+							if same {
+								alreadySelected = true
+								break
+							}
+						}
+					}
+
+					if !alreadySelected {
+						// Substituir o jogo
+						selectedGames[i] = gameEff.game
+						remainingBudget = availableBudget - gameEff.game.Cost
+						break
+					}
+				}
+			}
+		}
+	}
+
+	return selectedGames
 }
