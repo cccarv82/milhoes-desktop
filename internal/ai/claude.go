@@ -624,142 +624,59 @@ func (c *ClaudeClient) buildAnalysisPrompt(request lottery.AnalysisRequest) stri
 	// ANÁLISE ESTATÍSTICA RIGOROSA DOS DADOS HISTÓRICOS REAIS
 	statisticalAnalysis := c.analyzeHistoricalData(request.Draws, request.Preferences.LotteryTypes)
 
-	prompt := fmt.Sprintf(`Você é um MATEMÁTICO ESPECIALISTA MUNDIAL em loterias, combinatória avançada e teoria de jogos. Use as ESTRATÉGIAS PROFISSIONAIS mais avançadas do mundo.
+	prompt := fmt.Sprintf(`Voce e um MATEMATICO ESPECIALISTA MUNDIAL em loterias, combinatoria avancada e teoria de jogos. Use as ESTRATEGIAS PROFISSIONAIS mais avancadas do mundo.
 
-🎯 OBJETIVO: MAXIMIZAR matematicamente as chances REAIS de ganho para R$ %.2f usando técnicas de ESPECIALISTAS MUNDIAIS.
+OBJETIVO: MAXIMIZAR matematicamente as chances REAIS de ganho para R$ %.2f usando tecnicas de ESPECIALISTAS MUNDIAIS.
 
-=== DADOS ESTATÍSTICOS REAIS ===
+=== DADOS ESTATISTICOS REAIS ===
 %s
 
-=== PREÇOS OFICIAIS CAIXA (EXATOS) ===
-🎰 MEGA-SENA (PREÇOS COMPLETOS):
-6 números → R$ 5,00     | 7 números → R$ 35,00    | 8 números → R$ 140,00
-9 números → R$ 420,00   | 10 números → R$ 1.050,00 | 11 números → R$ 2.310,00
-12 números → R$ 4.620,00 | 13 números → R$ 8.580,00 | 14 números → R$ 15.015,00
-15 números → R$ 25.025,00 | 16 números → R$ 40.040,00 | 17 números → R$ 61.880,00
-18 números → R$ 92.820,00 | 19 números → R$ 135.660,00 | 20 números → R$ 193.800,00
+=== PRECOS OFICIAIS CAIXA (EXATOS) ===
+MEGA-SENA (PRECOS COMPLETOS):
+6 numeros → R$ 5,00     | 7 numeros → R$ 35,00    | 8 numeros → R$ 140,00
+9 numeros → R$ 420,00   | 10 numeros → R$ 1.050,00 | 11 numeros → R$ 2.310,00
+12 numeros → R$ 4.620,00 | 13 numeros → R$ 8.580,00 | 14 numeros → R$ 15.015,00
+15 numeros → R$ 25.025,00 | 16 numeros → R$ 40.040,00 | 17 numeros → R$ 61.880,00
+18 numeros → R$ 92.820,00 | 19 numeros → R$ 135.660,00 | 20 numeros → R$ 193.800,00
 
-🍀 LOTOFÁCIL (PREÇOS COMPLETOS):
-15 números → R$ 3,00      | 16 números → R$ 48,00     | 17 números → R$ 408,00
-18 números → R$ 2.448,00  | 19 números → R$ 11.628,00 | 20 números → R$ 46.512,00
+LOTOFACIL (PRECOS COMPLETOS):
+15 numeros → R$ 3,00      | 16 numeros → R$ 48,00     | 17 numeros → R$ 408,00
+18 numeros → R$ 2.448,00  | 19 numeros → R$ 11.628,00 | 20 numeros → R$ 46.512,00
 
-⚠️ ATENÇÃO CRÍTICA: Use EXATAMENTE estes valores no campo "cost" do JSON!
+ATENCAO CRITICA: Use EXATAMENTE estes valores no campo "cost" do JSON!
 
-=== ANÁLISE DE VALOR ESPERADO PROFISSIONAL ===
-LOTOFÁCIL VALOR ESPERADO COMPLETO (incluindo prêmios secundários):
-• 15 números: -R$0,85 por jogo (melhor relação custo/benefício)
-• 16 números: -R$12,80 por jogo MAS 16x mais chances de 14 pontos
-• 17 números: Garantia matemática de pelo menos 11 pontos
+=== ESTRATEGIA DE COBERTURA COMBINATORIAL ===
 
-MEGA-SENA VALOR ESPERADO:
-• 6 números: -R$2,50 por jogo
-• 7 números: -R$17,50 MAS 7x mais chances de quadra/quina
-• 8 números: -R$70,00 MAS 28x mais chances + cobertura sistêmica
+REGRA FUNDAMENTAL DE PRIORIZACAO:
+SEMPRE PRIORIZE LOTOFACIL! E 834x mais eficiente que Mega-Sena!
 
-ESTRATÉGIA PROFISSIONAL: Priorizar Lotofácil para ROI, Mega-Sena para prêmios que mudam a vida.
+**PARA ORCAMENTOS BAIXOS (R$50-150):**
+- OBRIGATORIO: 80-90%% do orcamento em Lotofacil (jogos de 15-16 numeros)
+- Maximo 1-2 jogos de Mega-Sena simples (6 numeros)
+- Use diversificacao de Hamming: distancia minima de 8 numeros entre jogos
+- Aplique TODOS os filtros matematicos
 
-=== SISTEMAS DE REDUÇÃO PROFISSIONAIS (WHEELING) ===
-LOTOFÁCIL - SISTEMAS DE GARANTIA:
-• Sistema 18x15: 18 números em 3 jogos de 16 → GARANTE 13 pontos se sair 15
-• Sistema 20x15: 20 números em 4 jogos de 16 → GARANTE 14 pontos se sair 15  
-• Sistema 22x15: 22 números em 6 jogos de 16 → GARANTE 15 pontos se sair 15
+**PARA ORCAMENTOS MEDIOS (R$150-500):**
+- OBRIGATORIO: 70-80%% do orcamento em Lotofacil (jogos de 16+ numeros)
+- Maximo 20-30%% em Mega-Sena (1-2 jogos maximo)
+- Implemente sistema de reducao basico
+- Use balanceamento por blocos numericos
 
-MEGA-SENA - SISTEMAS DE GARANTIA:
-• Sistema 9x6: 9 números em 7 jogos de 6 → GARANTE terno se sair quadra
-• Sistema 10x6: 10 números em 10 jogos de 6 → GARANTE quadra se sair quina
-• Sistema 12x6: 12 números em 22 jogos de 6 → GARANTE quina se sair sena
-
-=== FILTROS MATEMÁTICOS AVANÇADOS (OBRIGATÓRIOS) ===
-
-🚨 NÚMEROS MÍNIMOS OBRIGATÓRIOS (CRÍTICO):
-• LOTOFÁCIL: SEMPRE 15, 16, 17, 18, 19 ou 20 números (NUNCA MENOS QUE 15!)
-• MEGA-SENA: SEMPRE 6, 7, 8, 9, 10, 11 ou 12 números (NUNCA MENOS QUE 6!)
-
-1. **FILTRO DE SOMA INTELIGENTE:**
-   - Lotofácil: somas entre 170-210 (80%% dos sorteios históricos)
-   - Mega-Sena: somas entre 140-200 (75%% dos sorteios históricos)
-   - REJEITE jogos fora dessa faixa estatística!
-
-2. **FILTRO DE PARIDADE BALANCEADA:**
-   - Lotofácil 16 números: 8 pares + 8 ímpares (±1)
-   - Mega-Sena 6 números: 3 pares + 3 ímpares (±1)
-   - NUNCA faça jogos com mais de 70%% de uma paridade!
-
-3. **FILTRO DE DÉCADAS/QUADRANTES:**
-   - Distribua números por TODAS as faixas
-   - Lotofácil: pelo menos 2 números em cada quadrante (1-6, 7-12, 13-18, 19-25)
-   - Mega-Sena: pelo menos 1 número em cada década (1-10, 11-20, 21-30, 31-40, 41-50, 51-60)
-
-4. **FILTRO DE CONSECUTIVOS MATEMÁTICO:**
-   - Máximo 2 números consecutivos por jogo
-   - EVITE sequências tipo: 1,2,3,4,5,6 ou 10,11,12,13
-
-5. **FILTRO DE TERMINAÇÕES:**
-   - Máximo 2 números com mesma terminação (ex: 1,11,21)
-   - Distribua terminações 0-9 uniformemente
-
-6. **FILTRO DE REPETIÇÕES HISTÓRICAS:**
-   - EVITE reproduzir exatamente jogos já sorteados
-   - Use pelo menos 50%% de números diferentes do último sorteio
-
-=== ESTRATÉGIA DE COBERTURA COMBINATORIAL ===
-
-🚨 REGRA FUNDAMENTAL DE PRIORIZAÇÃO:
-SEMPRE PRIORIZE LOTOFÁCIL! É 834x mais eficiente que Mega-Sena!
-
-**PARA ORÇAMENTOS BAIXOS (R$50-150):**
-- OBRIGATÓRIO: 80-90% do orçamento em Lotofácil (jogos de 15-16 números)
-- Máximo 1-2 jogos de Mega-Sena simples (6 números)
-- Use diversificação de Hamming: distância mínima de 8 números entre jogos
-- Aplique TODOS os filtros matemáticos
-
-**PARA ORÇAMENTOS MÉDIOS (R$150-500):**
-- OBRIGATÓRIO: 70-80% do orçamento em Lotofácil (jogos de 16+ números)
-- Máximo 20-30% em Mega-Sena (1-2 jogos máximo)
-- Implemente sistema de redução básico
-- Use balanceamento por blocos numéricos
-
-**PARA ORÇAMENTOS ALTOS (R$500+):**
-- OBRIGATÓRIO: 60-70% do orçamento em Lotofácil (sistemas de garantia)
-- Máximo 30-40% em Mega-Sena (jogos de 7-8 números)
+**PARA ORCAMENTOS ALTOS (R$500+):**
+- OBRIGATORIO: 60-70%% do orcamento em Lotofacil (sistemas de garantia)
+- Maximo 30-40%% em Mega-Sena (jogos de 7-8 numeros)
 - Implemente sistemas de garantia completos
-- Use matrizes de redução profissionais
-- Estratégia de portfólio diversificado
+- Use matrizes de reducao profissionais
+- Estrategia de portfolio diversificado
 
-🎯 ESTRATÉGIA OBRIGATÓRIA DE DISTRIBUIÇÃO:
-- SEMPRE comece gerando jogos de Lotofácil primeiro
-- Use Mega-Sena apenas para complementar com orçamento restante
-- NUNCA gere mais jogos de Mega-Sena que de Lotofácil
-- A IA deve decidir livremente entre jogos baratos (15 números) ou caros (16+ números) baseado na eficiência matemática
+ESTRATEGIA OBRIGATORIA DE DISTRIBUICAO:
+- SEMPRE comece gerando jogos de Lotofacil primeiro
+- Use Mega-Sena apenas para complementar com orcamento restante
+- NUNCA gere mais jogos de Mega-Sena que de Lotofacil
+- A IA deve decidir livremente entre jogos baratos (15 numeros) ou caros (16+ numeros) baseado na eficiencia matematica
 
-=== ALGORITMO DE SELEÇÃO PROFISSIONAL ===
-
-1. **ANÁLISE DE TENDÊNCIA REGRESSIVA:**
-   - Números "frios" têm probabilidade crescente (Lei dos Grandes Números)
-   - Balanceie 60%% números frequentes + 40%% números devidos
-
-2. **MATRIZ DE DISTÂNCIA HAMMING:**
-   Para cada par de jogos (A,B): distância = |A ⊕ B| ≥ 8
-   - Jogo 1: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
-   - Jogo 2: [1,2,3,4,17,18,19,20,21,22,23,24,25,14,15,16] (8 diferentes)
-   - Jogo 3: [9,10,11,12,17,18,19,20,5,6,7,8,23,24,25,13] (8+ diferentes)
-
-3. **VALIDAÇÃO MULTI-FILTRO:**
-   CADA jogo deve passar TODOS os filtros:
-   ✓ Soma dentro da faixa histórica
-   ✓ Paridade balanceada (±1)
-   ✓ Distribuição por quadrantes
-   ✓ Máximo 2 consecutivos
-   ✓ Máximo 2 mesmas terminações
-   ✓ Distância Hamming ≥8 de outros jogos
-
-=== ESTRATÉGIA FINANCEIRA OTIMIZADA ===
-- Use 95-98%% do orçamento (máxima eficiência)
-- Priorize sistemas que garantem prêmios menores
-- Balanceie risco vs. retorno baseado no perfil do usuário
-
-=== SAÍDA JSON OBRIGATÓRIA ===
-🚨 IMPORTANTE: Retorne APENAS o JSON válido, SEM texto adicional, SEM markdown, SEM backticks.
+=== SAIDA JSON OBRIGATORIA ===
+IMPORTANTE: Retorne APENAS o JSON valido, SEM texto adicional, SEM markdown, SEM backticks.
 Comece sua resposta diretamente com { e termine com }.
 
 FORMATO EXATO:
@@ -770,63 +687,52 @@ FORMATO EXATO:
     "games": [
       {
         "type": "megasena",
-        "numbers": [EXATAMENTE 6/7/8/9/10/11/12 NÚMEROS ÚNICOS - NUNCA MENOS QUE 6!],
-        "cost": [CUSTO OFICIAL EXATO: 6números=5.00 | 7números=35.00 | 8números=140.00],
+        "numbers": [EXATAMENTE 6/7/8/9/10/11/12 NUMEROS UNICOS - NUNCA MENOS QUE 6!],
+        "cost": [CUSTO OFICIAL EXATO: 6numeros=5.00 | 7numeros=35.00 | 8numeros=140.00],
         "filters": {
-          "sum": [SOMA DOS NÚMEROS],
+          "sum": [SOMA DOS NUMEROS],
           "evenOdd": "3p3i",
-          "decades": [DISTRIBUIÇÃO],
+          "decades": [DISTRIBUICAO],
           "consecutives": [QUANTIDADE],
-          "endings": [TERMINAÇÕES]
+          "endings": [TERMINACOES]
         }
       },
       {
         "type": "lotofacil",
-        "numbers": [EXATAMENTE 15/16/17/18/19/20 NÚMEROS ÚNICOS - NUNCA MENOS QUE 15!],
-        "cost": [CUSTO OFICIAL EXATO: 15números=3.00 | 16números=48.00 | 17números=408.00],
+        "numbers": [EXATAMENTE 15/16/17/18/19/20 NUMEROS UNICOS - NUNCA MENOS QUE 15!],
+        "cost": [CUSTO OFICIAL EXATO: 15numeros=3.00 | 16numeros=48.00 | 17numeros=408.00],
         "filters": {
-          "sum": [SOMA DOS NÚMEROS],
+          "sum": [SOMA DOS NUMEROS],
           "evenOdd": "8p8i",
-          "decades": [DISTRIBUIÇÃO],
+          "decades": [DISTRIBUICAO],
           "consecutives": [QUANTIDADE],
-          "endings": [TERMINAÇÕES]
+          "endings": [TERMINACOES]
         }
       }
     ],
-    "reasoning": "[EXPLICAÇÃO DETALHADA: quais filtros aplicou, qual sistema de redução usou, como garantiu a cobertura combinatorial, qual o valor esperado calculado, estratégia de diversificação. Mínimo 200 palavras com dados específicos.]",
-    "systemUsed": "[NOME DO SISTEMA: Ex: 'Sistema 20x15', 'Wheeling 9x6', 'Filtros Matemáticos Completos']",
-    "expectedValue": [VALOR ESPERADO TOTAL DA ESTRATÉGIA],
-    "guarantees": "[O QUE O SISTEMA GARANTE: Ex: 'Garante 14 pontos se sair 15 na Lotofácil']",
+    "reasoning": "[EXPLICACAO DETALHADA da estrategia usada]",
+    "systemUsed": "[NOME DO SISTEMA usado]",
+    "expectedValue": [VALOR ESPERADO TOTAL],
+    "guarantees": "[O QUE O SISTEMA GARANTE]",
     "statistics": {
-      "analyzedDraws": %d,
-      "hotNumbers": [NÚMEROS MAIS FREQUENTES],
-      "coldNumbers": [NÚMEROS MENOS FREQUENTES - ESTES TÊM MAIOR PROBABILIDADE!],
-      "regressionCandidates": [NÚMEROS FRIOS QUE DEVEM SER INCLUÍDOS]
+      "analyzedDraws": %.0f,
+      "hotNumbers": [NUMEROS MAIS FREQUENTES],
+      "coldNumbers": [NUMEROS MENOS FREQUENTES],
+      "regressionCandidates": [NUMEROS FRIOS QUE DEVEM SER INCLUIDOS]
     }
   },
   "confidence": [0.88-0.95]
 }
 
-⚠️ ATENÇÃO CRÍTICA: Use EXATAMENTE estes tipos:
-- Para Mega-Sena: "megasena" (SEM HÍFEN!)
-- Para Lotofácil: "lotofacil" (SEM HÍFEN!)
+ATENCAO CRITICA: Use EXATAMENTE estes tipos:
+- Para Mega-Sena: "megasena" (SEM HIFEN!)
+- Para Lotofacil: "lotofacil" (SEM HIFEN!)
 
-⚠️ ATENÇÃO: Use valores numéricos SEM "R$" no campo "cost" (ex: 3.00, não "R$3,00")
-⚠️ ATENÇÃO: Use pontos decimais, não vírgulas (ex: 48.00, não 48,00)
+ATENCAO: Use valores numericos SEM "R$" no campo "cost" (ex: 3.00, nao "R$3,00")
+ATENCAO: Use pontos decimais, nao virgulas (ex: 48.00, nao 48,00)
 
-🚨 VALIDAÇÕES CRÍTICAS OBRIGATÓRIAS:
-1. CADA número deve aparecer APENAS UMA VEZ por jogo
-2. LOTOFÁCIL: MÍNIMO 15 NÚMEROS OBRIGATÓRIO - NUNCA MENOS!
-3. MEGA-SENA: MÍNIMO 6 NÚMEROS OBRIGATÓRIO - NUNCA MENOS!
-4. TODOS os filtros matemáticos devem ser aplicados
-5. Valor esperado deve ser calculado corretamente
-6. Sistema de redução deve ser identificado
-7. Distância de Hamming entre jogos ≥8
-8. Soma de cada jogo dentro da faixa histórica
-9. Distribuição balanceada por quadrantes/décadas
-
-Use SOMENTE os dados estatísticos fornecidos + filtros matemáticos avançados. Esta é a estratégia de ESPECIALISTAS MUNDIAIS!`,
-		budget, statisticalAnalysis, budget, len(request.Draws))
+Use SOMENTE os dados estatisticos fornecidos + filtros matematicos avancados. Esta e a estrategia de ESPECIALISTAS MUNDIAIS!`,
+		budget, statisticalAnalysis, budget, float64(len(request.Draws)))
 
 	return prompt
 }
