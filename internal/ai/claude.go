@@ -748,7 +748,24 @@ func (c *ClaudeClient) buildAnalysisPrompt(request lottery.AnalysisRequest) stri
 	// ANÁLISE ESTATÍSTICA RIGOROSA DOS DADOS HISTÓRICOS REAIS
 	statisticalAnalysis := c.analyzeHistoricalData(request.Draws, request.Preferences.LotteryTypes)
 
-	prompt := fmt.Sprintf(`Você é um MATEMÁTICO ESPECIALISTA MUNDIAL em loterias, combinatória avançada e teoria de jogos. Use as ESTRATÉGIAS PROFISSIONAIS mais avançadas do mundo.
+	prompt := fmt.Sprintf(`🚨 REGRA FUNDAMENTAL #1 - UTILIZAÇÃO OBRIGATÓRIA DO ORÇAMENTO:
+DEVE usar MÍNIMO 90%% do orçamento disponível (OBRIGATÓRIO!)
+IDEAL: 95-98%% de utilização para máxima eficiência
+Orçamento R$ %.2f = DEVE gastar R$ %.2f - R$ %.2f
+ESTRATÉGIAS com menos de 90%% são INVÁLIDAS e REJEITADAS!
+
+🧮 CÁLCULO OBRIGATÓRIO PRIMEIRO (FAÇA ANTES DE TUDO):
+1. Calcule quantos jogos de cada tipo cabem no orçamento
+2. Priorize combinações que maximizem a utilização
+3. NUNCA deixe mais de 10%% do orçamento sem usar
+4. Para R$ %.2f: mínimo R$ %.2f deve ser gasto!
+
+EXEMPLOS PRÁTICOS PARA R$ %.2f:
+• Opção A: 10 jogos Lotofácil 16 números = 10 × R$48 = R$480 (96%%)
+• Opção B: 1 jogo 17 números (R$408) + 1 jogo 16 números (R$48) + jogos 15 números = ~R$475
+• Opção C: 8 jogos 16 números (R$384) + 30 jogos 15 números (R$90) = R$474 (95%%)
+
+Você é um MATEMÁTICO ESPECIALISTA MUNDIAL em loterias, combinatória avançada e teoria de jogos. Use as ESTRATÉGIAS PROFISSIONAIS mais avançadas do mundo.
 
 🎯 OBJETIVO: MAXIMIZAR matematicamente as chances REAIS de ganho para R$ %.2f usando técnicas de ESPECIALISTAS MUNDIAIS.
 
@@ -832,6 +849,7 @@ MEGA-SENA - SISTEMAS DE GARANTIA:
 - Implemente sistemas de garantia completos
 - Use matrizes de redução profissionais
 - Estratégia de portfólio diversificado
+- OBRIGATÓRIO: Use 95-98%% do orçamento total!
 
 === ALGORITMO DE SELEÇÃO PROFISSIONAL ===
 
@@ -855,16 +873,18 @@ MEGA-SENA - SISTEMAS DE GARANTIA:
    ✓ Distância Hamming ≥8 de outros jogos
 
 === ESTRATÉGIA FINANCEIRA OTIMIZADA ===
-- Use 95-98%% do orçamento (máxima eficiência)
+🚨 CRÍTICO: Use 95-98%% do orçamento (máxima eficiência)
 - Priorize sistemas que garantem prêmios menores
 - Balanceie risco vs. retorno baseado no perfil do usuário
+- VALIDAÇÃO OBRIGATÓRIA: totalCost ≥ 90%% do budget
 
 === SAÍDA JSON OBRIGATÓRIA ===
 RETORNE APENAS JSON VÁLIDO (sem markdown):
 {
   "strategy": {
     "budget": %.2f,
-    "totalCost": [SOMA EXATA DOS CUSTOS],
+    "totalCost": [SOMA EXATA DOS CUSTOS - MÍNIMO %.2f],
+    "budgetUtilization": [PERCENTUAL DE UTILIZAÇÃO - MÍNIMO 90%%],
     "games": [
       {
         "type": "lotofacil",
@@ -879,7 +899,7 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
         }
       }
     ],
-    "reasoning": "[EXPLICAÇÃO DETALHADA: quais filtros aplicou, qual sistema de redução usou, como garantiu a cobertura combinatorial, qual o valor esperado calculado, estratégia de diversificação. Mínimo 200 palavras com dados específicos.]",
+    "reasoning": "[EXPLICAÇÃO DETALHADA: quais filtros aplicou, qual sistema de redução usou, como garantiu a cobertura combinatorial, qual o valor esperado calculado, estratégia de diversificação, COMO UTILIZOU 95-98%% DO ORÇAMENTO. Mínimo 200 palavras com dados específicos.]",
     "systemUsed": "[NOME DO SISTEMA: Ex: 'Sistema 20x15', 'Wheeling 9x6', 'Filtros Matemáticos Completos']",
     "expectedValue": [VALOR ESPERADO TOTAL DA ESTRATÉGIA],
     "guarantees": "[O QUE O SISTEMA GARANTE: Ex: 'Garante 14 pontos se sair 15 na Lotofácil']",
@@ -903,9 +923,10 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
 7. Distância de Hamming entre jogos ≥8
 8. Soma de cada jogo dentro da faixa histórica
 9. Distribuição balanceada por quadrantes/décadas
+10. 🚨 UTILIZAÇÃO MÍNIMA 90%% DO ORÇAMENTO - OBRIGATÓRIO!
 
 Use SOMENTE os dados estatísticos fornecidos + filtros matemáticos avançados. Esta é a estratégia de ESPECIALISTAS MUNDIAIS!`,
-		budget, statisticalAnalysis, budget, len(request.Draws))
+		budget, budget*0.90, budget*0.98, budget, budget*0.90, budget, budget, statisticalAnalysis, budget, budget*0.90, len(request.Draws))
 
 	return prompt
 }
